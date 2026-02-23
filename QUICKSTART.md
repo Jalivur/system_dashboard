@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v2.7
+# 🚀 Inicio Rápido - Dashboard v2.8
 
 ---
 
@@ -40,7 +40,7 @@ python3 main.py
 
 ---
 
-## 🎯 Menú Principal (13 botones)
+## 🎯 Menú Principal (14 botones)
 
 ```
 ┌───────────────────────────────────┐
@@ -59,15 +59,15 @@ python3 main.py
 │  Histórico      │  Actualizaciones │
 │  Datos          │                  │
 ├─────────────────┼──────────────────┤
-│  Cambiar Tema   │  Reiniciar       │
+│  Homebridge     │  Cambiar Tema    │
 ├─────────────────┼──────────────────┤
-│  Salir          │                  │
+│  Reiniciar      │  Salir           │
 └─────────────────┴──────────────────┘
 ```
 
 ---
 
-## 🖥️ Las 13 Ventanas
+## 🖥️ Las 14 Ventanas
 
 **1. Monitor Placa** — CPU, RAM y temperatura en tiempo real (status en header)
 
@@ -89,11 +89,13 @@ python3 main.py
 
 **10. Actualizaciones** — Estado de paquetes, instalar con terminal integrada
 
-**11. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
+**11. Homebridge** — Control de enchufes e interruptores HomeKit, toggle táctil por dispositivo
 
-**12. Reiniciar** — Reinicia el dashboard aplicando cambios de código
+**12. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
 
-**13. Salir** — Salir de la app o apagar el sistema
+**13. Reiniciar** — Reinicia el dashboard aplicando cambios de código
+
+**14. Salir** — Salir de la app o apagar el sistema
 
 > **Todas las ventanas** incluyen header unificado con título, status en tiempo real y botón ✕ táctil (52×42px) optimizado para pantalla DSI.
 
@@ -113,6 +115,23 @@ LAUNCHERS = [
     {"label": "Mi Script", "script": str(SCRIPTS_DIR / "mi_script.sh")},
 ]
 ```
+
+---
+
+## 🏠 Configurar Homebridge
+
+Crea el archivo `.env` en la raíz del proyecto (cópialo desde `.env.example`):
+
+```env
+HOMEBRIDGE_HOST=192.168.1.X    # IP de la Pi con Homebridge
+HOMEBRIDGE_PORT=8581
+HOMEBRIDGE_USER=admin
+HOMEBRIDGE_PASS=tu_contraseña
+```
+
+> **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`). Sin él, la API no permite acceder a los accesorios.
+
+El panel Homebridge del dashboard muestra los accesorios en grid de 2 columnas. Cada botón muestra el nombre del dispositivo, un indicador ● de color (on/off) y permite hacer toggle con un toque. Si un dispositivo tiene `StatusFault=1` aparece ⚠ en rojo.
 
 ---
 
@@ -137,15 +156,19 @@ grep ERROR data/logs/dashboard.log
 | NVMe temp 0 | `sudo apt install smartmontools` |
 | Speedtest falla | Instalar CLI Ookla: `sudo apt install speedtest` |
 | USB no expulsa | `sudo apt install udisks2` |
+| Homebridge no conecta | Revisar `.env` y activar Insecure Mode en Homebridge |
+| Badge hb_offline siempre rojo | Comprobar conectividad entre Pis y `HOMEBRIDGE_HOST` |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
 
-## 🆕 Novedades v2.7
+## 🆕 Novedades v2.8
 
-✅ **Header unificado** — Todas las ventanas con título + status + botón ✕ táctil 52×42px  
-✅ **Status en tiempo real** — CPU/RAM/Temp, Disco/NVMe, interfaz/velocidades en el header  
-✅ **Speedtest Ookla CLI** — CLI oficial con resultados en MB/s reales  
+✅ **Integración Homebridge** — Ventana de control de accesorios HomeKit (enchufes e interruptores)  
+✅ **HomebridgeMonitor** — Sondeo ligero en background cada 30s, JWT con renovación automática  
+✅ **3 badges Homebridge** — offline 🔴, enchufes encendidos 🟠, dispositivos con fallo 🔴  
+✅ **Toggle táctil** — Activa/desactiva cada dispositivo directamente desde la pantalla DSI  
+✅ **Configuración `.env`** — Credenciales separadas del código fuente  
 
 ---
 
@@ -157,4 +180,4 @@ grep ERROR data/logs/dashboard.log
 
 ---
 
-**Dashboard v2.7** 🚀✨
+**Dashboard v2.8** 🚀🏠✨

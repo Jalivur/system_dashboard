@@ -1,4 +1,4 @@
-# 📚 Índice de Documentación - System Dashboard v2.7
+# 📚 Índice de Documentación - System Dashboard v2.8
 
 Guía completa de toda la documentación del proyecto actualizada.
 
@@ -8,7 +8,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ### **Para Empezar:**
 1. **[README.md](README.md)** ⭐  
-   Documentación completa del proyecto v2.7. **Empieza aquí.**
+   Documentación completa del proyecto v2.8. **Empieza aquí.**
 
 2. **[QUICKSTART.md](QUICKSTART.md)** ⚡  
    Instalación y ejecución en 5 minutos.
@@ -75,6 +75,20 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ---
 
+### 🏠 **Homebridge**
+
+**Configuración rápida** — Ver sección en [QUICKSTART.md](QUICKSTART.md) y [README.md](README.md):
+- Crear `.env` con IP, puerto, usuario y contraseña
+- Activar Insecure Mode en Homebridge
+- Verificar conectividad entre Pis
+
+**Arquitectura**:
+- `core/homebridge_monitor.py` — Sondeo, JWT, caché en memoria
+- `ui/windows/homebridge.py` — Ventana con grid de accesorios
+- Badges `hb_offline`, `hb_on`, `hb_fault` en `ui/main_window.py`
+
+---
+
 ### 🏗️ **Arquitectura**
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** (si existe)  
@@ -98,9 +112,9 @@ Guía completa de toda la documentación del proyecto actualizada.
 ### 💡 **Ideas y Expansión**
 
 **[IDEAS_EXPANSION.md](IDEAS_EXPANSION.md)**  
-- ✅ Funcionalidades implementadas (Procesos, Servicios, Histórico, Badges, Header unificado)
-- 🔄 En evaluación (Docker, GPU)
-- 💭 Ideas futuras (Alertas, Automatización)
+- ✅ Funcionalidades implementadas (Procesos, Servicios, Histórico, Badges, Header, Homebridge)
+- 🔄 En evaluación (Docker, Homebridge extendido, Alertas)
+- 💭 Ideas futuras (Automatización, API REST)
 - Roadmap v3.0
 
 ---
@@ -109,6 +123,8 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ### **Configuración:**
 - `requirements.txt` - Dependencias Python
+- `.env` - Credenciales Homebridge (NO en git)
+- `.env.example` - Plantilla de configuración
 - `install.sh` - Script de instalación automática
 - `config/settings.py` - Configuración global
 - `config/themes.py` - Definición de 15 temas
@@ -123,11 +139,11 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ---
 
-## 🗂️ Estructura de Documentos v2.7
+## 🗂️ Estructura de Documentos v2.8
 
 ```
 📚 Documentación/
-├── README.md                    ⭐ Documento principal v2.7
+├── README.md                    ⭐ Documento principal v2.8
 ├── QUICKSTART.md                ⚡ Inicio rápido
 ├── INDEX.md                     📑 Este archivo
 ├── INSTALL_GUIDE.md             🔧 Instalación
@@ -149,14 +165,14 @@ Guía completa de toda la documentación del proyecto actualizada.
 1. README.md - Leer sección "Características"
 2. QUICKSTART.md - Instalar y ejecutar
 3. THEMES_GUIDE.md - Personalizar colores
-4. Explorar las 13 ventanas del dashboard 🎉
+4. Explorar las 14 ventanas del dashboard 🎉
 
 ### **Usuario Avanzado:**
 1. README.md completo
 2. PROCESS_MONITOR_GUIDE.md - Gestión avanzada
 3. SERVICE_MONITOR_GUIDE.md - Control de servicios
 4. HISTORICO_DATOS_GUIDE.md - Análisis de datos
-5. Personalizar configuración
+5. QUICKSTART.md sección Homebridge - Control de accesorios HomeKit
 
 ### **Desarrollador:**
 1. ARCHITECTURE.md - Estructura del proyecto
@@ -177,6 +193,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 - **Ver histórico** → HISTORICO_DATOS_GUIDE.md
 - **Configurar ventiladores** → FAN_CONTROL_GUIDE.md
 - **Integrar con OLED** → INTEGRATION_GUIDE.md
+- **Configurar Homebridge** → QUICKSTART.md sección Homebridge
 - **Añadir nueva ventana con header** → `ui/styles.py` → `make_window_header()`
 - **Añadir funciones** → ARCHITECTURE.md + IDEAS_EXPANSION.md
 
@@ -187,28 +204,44 @@ Guía completa de toda la documentación del proyecto actualizada.
 - **Speedtest falla** → README.md sección "Instalación Manual" (CLI Ookla)
 - **Base de datos crece** → HISTORICO_DATOS_GUIDE.md
 - **Servicios no se gestionan** → SERVICE_MONITOR_GUIDE.md
+- **Homebridge no conecta** → QUICKSTART.md sección Homebridge / README.md Troubleshooting
 - **Otro problema** → README.md sección "Troubleshooting"
 
 ---
 
-## 📊 Estadísticas del Proyecto v2.7
+## 📊 Estadísticas del Proyecto v2.8
 
-- **Archivos Python**: 41
-- **Líneas de código**: ~12,500
-- **Ventanas**: 13 ventanas funcionales
+- **Archivos Python**: 43
+- **Líneas de código**: ~13,000
+- **Ventanas**: 14 ventanas funcionales
 - **Temas**: 15 temas pre-configurados
 - **Documentos**: 12 guías
-- **Servicios background**: 3 (FanAuto + DataCollection + Cleanup)
+- **Servicios background**: 4 (FanAuto + DataCollection + Cleanup + Homebridge)
+- **Badges en menú**: 9
 
 ---
 
-## 🆕 Novedades en v2.7
+## 🆕 Novedades en v2.8
 
 ### **Funcionalidades Nuevas:**
-- ✅ **Header unificado** `make_window_header()` en todas las ventanas
-- ✅ **Status dinámico** en tiempo real integrado en el header
-- ✅ **Botón ✕ táctil** (52×42px) optimizado para DSI sin teclado
-- ✅ **Speedtest Ookla CLI** oficial (JSON, MB/s reales)
+- ✅ **Integración Homebridge** — Control de enchufes e interruptores HomeKit desde el dashboard
+- ✅ **HomebridgeMonitor** — Sondeo background cada 30s, JWT con renovación automática
+- ✅ **HomebridgeWindow** — Grid táctil de 2 columnas con toggle por dispositivo
+- ✅ **3 badges Homebridge** — offline 🔴, enchufes ON 🟠, fallo 🔴
+- ✅ **Configuración `.env`** — Credenciales fuera del código fuente
+
+---
+
+## 📊 Evolución de la Documentación
+
+| Versión | Documentos | Características |
+|---------|------------|-----------------|
+| **v1.0** | 8 | Básico |
+| **v2.0** | 10 | + Procesos, Temas |
+| **v2.5** | 12 | + Servicios, Histórico |
+| **v2.6** | 12 | + Badges, CleanupService |
+| **v2.7** | 12 | + Header unificado, Speedtest Ookla |
+| **v2.8** | 12 | + Homebridge, 9 badges ⭐ |
 
 ---
 
@@ -234,33 +267,9 @@ Guía completa de toda la documentación del proyecto actualizada.
 | **Procesos** | [PROCESS_MONITOR_GUIDE.md](PROCESS_MONITOR_GUIDE.md) |
 | **Servicios** | [SERVICE_MONITOR_GUIDE.md](SERVICE_MONITOR_GUIDE.md) |
 | **Histórico** | [HISTORICO_DATOS_GUIDE.md](HISTORICO_DATOS_GUIDE.md) |
+| **Homebridge** | [QUICKSTART.md#homebridge](QUICKSTART.md#-configurar-homebridge) |
 | **Troubleshooting** | [README.md#troubleshooting](README.md#troubleshooting) |
 | **Ideas Futuras** | [IDEAS_EXPANSION.md](IDEAS_EXPANSION.md) |
-
----
-
-## 🎯 Guías de Implementación
-
-Si quieres implementar funciones nuevas, tenemos guías paso a paso:
-
-| Función | Guía | Dificultad |
-|---------|------|------------|
-| **Monitor de Procesos** | PROCESS_MONITOR_GUIDE.md | Media |
-| **Monitor de Servicios** | SERVICE_MONITOR_GUIDE.md | Media |
-| **Histórico de Datos** | HISTORICO_DATOS_GUIDE.md | Alta |
-| **Nueva ventana con header** | `ui/styles.py` → `make_window_header()` | Baja |
-
----
-
-## 📈 Evolución de la Documentación
-
-| Versión | Documentos | Páginas | Características |
-|---------|------------|---------|-----------------|
-| **v1.0** | 8 | ~50 | Básico |
-| **v2.0** | 10 | ~80 | + Procesos, Temas |
-| **v2.5** | 12 | ~120 | + Servicios, Histórico |
-| **v2.6** | 12 | ~130 | + Badges, CleanupService |
-| **v2.7** | 12 | ~140 | + Header unificado, Speedtest Ookla ⭐ |
 
 ---
 

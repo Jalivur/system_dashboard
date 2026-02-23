@@ -1,4 +1,4 @@
-# 💡 Ideas de Expansión - Dashboard v2.7
+# 💡 Ideas de Expansión - Dashboard v2.8
 
 ---
 
@@ -131,6 +131,25 @@
 
 ---
 
+### ~~**12. Integración Homebridge**~~ ✅ Implementado en v2.8
+**Implementado en v2.8**
+- ✅ `HomebridgeMonitor` en `core/` — singleton, daemon thread, sondeo cada 30s
+- ✅ Autenticación JWT con renovación automática en 401
+- ✅ Lectura desde caché en memoria para badges (sin peticiones HTTP adicionales)
+- ✅ `toggle()` fuerza sondeo inmediato tras el comando
+- ✅ Ventana `HomebridgeWindow` con grid de 2 columnas estilo Lanzadores
+- ✅ Indicador ● color por dispositivo (on/off), ⚠ rojo si `StatusFault=1`
+- ✅ Soporte para accesorios con característica HomeKit `On` (enchufes e interruptores)
+- ✅ 3 badges en el botón "Homebridge" del menú:
+  - `hb_offline` 🔴 — Homebridge sin conexión
+  - `hb_on` 🟠 — N enchufes encendidos
+  - `hb_fault` 🔴 — N dispositivos con StatusFault=1
+- ✅ `_reachable = None` al arrancar → badges no aparecen hasta primera consulta real
+- ✅ Configuración por `.env` — credenciales fuera del código
+- ✅ Dependencia `python-dotenv>=1.0.0` con fallback manual si no está instalada
+
+---
+
 ## 🔄 En Evaluación
 
 ### **Monitor de Contenedores Docker**
@@ -142,6 +161,17 @@
 - Estadísticas de uso por contenedor (CPU, RAM)
 - Ver puertos expuestos
 - Similar a `docker ps` y `docker stats` pero visual
+
+---
+
+### **Soporte Homebridge extendido**
+**Prioridad**: Media  
+**Complejidad**: Baja-Media
+
+- Termostatos (característica `CurrentTemperature`, `TargetTemperature`)
+- Sensores de temperatura/humedad (solo lectura)
+- Persianas y estores (característica `CurrentPosition`)
+- Luces con brillo (`Brightness`)
 
 ---
 
@@ -183,7 +213,6 @@
 - ✅ 8 gráficas en Histórico (Red, Disco, PWM añadidas)
 - ✅ Zoom y navegación en gráficas
 - ✅ Fix bug atexit en DataCollectionService
-- ✅ Paso correcto de dependencias (update_monitor inyectado)
 
 ### **v2.6** ✅ — 2026-02-22
 - ✅ Badges de notificación visual en menú principal (6 badges, 5 botones)
@@ -191,16 +220,24 @@
 - ✅ Fan control: entries con placeholder en lugar de sliders
 - ✅ Inyección de dependencias profesional (CleanupService → HistoryWindow)
 
-### **v2.7** ✅ ACTUAL — 2026-02-23
+### **v2.7** ✅ — 2026-02-23
 - ✅ Header unificado `make_window_header()` en todas las ventanas
 - ✅ Status dinámico en tiempo real en el header
 - ✅ Botón ✕ táctil 52×42px para pantalla DSI
 - ✅ Speedtest migrado a CLI oficial de Ookla (JSON, MB/s reales)
 
+### **v2.8** ✅ ACTUAL — 2026-02-23
+- ✅ Integración Homebridge completa
+- ✅ HomebridgeMonitor con JWT, sondeo 30s, caché en memoria
+- ✅ HomebridgeWindow con toggle táctil en grid 2 columnas
+- ✅ 3 badges Homebridge en menú principal
+- ✅ Configuración por .env (credenciales seguras)
+
 ### **v3.0** (Futuro)
 - [ ] Alertas externas (Telegram/webhook)
 - [ ] API REST básica
 - [ ] Monitor Docker (si aplica)
+- [ ] Soporte Homebridge extendido (termostatos, sensores, persianas)
 
 ---
 
@@ -215,10 +252,12 @@
 | Logging y observabilidad | ✅ 100% |
 | Notificaciones visuales internas | ✅ 100% |
 | UI unificada y táctil | ✅ 100% |
+| Integración Homebridge (enchufes/interruptores) | ✅ 100% |
+| Homebridge extendido (termostatos, sensores) | ⏳ 0% |
 | Alertas externas | ⏳ 0% |
 | Docker | ⏳ 0% |
 | Automatización | ⏳ 0% |
 
 ---
 
-**Versión actual**: v2.7 — **Última actualización**: 2026-02-23
+**Versión actual**: v2.8 — **Última actualización**: 2026-02-23

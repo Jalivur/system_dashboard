@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v2.7
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v2.8
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema y logging completo.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge y logging completo.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-2.7-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.8-orange.svg)]()
 
 ---
 
@@ -35,6 +35,16 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Lista de IPs**: Todas las interfaces con iconos por tipo
 - **Speedtest integrado**: CLI oficial de Ookla (JSON nativo, resultados en MB/s reales)
 - **Status en header**: interfaz activa + velocidades actuales
+
+### 🏠 **Integración Homebridge**
+- **Control de accesorios HomeKit**: Enchufes e interruptores desde el dashboard
+- **Toggle táctil**: Activa/desactiva cada dispositivo directamente en pantalla
+- **Indicador visual**: ● color por dispositivo, ⚠ rojo si `StatusFault=1`
+- **Sondeo ligero en background**: Cada 30 segundos sin bloquear la UI
+- **Autenticación JWT** con renovación automática en 401
+- **3 badges en el menú**: offline (🔴), enchufes encendidos (🟠), dispositivos con fallo (🔴)
+- **Configuración por `.env`**: IP, puerto, usuario y contraseña de Homebridge
+- Requiere **Insecure Mode** activado en Homebridge para acceder a accesorios
 
 ### ⚙️ **Monitor de Procesos**
 - **Lista en tiempo real**: Top 20 procesos con CPU/RAM
@@ -91,13 +101,15 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Con confirmación**: Evita acciones accidentales
 
 ### 🔔 **Badges de Notificación Visual**
-- **6 badges** en el menú principal con alertas en tiempo real
+- **9 badges** en el menú principal con alertas en tiempo real
 - **Temperatura**: naranja >60°C, rojo >70°C (Control Ventiladores + Monitor Placa)
 - **CPU y RAM**: naranja >75%, rojo >90% (Monitor Placa)
 - **Disco**: naranja >80%, rojo >90% (Monitor Disco)
 - **Servicios fallidos**: rojo con contador (Monitor Servicios)
 - **Actualizaciones pendientes**: naranja con contador (Actualizaciones)
-- Texto dinámico: muestra el valor real (temperatura en °C, porcentaje)
+- **Homebridge offline**: rojo si sin conexión
+- **Enchufes encendidos**: naranja con contador de dispositivos ON
+- **Dispositivos con fallo**: rojo si `StatusFault=1`
 
 ### 🧹 **Limpieza Automática**
 - **CleanupService**: servicio background singleton
@@ -178,7 +190,24 @@ python3 main.py
 
 ---
 
-## 󰍜 Menú Principal (13 botones)
+## 🏠 Configuración de Homebridge
+
+La integración con Homebridge requiere un archivo `.env` en la raíz del proyecto:
+
+```env
+HOMEBRIDGE_HOST=192.168.1.X    # IP de la Raspberry Pi con Homebridge
+HOMEBRIDGE_PORT=8581
+HOMEBRIDGE_USER=admin
+HOMEBRIDGE_PASS=tu_contraseña
+```
+
+> **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`) para que la API permita acceder y controlar los accesorios.
+
+El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
+
+---
+
+## 󰍜 Menú Principal (14 botones)
 
 ```
 ┌─────────────────────────────────────┐
@@ -197,13 +226,13 @@ python3 main.py
 │  Histórico       │  Actualizaciones  │
 │  Datos           │                   │
 ├──────────────────┼───────────────────┤
-│  Cambiar Tema    │  Reiniciar        │
+│  Homebridge      │  Cambiar Tema     │
 ├──────────────────┼───────────────────┤
-│  Salir           │                   │
+│  Reiniciar       │  Salir            │
 └──────────────────┴───────────────────┘
 ```
 
-### **Las 13 Ventanas:**
+### **Las 14 Ventanas:**
 
 1. **Control Ventiladores** - Configura modos y curvas PWM
 2. **Monitor Placa** - CPU, RAM, temperatura en tiempo real (status en header)
@@ -215,9 +244,10 @@ python3 main.py
 8. **Monitor Servicios** - Control de servicios systemd
 9. **Histórico Datos** - Visualización de métricas históricas
 10. **Actualizaciones** - Gestión de paquetes del sistema
-11. **Cambiar Tema** - Selecciona entre 15 temas
-12. **Reiniciar** - Reinicia el dashboard
-13. **Salir** - Cierra la app o apaga el sistema
+11. **Homebridge** - Control de accesorios HomeKit (enchufes e interruptores)
+12. **Cambiar Tema** - Selecciona entre 15 temas
+13. **Reiniciar** - Reinicia el dashboard
+14. **Salir** - Cierra la app o apaga el sistema
 
 ---
 
@@ -259,13 +289,14 @@ system_dashboard/
 │   ├── process_monitor.py          # Gestión de procesos
 │   ├── service_monitor.py          # Servicios systemd
 │   ├── update_monitor.py           # Actualizaciones con caché 12h
+│   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s)
 │   ├── data_logger.py              # SQLite logging
 │   ├── data_analyzer.py            # Análisis histórico
 │   ├── data_collection_service.py  # Recolección automática (singleton)
 │   ├── cleanup_service.py          # Limpieza automática background (singleton)
 │   └── __init__.py
 ├── ui/
-│   ├── main_window.py              # Ventana principal (13 botones + badges)
+│   ├── main_window.py              # Ventana principal (14 botones + badges)
 │   ├── styles.py                   # make_window_header(), make_futuristic_button(), StyleManager
 │   ├── widgets/
 │   │   ├── graphs.py               # Gráficas personalizadas
@@ -275,6 +306,7 @@ system_dashboard/
 │       ├── process_window.py, service.py, history.py
 │       ├── update.py, fan_control.py
 │       ├── launchers.py, theme_selector.py
+│       ├── homebridge.py           # Ventana de control Homebridge
 │       └── __init__.py
 ├── utils/
 │   ├── file_manager.py             # Gestión de JSON (escritura atómica)
@@ -285,6 +317,8 @@ system_dashboard/
 │   ├── history.db                  # SQLite histórico
 │   └── logs/dashboard.log          # Log del sistema
 ├── scripts/                         # Scripts personalizados del usuario
+├── .env                             # Credenciales Homebridge (NO en git)
+├── .env.example                     # Plantilla de configuración
 ├── install_system.sh               # Instalación directa (recomendada)
 ├── install.sh                      # Instalación con venv (alternativa)
 ├── test_logging.py                 # Prueba del sistema de logging
@@ -313,6 +347,15 @@ LAUNCHERS = [
 ]
 ```
 
+### **`.env` (Homebridge)**
+
+```env
+HOMEBRIDGE_HOST=192.168.1.X
+HOMEBRIDGE_PORT=8581
+HOMEBRIDGE_USER=admin
+HOMEBRIDGE_PASS=tu_contraseña
+```
+
 ---
 
 ## 📋 Sistema de Logging
@@ -338,7 +381,7 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 - **Uso RAM**: ~100-150 MB
 - **Base de datos**: ~5 MB por 10,000 registros
 - **Actualización UI**: 2 segundos (configurable en `UPDATE_MS`)
-- **Threads background**: 4 (main + FanAuto + DataCollection + Cleanup)
+- **Threads background**: 5 (main + FanAuto + DataCollection + Cleanup + Homebridge)
 - **Log**: máx. 2MB con rotación automática
 
 ---
@@ -353,6 +396,8 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 | Ventiladores no responden | `sudo python3 main.py` |
 | Speedtest falla | Instalar CLI oficial Ookla: ver sección Instalación Manual |
 | USB no expulsa | `sudo apt install udisks2` |
+| Homebridge no conecta | Verificar IP/puerto en `.env` y que Insecure Mode esté activo |
+| Badge hb_offline siempre rojo | Comprobar `HOMEBRIDGE_HOST` en `.env` y red entre Pis |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
@@ -371,19 +416,27 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 
 | Métrica | Valor |
 |---------|-------|
-| Versión | 2.7 |
-| Archivos Python | 41 |
-| Líneas de código | ~12,500 |
-| Ventanas | 13 |
+| Versión | 2.8 |
+| Archivos Python | 43 |
+| Líneas de código | ~13,000 |
+| Ventanas | 14 |
 | Temas | 15 |
-| Servicios background | 3 (FanAuto + DataCollection + Cleanup) |
+| Servicios background | 4 (FanAuto + DataCollection + Cleanup + Homebridge) |
+| Badges en menú | 9 |
 | Cobertura logging | 100% módulos core y UI |
 
 ---
 
 ## Changelog
 
-### **v2.7** - 2026-02-23 ⭐ ACTUAL
+### **v2.8** - 2026-02-23 ⭐ ACTUAL
+- ✅ **NUEVO**: Integración Homebridge — ventana de control de accesorios HomeKit (enchufes e interruptores)
+- ✅ **NUEVO**: `HomebridgeMonitor` en `core/` — sondeo ligero cada 30s, autenticación JWT con renovación automática
+- ✅ **NUEVO**: 3 badges Homebridge en menú principal (`hb_offline` 🔴, `hb_on` 🟠, `hb_fault` 🔴)
+- ✅ **NUEVO**: Toggle táctil por dispositivo con indicador ● color y ⚠ en StatusFault
+- ✅ **NUEVO**: Configuración por `.env` (credenciales fuera del código)
+
+### **v2.7** - 2026-02-23
 - ✅ **NUEVO**: Header unificado `make_window_header()` en todas las ventanas (título + status + botón ✕ táctil 52×42px)
 - ✅ **NUEVO**: Status dinámico en tiempo real en el header (CPU/RAM/Temp, Disco/NVMe, interfaz/velocidades)
 - ✅ **MEJORA**: Speedtest migrado a CLI oficial de Ookla (`--format=json`), resultados en MB/s reales
@@ -423,8 +476,8 @@ MIT License
 
 ## Agradecimientos
 
-**CustomTkinter** · **psutil** · **matplotlib** · **Ookla Speedtest CLI** · **Raspberry Pi Foundation**
+**CustomTkinter** · **psutil** · **matplotlib** · **Ookla Speedtest CLI** · **Homebridge** · **Raspberry Pi Foundation**
 
 ---
 
-**Dashboard v2.7: Profesional, Unificado, Táctil y Auto-mantenido**
+**Dashboard v2.8: Profesional, Unificado, Táctil, Auto-mantenido y conectado a HomeKit**
