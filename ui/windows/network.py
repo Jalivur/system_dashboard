@@ -9,356 +9,219 @@ from ui.widgets import GraphWidget
 from core.network_monitor import NetworkMonitor
 from utils.system_utils import SystemUtils
 
+_COL_W   = (DSI_WIDTH - 70) // 2
+_GRAPH_H = 110
+
 
 class NetworkWindow(ctk.CTkToplevel):
     """Ventana de monitoreo de red"""
-    
+
     def __init__(self, parent, network_monitor: NetworkMonitor):
         super().__init__(parent)
-        
-        # Referencias
         self.network_monitor = network_monitor
-        
-        # Widgets para actualización
         self.widgets = {}
-        self.graphs = {}
-        
-        # Configurar ventana
+        self.graphs  = {}
+        self._interface_update_counter = 0
+
         self.title("Monitor de Red")
         self.configure(fg_color=COLORS['bg_medium'])
         self.overrideredirect(True)
         self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
         self.resizable(False, False)
-        
-        # Crear interfaz
+
         self._create_ui()
-        
-        # Iniciar actualización
         self._update()
-    
+
     def _create_ui(self):
-        """Crea la interfaz de usuario"""
-        # Frame principal
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # ── Header unificado ──────────────────────────────────────────────────
-        # El status mostrará interfaz activa + velocidades en tiempo real
+
         self._header = make_window_header(
-            main,
-            title="MONITOR DE RED",
-            on_close=self.destroy,
-            status_text="Detectando interfaz...",
-        )
-        
-        # Área de scroll
+            main, title="MONITOR DE RED", on_close=self.destroy,
+            status_text="Detectando interfaz...")
+
+        # Scroll
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Canvas y scrollbar
+
         canvas = ctk.CTkCanvas(
-            scroll_container,
-            bg=COLORS['bg_medium'],
-            highlightthickness=0
-        )
+            scroll_container, bg=COLORS['bg_medium'], highlightthickness=0)
         canvas.pack(side="left", fill="both", expand=True)
-        
+
         scrollbar = ctk.CTkScrollbar(
-            scroll_container,
-            orientation="vertical",
-            command=canvas.yview,
-            width=30
-        )
+            scroll_container, orientation="vertical",
+            command=canvas.yview, width=30)
         scrollbar.pack(side="right", fill="y")
 
         StyleManager.style_scrollbar_ctk(scrollbar)
-        
         canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Frame interno
-        inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH-50)
-        inner.bind("<Configure>",
-                  lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        
-        # Secciones
-        self._create_interfaces_section(inner)
-        self._create_download_section(inner)
-        self._create_upload_section(inner)
-        self._create_speedtest_section(inner)
-        
 
-    
-    def _create_interfaces_section(self, parent):
-        """Crea la sección de interfaces e IPs"""
-        frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        frame.pack(fill="x", pady=10, padx=10)
-        
-        # Título
-        title = ctk.CTkLabel(
-            frame,
-            text="INTERFACES Y IPs",
-            text_color=COLORS['success'],
-            font=(FONT_FAMILY, FONT_SIZES['large'], "bold")
-        )
-        title.pack(anchor="w", pady=(10, 10), padx=10)
-        
-        # Contenedor para las interfaces
-        self.interfaces_container = ctk.CTkFrame(frame, fg_color=COLORS['bg_dark'])
-        self.interfaces_container.pack(fill="x", padx=10, pady=(0, 10))
-        
-        # Obtener y mostrar interfaces
+        inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
+        inner.bind("<Configure>",
+                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        # Grid 2 columnas dentro del inner scrollable
+        grid = ctk.CTkFrame(inner, fg_color=COLORS['bg_medium'])
+        grid.pack(fill="x")
+        grid.grid_columnconfigure(0, weight=1)
+        grid.grid_columnconfigure(1, weight=1)
+
+        # Fila 0: DESCARGA | SUBIDA  (con gráfica)
+        self._create_traffic_cell(grid, 0, 0, "DESCARGA", "download")
+        self._create_traffic_cell(grid, 0, 1, "SUBIDA",   "upload")
+
+        # Fila 1: INTERFACES | SPEEDTEST  (informativas)
+        self._create_interfaces_cell(grid, 1, 0)
+        self._create_speedtest_cell(grid,  1, 1)
+
+    # ── Celdas ───────────────────────────────────────────────────────────────
+
+    def _create_traffic_cell(self, parent, row, col, title, key):
+        cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+
+        lbl = ctk.CTkLabel(cell, text=title, text_color=COLORS['primary'],
+                           font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), anchor="w")
+        lbl.pack(anchor="w", padx=8, pady=(6, 0))
+
+        val = ctk.CTkLabel(cell, text="0.00 MB/s", text_color=COLORS['primary'],
+                           font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"), anchor="e")
+        val.pack(anchor="e", padx=8, pady=(0, 2))
+
+        graph = GraphWidget(cell, width=_COL_W - 16, height=_GRAPH_H)
+        graph.pack(padx=4, pady=(0, 6))
+
+        self.widgets[f"{key}_label"] = lbl
+        self.widgets[f"{key}_value"] = val
+        self.graphs[key] = graph
+
+    def _create_interfaces_cell(self, parent, row, col):
+        cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+
+        ctk.CTkLabel(cell, text="INTERFACES", text_color=COLORS['success'],
+                     font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), anchor="w"
+                     ).pack(anchor="w", padx=8, pady=(6, 4))
+
+        self.interfaces_container = ctk.CTkFrame(cell, fg_color="transparent")
+        self.interfaces_container.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         self._update_interfaces()
-    
+
+    def _create_speedtest_cell(self, parent, row, col):
+        cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+
+        ctk.CTkLabel(cell, text="SPEEDTEST", text_color=COLORS['primary'],
+                     font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), anchor="w"
+                     ).pack(anchor="w", padx=8, pady=(6, 4))
+
+        self.speedtest_result = ctk.CTkLabel(
+            cell, text="Pulsa 'Test' para\ncomenzar",
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            justify="left", wraplength=_COL_W - 20)
+        self.speedtest_result.pack(anchor="w", padx=8, pady=(0, 4))
+
+        self.speedtest_btn = make_futuristic_button(
+            cell, text="Ejecutar Test", command=self._run_speedtest, width=15, height=5)
+        self.speedtest_btn.pack(pady=(0, 8))
+
+    # ── Interfaces ───────────────────────────────────────────────────────────
+
     def _update_interfaces(self):
-        """Actualiza la lista de interfaces e IPs"""
-        # Limpiar widgets anteriores
-        for widget in self.interfaces_container.winfo_children():
-            widget.destroy()
-        
-        # Obtener IPs
+        for w in self.interfaces_container.winfo_children():
+            w.destroy()
+
         interfaces = SystemUtils.get_interfaces_ips()
-        
         if not interfaces:
-            no_iface = ctk.CTkLabel(
-                self.interfaces_container,
-                text="No se detectaron interfaces",
-                text_color=COLORS['warning'],
-                font=(FONT_FAMILY, FONT_SIZES['small'])
-            )
-            no_iface.pack(pady=5)
+            ctk.CTkLabel(self.interfaces_container, text="Sin interfaces",
+                         text_color=COLORS['warning'],
+                         font=(FONT_FAMILY, FONT_SIZES['small'])).pack(pady=5)
             return
-        
-        # Mostrar cada interfaz
+
         for iface, ip in sorted(interfaces.items()):
             if iface.startswith('tun'):
-                text_color = COLORS['success']
-                icon = "🔒"
+                color, icon = COLORS['success'], "🔒"
             elif iface.startswith(('eth', 'enp')):
-                text_color = COLORS['primary']
-                icon = "🌐"
+                color, icon = COLORS['primary'], "🌐"
             elif iface.startswith(('wlan', 'wlp')):
-                text_color = COLORS['warning']
-                icon = "\uf0eb"  # icono wifi Nerd Font — extraer del repomix con repr()
+                color, icon = COLORS['warning'], "\uf0eb"
             else:
-                text_color = COLORS['text']
-                icon = "•"
-            
-            iface_label = ctk.CTkLabel(
-                self.interfaces_container,
-                text=f"{icon} {iface}: {ip}",
-                text_color=text_color,
-                font=(FONT_FAMILY, FONT_SIZES['medium']),
-                anchor="w"
-            )
-            iface_label.pack(anchor="w", pady=2, padx=10)
-    
-    def _create_download_section(self, parent):
-        """Crea la sección de descarga"""
-        frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        frame.pack(fill="x", pady=10, padx=10)
-        
-        label = ctk.CTkLabel(
-            frame,
-            text="DESCARGA",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['large'], "bold")
-        )
-        label.pack(anchor="w", pady=(5, 0), padx=10)
-        
-        value_label = ctk.CTkLabel(
-            frame,
-            text="0.00 MB/s | Escala: 10.00",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'])
-        )
-        value_label.pack(anchor="e", pady=(0, 5), padx=10)
-        
-        graph = GraphWidget(frame, width=DSI_WIDTH-80, height=120)
-        graph.pack(pady=(0, 10))
-        
-        self.widgets['download_label'] = label
-        self.widgets['download_value'] = value_label
-        self.graphs['download'] = graph
-    
-    def _create_upload_section(self, parent):
-        """Crea la sección de subida"""
-        frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        frame.pack(fill="x", pady=10, padx=10)
-        
-        label = ctk.CTkLabel(
-            frame,
-            text="SUBIDA",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['large'], "bold")
-        )
-        label.pack(anchor="w", pady=(5, 0), padx=10)
-        
-        value_label = ctk.CTkLabel(
-            frame,
-            text="0.00 MB/s | Escala: 10.00",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'])
-        )
-        value_label.pack(anchor="e", pady=(0, 5), padx=10)
-        
-        graph = GraphWidget(frame, width=DSI_WIDTH-80, height=120)
-        graph.pack(pady=(0, 10))
-        
-        self.widgets['upload_label'] = label
-        self.widgets['upload_value'] = value_label
-        self.graphs['upload'] = graph
-    
-    def _create_speedtest_section(self, parent):
-        """Crea la sección de speedtest"""
-        frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        frame.pack(fill="x", pady=10, padx=10)
-        
-        title = ctk.CTkLabel(
-            frame,
-            text="SPEEDTEST",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['large'], "bold")
-        )
-        title.pack(anchor="w", pady=(5, 10), padx=10)
-        
-        self.speedtest_result = ctk.CTkLabel(
-            frame,
-            text="Haz clic en 'Ejecutar Test' para comenzar",
-            text_color=COLORS['text'],
-            font=(FONT_FAMILY, FONT_SIZES['medium']),
-            justify="left"
-        )
-        self.speedtest_result.pack(pady=(0, 10), padx=10)
-        
-        btn_frame = ctk.CTkFrame(frame, fg_color=COLORS['bg_dark'])
-        btn_frame.pack(pady=(0, 10))
-        
-        self.speedtest_btn = make_futuristic_button(
-            btn_frame,
-            text="Ejecutar Test",
-            command=self._run_speedtest,
-            width=20,
-            height=6
-        )
-        self.speedtest_btn.pack()
-    
+                color, icon = COLORS['text'], "•"
+
+            ctk.CTkLabel(self.interfaces_container,
+                         text=f"{icon} {iface}: {ip}",
+                         text_color=color,
+                         font=(FONT_FAMILY, FONT_SIZES['small']),
+                         anchor="w", wraplength=_COL_W - 20
+                         ).pack(anchor="w", pady=1, padx=4)
+
+    # ── Speedtest ─────────────────────────────────────────────────────────────
+
     def _run_speedtest(self):
-        """Ejecuta el speedtest"""
         result = self.network_monitor.get_speedtest_result()
         if result['status'] == 'running':
             return
-        
         self.network_monitor.reset_speedtest()
         self.network_monitor.run_speedtest()
-        
         self.speedtest_btn.configure(state="disabled")
-        self.speedtest_result.configure(
-            text="Ejecutando test...",
-            text_color=COLORS['warning']
-        )
-    
+        self.speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
+
+    def _update_speedtest(self):
+        result = self.network_monitor.get_speedtest_result()
+        status = result['status']
+        if status == 'idle':
+            self.speedtest_result.configure(
+                text="Pulsa 'Test' para\ncomenzar", text_color=COLORS['text'])
+            self.speedtest_btn.configure(state="normal")
+        elif status == 'running':
+            self.speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
+            self.speedtest_btn.configure(state="disabled")
+        elif status == 'done':
+            self.speedtest_result.configure(
+                text=f"Ping: {result['ping']} ms\n↓ {result['download']:.1f} MB/s\n↑ {result['upload']:.1f} MB/s",
+                text_color=COLORS['success'])
+            self.speedtest_btn.configure(state="normal")
+        elif status == 'timeout':
+            self.speedtest_result.configure(text="Timeout", text_color=COLORS['danger'])
+            self.speedtest_btn.configure(state="normal")
+        elif status == 'error':
+            self.speedtest_result.configure(
+                text="Error al ejecutar\nel test", text_color=COLORS['danger'])
+            self.speedtest_btn.configure(state="normal")
+
+    # ── Update loop ───────────────────────────────────────────────────────────
+
     def _update(self):
-        """Actualiza los datos de red"""
         if not self.winfo_exists():
             return
-        
-        # Obtener estadísticas
+
         stats = self.network_monitor.get_current_stats(NET_INTERFACE)
         self.network_monitor.update_history(stats)
         self.network_monitor.update_dynamic_scale()
-        
         history = self.network_monitor.get_history()
-        
-        # Actualizar status del header con interfaz activa + velocidades
-        dl = stats['download_mb']
-        ul = stats['upload_mb']
-        iface = stats['interface']
+
         self._header.status_label.configure(
-            text=f"{iface}  ·  ↓{dl:.2f}  ↑{ul:.2f} MB/s"
-        )
-        
-        # Actualizar descarga
+            text=f"{stats['interface']}  ·  ↓{stats['download_mb']:.2f}  ↑{stats['upload_mb']:.2f} MB/s")
+
         dl_color = self.network_monitor.net_color(stats['download_mb'])
         self.widgets['download_label'].configure(text_color=dl_color)
         self.widgets['download_value'].configure(
-            text=f"{stats['download_mb']:.2f} MB/s | Escala: {history['dynamic_max']:.2f}",
-            text_color=dl_color
-        )
-        self.graphs['download'].update(
-            history['download'],
-            history['dynamic_max'],
-            dl_color
-        )
-        
-        # Actualizar subida
+            text=f"{stats['download_mb']:.2f} MB/s", text_color=dl_color)
+        self.graphs['download'].update(history['download'], history['dynamic_max'], dl_color)
+
         ul_color = self.network_monitor.net_color(stats['upload_mb'])
         self.widgets['upload_label'].configure(text_color=ul_color)
         self.widgets['upload_value'].configure(
-            text=f"{stats['upload_mb']:.2f} MB/s | Escala: {history['dynamic_max']:.2f}",
-            text_color=ul_color
-        )
-        self.graphs['upload'].update(
-            history['upload'],
-            history['dynamic_max'],
-            ul_color
-        )
-        
-        # Actualizar speedtest
+            text=f"{stats['upload_mb']:.2f} MB/s", text_color=ul_color)
+        self.graphs['upload'].update(history['upload'], history['dynamic_max'], ul_color)
+
         self._update_speedtest()
-        
-        # Actualizar interfaces cada 5 ciclos
-        if not hasattr(self, '_interface_update_counter'):
-            self._interface_update_counter = 0
-        
+
         self._interface_update_counter += 1
         if self._interface_update_counter >= 5:
             self._update_interfaces()
             self._interface_update_counter = 0
-        
-        # Programar siguiente actualización
+
         self.after(UPDATE_MS, self._update)
-    
-    def _update_speedtest(self):
-        """Actualiza el resultado del speedtest"""
-        result = self.network_monitor.get_speedtest_result()
-        status = result['status']
-        
-        if status == 'idle':
-            self.speedtest_result.configure(
-                text="Haz clic en 'Ejecutar Test' para comenzar",
-                text_color=COLORS['text']
-            )
-            self.speedtest_btn.configure(state="normal")
-        
-        elif status == 'running':
-            self.speedtest_result.configure(
-                text="Ejecutando test de velocidad...",
-                text_color=COLORS['warning']
-            )
-            self.speedtest_btn.configure(state="disabled")
-        
-        elif status == 'done':
-            ping     = result['ping']
-            download = result['download']
-            upload   = result['upload']
-            
-            self.speedtest_result.configure(
-                text=f"Ping: {ping} ms\n↓ {download:.2f} MB/s\n↑ {upload:.2f} MB/s",
-                text_color=COLORS['success']
-            )
-            self.speedtest_btn.configure(state="normal")
-        
-        elif status == 'timeout':
-            self.speedtest_result.configure(
-                text="Timeout: El test tardó demasiado",
-                text_color=COLORS['danger']
-            )
-            self.speedtest_btn.configure(state="normal")
-        
-        elif status == 'error':
-            self.speedtest_result.configure(
-                text="Error ejecutando el test\nVerifica que speedtest-cli esté instalado",
-                text_color=COLORS['danger']
-            )
-            self.speedtest_btn.configure(state="normal")

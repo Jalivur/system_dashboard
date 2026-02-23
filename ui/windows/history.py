@@ -66,9 +66,10 @@ class HistoryWindow(ctk.CTkToplevel):
             title="HISTÓRICO DE DATOS",
             on_close=self.destroy,
         )
-        # toolbar_container vive en el header para los botones de gráfica
-        self.toolbar_container = ctk.CTkFrame(self._header, fg_color="transparent")
-        self.toolbar_container.pack(side="left", padx=(10, 0))
+        # Barra de herramientas en línea propia debajo del header
+        self.toolbar_container = ctk.CTkFrame(self._main, fg_color=COLORS["bg_dark"])
+        self.toolbar_container.pack(fill="x", padx=5, pady=(0, 4))
+        self.toolbar_container.pack_configure(anchor="center")
         self._create_period_controls(self._main)
         self._create_range_panel(self._main)   # fila oculta de OptionMenus
 
@@ -211,6 +212,10 @@ class HistoryWindow(ctk.CTkToplevel):
         self.toolbar = NavigationToolbar2Tk(self.canvas, self)
         self.toolbar.pack_forget()
 
+        # Sub-frame centrado dentro de la barra de herramientas
+        _btn_row = ctk.CTkFrame(self.toolbar_container, fg_color="transparent")
+        _btn_row.pack(expand=True)
+
         for text, cmd, w in [
             ("🏠 Inicio",  self.toolbar.home,          12),
             ("🔍 Zoom",    self.toolbar.zoom,           12),
@@ -218,8 +223,8 @@ class HistoryWindow(ctk.CTkToplevel):
             (" Guardar",  self._export_figure_image,   12),
         ]:
             make_futuristic_button(
-                self.toolbar_container, text=text, command=cmd, height=6, width=w
-            ).pack(side="left", padx=5)
+                _btn_row, text=text, command=cmd, height=6, width=w
+            ).pack(side="left", padx=5, pady=4)
 
         self.canvas.mpl_connect('button_press_event',   self._on_click)
         self.canvas.mpl_connect('button_release_event', self._on_release)

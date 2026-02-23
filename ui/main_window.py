@@ -11,6 +11,7 @@ from utils.system_utils import SystemUtils
 from utils.logger import get_logger
 import sys
 import os
+from datetime import datetime
 logger = get_logger(__name__)
 
 
@@ -36,6 +37,9 @@ class MainWindow:
         # Referencias a badges (canvas item ids)
         self._badges = {}  # key -> (canvas, oval_id, text_id)
 
+        # Referencias a botones del menú para feedback visual
+        self._menu_btns = {}  # label_key -> CTkButton
+
         # Referencias a ventanas secundarias
         self.fan_window = None
         self.monitor_window = None
@@ -47,6 +51,7 @@ class MainWindow:
         self.service_window = None
         self.history_window = None
         self.update_window = None
+        self.theme_window = None
 
         logger.info(f"[MainWindow] Dashboard iniciado en {self.system_utils.get_hostname()}")
 
@@ -58,22 +63,39 @@ class MainWindow:
         main_frame = ctk.CTkFrame(self.root, fg_color=COLORS['bg_medium'])
         main_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
-        title = ctk.CTkLabel(
-            main_frame,
+        # ── Barra de cabecera: hostname (izq) + título (centro) + reloj (der) ──
+        header_bar = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_dark'], height=56)
+        header_bar.pack(fill="x", padx=5, pady=(5, 0))
+        header_bar.pack_propagate(False)
+
+        hostname = self.system_utils.get_hostname()
+        ctk.CTkLabel(
+            header_bar,
+            text=f"  {hostname}",
+            text_color=COLORS['primary'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+            anchor="w",
+        ).pack(side="left", padx=12)
+
+        ctk.CTkLabel(
+            header_bar,
             text="SISTEMA DE MONITOREO",
             text_color=COLORS['secondary'],
-            font=(FONT_FAMILY, FONT_SIZES['xxlarge'], "bold")
+            font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
+            anchor="center",
+        ).pack(side="left", expand=True)
+
+        self._clock_label = ctk.CTkLabel(
+            header_bar,
+            text="00:00:00",
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+            anchor="e",
         )
-        title.pack(pady=(20, 10))
-        
-        hostname = self.system_utils.get_hostname()
-        info_label = ctk.CTkLabel(
-            main_frame,
-            text=f"Host: {hostname}",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['large'])
-        )
-        info_label.pack(pady=5)
+        self._clock_label.pack(side="right", padx=12)
+
+        # Separador
+        ctk.CTkFrame(main_frame, fg_color=COLORS['border'], height=1, corner_radius=0).pack(fill="x", padx=5, pady=(0, 4))
         
         menu_container = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_medium'])
         menu_container.pack(fill="both", expand=True, padx=5, pady=5)
@@ -149,6 +171,9 @@ class MainWindow:
             )
             btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
 
+            # Guardar referencia para feedback visual
+            self._menu_btns[text] = btn
+
             # Múltiples badges por botón, colocados de derecha a izquierda
             for j, key in enumerate(badge_keys):
                 self._create_badge(btn, key, offset_index=j)
@@ -157,6 +182,26 @@ class MainWindow:
             self.menu_inner.grid_columnconfigure(c, weight=1)
 
     # ── Badges ────────────────────────────────────────────────────────────────
+
+    # ── Feedback visual de botones ───────────────────────────────────────────
+
+    def _btn_active(self, text_key):
+        """Oscurece el botón mientras su ventana está abierta"""
+        btn = self._menu_btns.get(text_key)
+        if btn:
+            try:
+                btn.configure(fg_color=COLORS['bg_light'], border_color=COLORS['primary'], border_width=2)
+            except Exception:
+                pass
+
+    def _btn_idle(self, text_key):
+        """Restaura el botón a su estado normal"""
+        btn = self._menu_btns.get(text_key)
+        if btn:
+            try:
+                btn.configure(fg_color=COLORS['bg_dark'], border_color=COLORS['border'], border_width=1)
+            except Exception:
+                pass
 
     def _create_badge(self, btn, key, offset_index=0):
         """Crea un badge circular en la esquina superior-derecha del botón.
@@ -225,7 +270,9 @@ class MainWindow:
         """Abre la ventana de control de ventiladores"""
         if self.fan_window is None or not self.fan_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Control Ventiladores")
+            self._btn_active("󰈐  Control Ventiladores")
             self.fan_window = FanControlWindow(self.root, self.fan_controller, self.system_monitor)
+            self.fan_window.bind("<Destroy>", lambda e: self._btn_idle("󰈐  Control Ventiladores"))
         else:
             self.fan_window.lift()
     
@@ -233,7 +280,9 @@ class MainWindow:
         """Abre la ventana de monitoreo del sistema"""
         if self.monitor_window is None or not self.monitor_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Placa")
+            self._btn_active("󰚗  Monitor Placa")
             self.monitor_window = MonitorWindow(self.root, self.system_monitor)
+            self.monitor_window.bind("<Destroy>", lambda e: self._btn_idle("󰚗  Monitor Placa"))
         else:
             self.monitor_window.lift()
     
@@ -241,7 +290,9 @@ class MainWindow:
         """Abre la ventana de monitoreo de red"""
         if self.network_window is None or not self.network_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Red")
+            self._btn_active("  Monitor Red")
             self.network_window = NetworkWindow(self.root, self.network_monitor)
+            self.network_window.bind("<Destroy>", lambda e: self._btn_idle("  Monitor Red"))
         else:
             self.network_window.lift()
     
@@ -249,7 +300,9 @@ class MainWindow:
         """Abre la ventana de monitoreo USB"""
         if self.usb_window is None or not self.usb_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor USB")
+            self._btn_active("󱇰 Monitor USB")
             self.usb_window = USBWindow(self.root)
+            self.usb_window.bind("<Destroy>", lambda e: self._btn_idle("󱇰 Monitor USB"))
         else:
             self.usb_window.lift()
     
@@ -257,7 +310,9 @@ class MainWindow:
         """Abre el monitor de procesos"""
         if self.process_window is None or not self.process_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Procesos")
+            self._btn_active("⚙️ Monitor Procesos")
             self.process_window = ProcessWindow(self.root, self.process_monitor)
+            self.process_window.bind("<Destroy>", lambda e: self._btn_idle("⚙️ Monitor Procesos"))
         else:
             self.process_window.lift()
     
@@ -265,7 +320,9 @@ class MainWindow:
         """Abre el monitor de servicios"""
         if self.service_window is None or not self.service_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Servicios")
+            self._btn_active("⚙️ Monitor Servicios")
             self.service_window = ServiceWindow(self.root, self.service_monitor)
+            self.service_window.bind("<Destroy>", lambda e: self._btn_idle("⚙️ Monitor Servicios"))
         else:
             self.service_window.lift()
     
@@ -273,7 +330,9 @@ class MainWindow:
         """Abre la ventana de histórico"""
         if self.history_window is None or not self.history_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Histórico Datos")
+            self._btn_active("󱘿  Histórico Datos")
             self.history_window = HistoryWindow(self.root, self.cleanup_service)
+            self.history_window.bind("<Destroy>", lambda e: self._btn_idle("󱘿  Histórico Datos"))
         else:
             self.history_window.lift()
     
@@ -281,21 +340,29 @@ class MainWindow:
         """Abre la ventana de lanzadores"""
         if self.launchers_window is None or not self.launchers_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Lanzadores")
+            self._btn_active("󱓞  Lanzadores")
             self.launchers_window = LaunchersWindow(self.root)
+            self.launchers_window.bind("<Destroy>", lambda e: self._btn_idle("󱓞  Lanzadores"))
         else:
             self.launchers_window.lift()
     
     def open_theme_selector(self):
         """Abre el selector de temas"""
-        logger.debug("[MainWindow] Abriendo: Cambiar Tema")
-        theme_window = ThemeSelector(self.root)
-        theme_window.lift()
+        if self.theme_window is None or not self.theme_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Cambiar Tema")
+            self._btn_active("󰔎  Cambiar Tema")
+            self.theme_window = ThemeSelector(self.root)
+            self.theme_window.bind("<Destroy>", lambda e: self._btn_idle("󰔎  Cambiar Tema"))
+        else:
+            self.theme_window.lift()
     
     def open_disk_window(self):
         """Abre la ventana de monitor de disco"""
         if self.disk_window is None or not self.disk_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Disco")
+            self._btn_active("  Monitor Disco")
             self.disk_window = DiskWindow(self.root, self.disk_monitor)
+            self.disk_window.bind("<Destroy>", lambda e: self._btn_idle("  Monitor Disco"))
         else:
             self.disk_window.lift()
     
@@ -303,7 +370,9 @@ class MainWindow:
         """Abre la ventana de actualizaciones"""
         if self.update_window is None or not self.update_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Actualizaciones")
+            self._btn_active("󰆧  Actualizaciones")
             self.update_window = UpdatesWindow(self.root, self.update_monitor)
+            self.update_window.bind("<Destroy>", lambda e: self._btn_idle("󰆧  Actualizaciones"))
         else:
             self.update_window.lift()
     
@@ -449,8 +518,14 @@ class MainWindow:
     
     # ── Loop de actualización ─────────────────────────────────────────────────
 
+    def _tick_clock(self):
+        """Actualiza el reloj cada segundo"""
+        self._clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
+        self.root.after(1000, self._tick_clock)
+
     def _start_update_loop(self):
         """Inicia el bucle de actualización"""
+        self._tick_clock()
         self._update()
     
     def _update(self):
