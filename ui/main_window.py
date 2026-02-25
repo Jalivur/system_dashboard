@@ -6,6 +6,7 @@ import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_X, DSI_Y, SCRIPTS_DIR
 from ui.styles import StyleManager, make_futuristic_button
 from ui.windows import FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow
+from ui.windows.log_viewer import LogViewerWindow
 from ui.widgets import confirm_dialog, terminal_dialog
 from utils.system_utils import SystemUtils
 from utils.logger import get_logger
@@ -54,6 +55,7 @@ class MainWindow:
         self.update_window = None
         self.theme_window = None
         self.homebridge_window = None
+        self.log_viewer_window = None
 
         logger.info(f"[MainWindow] Dashboard iniciado en {self.system_utils.get_hostname()}")
 
@@ -153,6 +155,7 @@ class MainWindow:
             ("󱘿  Histórico Datos",       self.open_history_window,  []),
             ("󰆧  Actualizaciones",       self.open_update_window,   ["updates"]),
             ("󰟐  Homebridge",        self.open_homebridge,     ["hb_offline", "hb_on", "hb_fault"]),
+            ("󰷐  Visor de Logs",        self.open_log_viewer,      []),
             ("󰔎  Cambiar Tema",          self.open_theme_selector,  []),
             ("  Reiniciar",                 self.restart_application,  []),
             ("󰿅  Salir",                 self.exit_application,     []),
@@ -386,6 +389,16 @@ class MainWindow:
             self.homebridge_window = HomebridgeWindow(self.root, self.homebridge_monitor)
         else:
             self.homebridge_window.lift()
+
+    def open_log_viewer(self):
+        """Abre el visor de logs del dashboard"""
+        if self.log_viewer_window is None or not self.log_viewer_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Visor de Logs")
+            self._btn_active("󰷐  Visor de Logs")
+            self.log_viewer_window = LogViewerWindow(self.root)
+            self.log_viewer_window.bind("<Destroy>", lambda e: self._btn_idle("󰷐  Visor de Logs"))
+        else:
+            self.log_viewer_window.lift()
 
     
     # ── Salir / Reiniciar ─────────────────────────────────────────────────────
