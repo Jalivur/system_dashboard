@@ -49,7 +49,7 @@ class LogViewerWindow(ctk.CTkToplevel):
         self.resizable(False, False)
         self.transient(parent)
         self.lift()
-        self.focus_force()
+        self.after(150, self.focus_set)
 
         self._all_lines = []
         self._modules   = []

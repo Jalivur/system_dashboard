@@ -44,9 +44,8 @@ class FanControlWindow(ctk.CTkToplevel):
         self.overrideredirect(True)
         self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
         self.resizable(False, False)
-        self.focus_force()
+        self.after(150, self.focus_set)
         self.lift()
-        self.after(100, lambda: self.grab_set())
         
         # Crear interfaz
         self._create_ui()

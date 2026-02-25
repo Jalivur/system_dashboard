@@ -32,9 +32,9 @@ def main():
     root.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
     root.update_idletasks()
     root.deiconify()
-    root.lift()
+    """root.lift()
     root.attributes('-topmost', True)
-    root.after(100, lambda: root.attributes('-topmost', False))
+    root.after(100, lambda: root.attributes('-topmost', False))"""
     
     # Inicializar monitores
     system_monitor = SystemMonitor()

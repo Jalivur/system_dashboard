@@ -418,7 +418,7 @@ class MainWindow:
         selection_window.geometry(f"450x280+{x}+{y}")
         
         selection_window.transient(self.root)
-        selection_window.focus_force()
+        selection_window.after(150, selection_window.focus_set)
         selection_window.grab_set()
         
         main_frame = ctk.CTkFrame(selection_window, fg_color=COLORS['bg_medium'])

@@ -45,10 +45,17 @@ def custom_msgbox(parent, text: str, title: str = "Info") -> None:
     text_lbl.pack(anchor="center", pady=(0, 15))
     
     # Botón OK
+    def _close_msgbox():
+        try:
+            popup.grab_release()
+        except Exception:
+            pass
+        popup.destroy()
+
     btn = make_futuristic_button(
         frame, 
         text="OK",
-        command=popup.destroy,
+        command=_close_msgbox,
         width=15, 
         height=6, 
         font_size=16
@@ -74,7 +81,7 @@ def custom_msgbox(parent, text: str, title: str = "Info") -> None:
     popup.geometry(f"{w}x{h}+{x}+{y}")
     
     popup.lift()
-    popup.focus_force()
+    popup.after(150, popup.focus_set)
     popup.grab_set()
 
 
@@ -120,11 +127,19 @@ def confirm_dialog(parent, text: str, title: str = "Confirmar",
     btn_frame.pack()
     
     def _on_confirm():
+        try:
+            popup.grab_release()
+        except Exception:
+            pass
         popup.destroy()
         if on_confirm:
             on_confirm()
     
     def _on_cancel():
+        try:
+            popup.grab_release()
+        except Exception:
+            pass
         popup.destroy()
         if on_cancel:
             on_cancel()
@@ -160,7 +175,7 @@ def confirm_dialog(parent, text: str, title: str = "Confirmar",
     popup.geometry(f"{w}x{h}+{x}+{y}")
     
     popup.lift()
-    popup.focus_force()
+    popup.after(150, popup.focus_set)
     popup.grab_set()
 def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=None):
     popup = ctk.CTkToplevel(parent)
@@ -178,6 +193,10 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
 
     ctk.CTkLabel(frame, text=title, font=(FONT_FAMILY, 18, "bold"), text_color=COLORS['secondary']).pack(pady=5)
     def _on_close():
+        try:
+            popup.grab_release()
+        except Exception:
+            pass
         popup.destroy()
         if on_close:
             on_close()
