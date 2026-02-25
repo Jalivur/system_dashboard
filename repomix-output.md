@@ -1,9 +1,9 @@
-This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
 
 # File Summary
 
 ## Purpose
-This file contains a packed representation of the entire repository's contents.
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
 It is designed to be easily consumable by AI systems for analysis, code review,
 or other automated processes.
 
@@ -28,6 +28,7 @@ The content is organized as follows:
 ## Notes
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: /home/jalivur/Documents/system_dashboard/fix_timestamps.py, /home/jalivur/Documents/system_dashboard/test_logging.py
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -84,7 +85,6 @@ utils/
 .gitignore
 COMPATIBILIDAD.md
 create_desktop_launcher.sh
-fix_timestamps.py
 IDEAS_EXPANSION.md
 INDEX.md
 INSTALL_GUIDE.md
@@ -99,272 +99,10 @@ README.md
 REQUIREMENTS.md
 requirements.txt
 setup.py
-test_logging.py
 THEMES_GUIDE.md
 ```
 
 # Files
-
-## File: core/cleanup_service.py
-`````python
-"""
-Servicio de limpieza automática de archivos exportados y datos antiguos
-"""
-import os
-import glob
-import threading
-import time
-from typing import Optional
-from config.settings import DATA_DIR
-from utils.logger import get_logger
-
-logger = get_logger(__name__)
-
-
-class CleanupService:
-    """
-    Servicio background que limpia periódicamente archivos exportados
-    y datos antiguos de la base de datos.
-
-    Características:
-    - Singleton: Solo una instancia en toda la aplicación
-    - Thread-safe: Seguro para concurrencia
-    - Daemon: Se cierra automáticamente con el programa
-    - Configurable: límites de archivos y antigüedad ajustables
-    """
-
-    _instance: Optional['CleanupService'] = None
-    _lock = threading.Lock()
-
-    # ── Configuración por defecto ─────────────────────────────────────────────
-    DEFAULT_MAX_CSV        = 10      # Máx. archivos CSV a conservar
-    DEFAULT_MAX_PNG        = 10      # Máx. archivos PNG a conservar
-    DEFAULT_DB_DAYS        = 30      # Días de datos a conservar en BD
-    DEFAULT_INTERVAL_HOURS = 24      # Cada cuántas horas limpiar
-
-    def __new__(cls, *args, **kwargs):
-        """Singleton: solo una instancia"""
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(
-        self,
-        data_logger=None,
-        max_csv: int = DEFAULT_MAX_CSV,
-        max_png: int = DEFAULT_MAX_PNG,
-        db_days: int = DEFAULT_DB_DAYS,
-        interval_hours: float = DEFAULT_INTERVAL_HOURS,
-    ):
-        """
-        Inicializa el servicio (solo la primera vez).
-
-        Args:
-            data_logger:     Instancia de DataLogger para limpiar la BD.
-                             Si es None, solo se limpian archivos.
-            max_csv:         Número máximo de CSV exportados a conservar.
-            max_png:         Número máximo de PNG exportados a conservar.
-            db_days:         Días de histórico a conservar en la BD.
-            interval_hours:  Horas entre ejecuciones del ciclo de limpieza.
-        """
-        if hasattr(self, '_initialized'):
-            return
-
-        self.data_logger    = data_logger
-        self.max_csv        = max_csv
-        self.max_png        = max_png
-        self.db_days        = db_days
-        self.interval_hours = interval_hours
-
-        self._running = False
-        self._thread: Optional[threading.Thread] = None
-        self._initialized = True
-
-        logger.info(
-            f"[CleanupService] Configurado — "
-            f"CSV: {max_csv}, PNG: {max_png}, "
-            f"BD: {db_days}d, intervalo: {interval_hours}h"
-        )
-
-    # ── Ciclo de vida ─────────────────────────────────────────────────────────
-
-    def start(self):
-        """Inicia el servicio en segundo plano."""
-        if self._running:
-            logger.info("[CleanupService] Ya está corriendo")
-            return
-
-        self._running = True
-        self._thread = threading.Thread(
-            target=self._run,
-            daemon=True,
-            name="CleanupService"
-        )
-        self._thread.start()
-        logger.info("[CleanupService] Servicio iniciado")
-
-    def stop(self):
-        """Detiene el servicio."""
-        if not self._running:
-            return
-        self._running = False
-        if self._thread:
-            self._thread.join(timeout=5)
-        logger.info("[CleanupService] Servicio detenido")
-
-    def _run(self):
-        """Bucle principal: limpia al arrancar y luego cada interval_hours."""
-        # Primera limpieza inmediata al arrancar
-        self._cleanup_cycle()
-
-        interval_seconds = self.interval_hours * 3600
-        elapsed = 0.0
-        while self._running:
-            time.sleep(0.5)
-            elapsed += 0.5
-            if elapsed >= interval_seconds:
-                self._cleanup_cycle()
-                elapsed = 0.0
-
-    # ── Lógica de limpieza ────────────────────────────────────────────────────
-
-    def _cleanup_cycle(self):
-        """Ejecuta un ciclo completo de limpieza."""
-        logger.info("[CleanupService] Iniciando ciclo de limpieza")
-        self.clean_csv()
-        self.clean_png()
-        if self.data_logger:
-            self.clean_db()
-        logger.info("[CleanupService] Ciclo de limpieza completado")
-
-    def clean_csv(self, max_files: int = None) -> int:
-        """
-        Elimina los CSV exportados más antiguos que superen el límite.
-
-        Args:
-            max_files: Límite a aplicar. Si es None usa self.max_csv.
-
-        Returns:
-            Número de archivos eliminados.
-        """
-        limit = max_files if max_files is not None else self.max_csv
-        pattern = os.path.join(str(DATA_DIR), "history_*.csv")
-        return self._trim_files(pattern, limit, "CSV")
-
-    def clean_png(self, max_files: int = None) -> int:
-        """
-        Elimina los PNG exportados más antiguos que superen el límite.
-
-        Args:
-            max_files: Límite a aplicar. Si es None usa self.max_png.
-
-        Returns:
-            Número de archivos eliminados.
-        """
-        limit = max_files if max_files is not None else self.max_png
-        pattern = os.path.join(str(DATA_DIR), "screenshots", "*.png")
-        return self._trim_files(pattern, limit, "PNG")
-
-    def clean_db(self, days: int = None) -> bool:
-        """
-        Elimina registros de la BD más antiguos que 'days' días.
-
-        Args:
-            days: Antigüedad máxima. Si es None usa self.db_days.
-
-        Returns:
-            True si la limpieza fue exitosa.
-        """
-        if not self.data_logger:
-            logger.warning("[CleanupService] No hay data_logger configurado")
-            return False
-
-        d = days if days is not None else self.db_days
-        try:
-            self.data_logger.clean_old_data(days=d)
-            logger.info(f"[CleanupService] BD limpiada — registros >'{d}' días eliminados")
-            return True
-        except Exception as e:
-            logger.error(f"[CleanupService] Error limpiando BD: {e}")
-            return False
-
-    def _trim_files(self, pattern: str, max_files: int, label: str) -> int:
-        """
-        Elimina los archivos más antiguos que superen max_files.
-
-        Args:
-            pattern:   Patrón glob de los archivos a gestionar.
-            max_files: Número máximo a conservar.
-            label:     Etiqueta para el log.
-
-        Returns:
-            Número de archivos eliminados.
-        """
-        try:
-            files = sorted(glob.glob(pattern), key=os.path.getmtime)
-            to_delete = files[:-max_files] if len(files) > max_files else []
-            for f in to_delete:
-                try:
-                    os.remove(f)
-                    logger.info(f"[CleanupService] {label} eliminado: {os.path.basename(f)}")
-                except Exception as e:
-                    logger.warning(f"[CleanupService] No se pudo eliminar {f}: {e}")
-            if to_delete:
-                logger.info(
-                    f"[CleanupService] {label}: {len(to_delete)} eliminados, "
-                    f"{len(files) - len(to_delete)} conservados"
-                )
-            return len(to_delete)
-        except Exception as e:
-            logger.error(f"[CleanupService] Error en _trim_files ({label}): {e}")
-            return 0
-
-    # ── Información y estado ──────────────────────────────────────────────────
-
-    def get_status(self) -> dict:
-        """
-        Devuelve el estado actual del servicio.
-
-        Returns:
-            Diccionario con configuración y estado del hilo.
-        """
-        csv_files = glob.glob(os.path.join(str(DATA_DIR), "history_*.csv"))
-        png_files = glob.glob(os.path.join(str(DATA_DIR), "screenshots", "*.png"))
-        return {
-            'running':        self._running,
-            'thread_alive':   self._thread.is_alive() if self._thread else False,
-            'interval_hours': self.interval_hours,
-            'max_csv':        self.max_csv,
-            'max_png':        self.max_png,
-            'db_days':        self.db_days,
-            'csv_count':      len(csv_files),
-            'png_count':      len(png_files),
-        }
-
-    def force_cleanup(self) -> dict:
-        """
-        Fuerza un ciclo de limpieza inmediato desde fuera del hilo.
-        Útil para llamadas manuales desde la UI.
-
-        Returns:
-            Diccionario con el número de archivos eliminados y resultado de BD.
-        """
-        logger.info("[CleanupService] Limpieza forzada manualmente")
-        deleted_csv = self.clean_csv()
-        deleted_png = self.clean_png()
-        db_ok = self.clean_db() if self.data_logger else False
-        logger.info(
-            f"[CleanupService] Limpieza manual completada — "
-            f"CSV: {deleted_csv}, PNG: {deleted_png}, BD: {db_ok}"
-        )
-        return {'deleted_csv': deleted_csv, 'deleted_png': deleted_png, 'db_ok': db_ok}
-
-    def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
-        return self._running
-`````
 
 ## File: core/homebridge_monitor.py
 `````python
@@ -834,401 +572,6 @@ def recolor_lines(canvas, lines: List, color: str) -> None:
     """
     for line in lines:
         canvas.itemconfig(line, fill=color)
-`````
-
-## File: ui/windows/log_viewer.py
-`````python
-"""
-Ventana de visualización del log del dashboard
-Permite filtrar por nivel, módulo, texto libre e intervalo de tiempo
-y exportar el resultado filtrado a un archivo .log
-"""
-import re
-import threading
-from datetime import datetime, timedelta
-from pathlib import Path
-
-import customtkinter as ctk
-
-from config.settings import (
-    COLORS, FONT_FAMILY, FONT_SIZES,
-    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR
-)
-from ui.styles import make_window_header, make_futuristic_button, StyleManager
-from utils.logger import get_logger
-
-logger = get_logger(__name__)
-
-LOG_FILE = DATA_DIR / "logs" / "dashboard.log"
-LOG_LEVELS = ["TODOS", "DEBUG", "INFO", "WARNING", "ERROR"]
-LEVEL_COLORS = {
-    "DEBUG":   "#888888",
-    "INFO":    "#00BFFF",
-    "WARNING": "#FFA500",
-    "ERROR":   "#FF4444",
-}
-
-_PH_SEARCH = "buscar..."
-_PH_DATE   = "YYYY-MM-DD"
-_PH_TIME   = "HH:MM"
-
-LOG_PATTERN = re.compile(
-    r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+Dashboard(?:\.(\S+?))?:\s+(.*)$'
-)
-
-
-class LogViewerWindow(ctk.CTkToplevel):
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Visor de Logs")
-        self.configure(fg_color=COLORS['bg_medium'])
-        self.overrideredirect(True)
-        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
-        self.resizable(False, False)
-        self.transient(parent)
-        self.lift()
-        self.focus_force()
-
-        self._all_lines = []
-        self._modules   = []
-        self._loading   = False
-
-        self._level_var  = ctk.StringVar(value="TODOS")
-        self._module_var = ctk.StringVar(value="TODOS")
-        self._search_var = ctk.StringVar(value=_PH_SEARCH)
-        self._quick_var  = ctk.StringVar(value="1h")
-        self._date_from  = ctk.StringVar(value=_PH_DATE)
-        self._time_from  = ctk.StringVar(value=_PH_TIME)
-        self._date_to    = ctk.StringVar(value=_PH_DATE)
-        self._time_to    = ctk.StringVar(value=_PH_TIME)
-
-        self._create_ui()
-        self._load_log()
-
-    # ── Placeholder helpers ──────────────────────────────────────────────────
-
-    def _entry_focus_in(self, entry, var, placeholder):
-        if var.get() == placeholder:
-            var.set("")
-            entry.configure(text_color=COLORS['text'])
-
-    def _entry_focus_out(self, entry, var, placeholder):
-        if var.get().strip() == "":
-            var.set(placeholder)
-            entry.configure(text_color=COLORS['text_dim'])
-
-    def _entry_value(self, var, placeholder):
-        v = var.get().strip()
-        return "" if v == placeholder else v
-
-    def _make_entry(self, parent, var, placeholder, width):
-        e = ctk.CTkEntry(
-            parent,
-            textvariable=var,
-            width=width,
-            height=28,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'],
-            border_color=COLORS['primary'],
-            text_color=COLORS['text_dim'],
-        )
-        e.bind("<FocusIn>",  lambda ev: self._entry_focus_in(e, var, placeholder))
-        e.bind("<FocusOut>", lambda ev: self._entry_focus_out(e, var, placeholder))
-        return e
-
-    # ── UI ───────────────────────────────────────────────────────────────────
-
-    def _create_ui(self):
-        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
-        main.pack(fill="both", expand=True, padx=5, pady=5)
-        make_window_header(main, title="VISOR DE LOGS", on_close=self.destroy)
-        self._create_filters(main)
-        ctk.CTkFrame(main, fg_color=COLORS['border'], height=1,
-                     corner_radius=0).pack(fill="x", padx=5, pady=(4, 0))
-        self._create_results(main)
-        self._create_bottom_bar(main)
-
-    def _create_filters(self, parent):
-        filters = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
-        filters.pack(fill="x", padx=5, pady=(4, 0))
-
-        # Fila 1: Nivel · Módulo · Búsqueda
-        row1 = ctk.CTkFrame(filters, fg_color="transparent")
-        row1.pack(fill="x", padx=8, pady=(6, 2))
-
-        ctk.CTkLabel(row1, text="Nivel:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        ctk.CTkOptionMenu(
-            row1, variable=self._level_var, values=LOG_LEVELS, width=100,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=lambda _: self._apply_filters()
-        ).pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row1, text="Módulo:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._module_menu = ctk.CTkOptionMenu(
-            row1, variable=self._module_var, values=["TODOS"], width=160,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=lambda _: self._apply_filters()
-        )
-        self._module_menu.pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row1, text="Buscar:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        search_entry = self._make_entry(row1, self._search_var, _PH_SEARCH, width=140)
-        search_entry.bind("<Return>",     lambda e: self._apply_filters())
-        search_entry.bind("<KeyRelease>", lambda e: self.after(400, self._apply_filters))
-        search_entry.pack(side="left")
-
-        # Fila 2: Intervalo rápido | Intervalo manual
-        row2 = ctk.CTkFrame(filters, fg_color="transparent")
-        row2.pack(fill="x", padx=8, pady=(2, 6))
-
-        ctk.CTkLabel(row2, text="Últimos:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        ctk.CTkOptionMenu(
-            row2, variable=self._quick_var,
-            values=["15min", "1h", "6h", "24h", "Todo"], width=80,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=self._on_quick_interval
-        ).pack(side="left", padx=(0, 16))
-
-        ctk.CTkLabel(row2, text="│", text_color=COLORS['border'],
-                     font=(FONT_FAMILY, FONT_SIZES['medium'])).pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row2, text="Desde:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._date_from, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._time_from, _PH_TIME, width=60).pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row2, text="Hasta:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._date_to, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._time_to, _PH_TIME, width=60).pack(side="left", padx=(0, 8))
-
-        make_futuristic_button(
-            row2, text="Aplicar", command=self._apply_filters,
-            width=8, height=4, font_size=13
-        ).pack(side="left")
-
-    def _create_results(self, parent):
-        result_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
-        result_frame.pack(fill="both", expand=True, padx=5, pady=4)
-
-        self._textbox = ctk.CTkTextbox(
-            result_frame,
-            fg_color=COLORS['bg_dark'],
-            text_color=COLORS['text'],
-            font=("Courier New", 12),
-            wrap="none",
-            state="disabled",
-        )
-        self._textbox.pack(fill="both", expand=True, padx=4, pady=4)
-
-        self._textbox._textbox.tag_config("DEBUG",   foreground=LEVEL_COLORS["DEBUG"])
-        self._textbox._textbox.tag_config("INFO",    foreground=LEVEL_COLORS["INFO"])
-        self._textbox._textbox.tag_config("WARNING", foreground=LEVEL_COLORS["WARNING"])
-        self._textbox._textbox.tag_config("ERROR",   foreground=LEVEL_COLORS["ERROR"])
-
-        try:
-            children = self._textbox._textbox.master.children
-            vsb = children.get('!ctkscrollbar')
-            hsb = children.get('!ctkscrollbar2')
-            if vsb:
-                StyleManager.style_scrollbar_ctk(vsb)
-                vsb.configure(width=22)
-            if hsb:
-                StyleManager.style_scrollbar_ctk(hsb)
-                hsb.configure(height=22)
-        except Exception:
-            pass
-
-    def _create_bottom_bar(self, parent):
-        bar = ctk.CTkFrame(parent, fg_color="transparent")
-        bar.pack(fill="x", padx=5, pady=(0, 4))
-
-        self._count_label = ctk.CTkLabel(
-            bar, text="0 entradas",
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            text_color=COLORS['text_dim']
-        )
-        self._count_label.pack(side="left", padx=8)
-
-        make_futuristic_button(
-            bar, text="↓ Exportar", command=self._export,
-            width=10, height=5, font_size=14
-        ).pack(side="right", padx=4)
-
-        make_futuristic_button(
-            bar, text="↺ Recargar", command=self._load_log,
-            width=10, height=5, font_size=14
-        ).pack(side="right", padx=4)
-
-    # ── Carga ────────────────────────────────────────────────────────────────
-
-    def _load_log(self):
-        if self._loading:
-            return
-        self._loading = True
-        self._set_text("Cargando log...", [])
-        threading.Thread(target=self._read_log_thread, daemon=True).start()
-
-    def _read_log_thread(self):
-        lines = []
-        try:
-            rotated = Path(str(LOG_FILE) + ".1")
-            if rotated.exists():
-                with open(rotated, "r", encoding="utf-8", errors="replace") as f:
-                    for raw in f:
-                        p = self._parse_line(raw.rstrip())
-                        if p:
-                            lines.append(p)
-            if LOG_FILE.exists():
-                with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
-                    for raw in f:
-                        p = self._parse_line(raw.rstrip())
-                        if p:
-                            lines.append(p)
-        except Exception as e:
-            logger.error(f"[LogViewerWindow] Error leyendo log: {e}")
-
-        self._all_lines = lines
-        self._loading = False
-        modules = sorted(set(l["module"] for l in lines))
-        self.after(0, lambda: self._update_modules(modules))
-        self.after(0, self._apply_filters)
-
-    def _parse_line(self, raw):
-        m = LOG_PATTERN.match(raw)
-        if not m:
-            return None
-        ts_str, level, module, message = m.groups()
-        if not module:
-            module = "general"
-        try:
-            ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            return None
-        return {"ts": ts, "ts_str": ts_str, "level": level,
-                "module": module, "message": message, "raw": raw}
-
-    def _update_modules(self, modules):
-        values = ["TODOS"] + modules
-        self._module_menu.configure(values=values)
-        if self._module_var.get() not in values:
-            self._module_var.set("TODOS")
-
-    # ── Filtrado ─────────────────────────────────────────────────────────────
-
-    def _on_quick_interval(self, value):
-        now = datetime.now()
-        deltas = {"15min": timedelta(minutes=15), "1h": timedelta(hours=1),
-                  "6h": timedelta(hours=6), "24h": timedelta(hours=24)}
-        if value == "Todo":
-            for var, ph in [(self._date_from, _PH_DATE), (self._time_from, _PH_TIME),
-                            (self._date_to,   _PH_DATE), (self._time_to,   _PH_TIME)]:
-                var.set(ph)
-        else:
-            since = now - deltas[value]
-            self._date_from.set(since.strftime("%Y-%m-%d"))
-            self._time_from.set(since.strftime("%H:%M"))
-            self._date_to.set(now.strftime("%Y-%m-%d"))
-            self._time_to.set(now.strftime("%H:%M"))
-        self._apply_filters()
-
-    def _apply_filters(self):
-        level  = self._level_var.get()
-        module = self._module_var.get()
-        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
-        dt_from = self._parse_datetime(
-            self._entry_value(self._date_from, _PH_DATE),
-            self._entry_value(self._time_from, _PH_TIME), False)
-        dt_to = self._parse_datetime(
-            self._entry_value(self._date_to, _PH_DATE),
-            self._entry_value(self._time_to, _PH_TIME), True)
-
-        result = []
-        for line in self._all_lines:
-            if level  != "TODOS" and line["level"]  != level:  continue
-            if module != "TODOS" and line["module"] != module: continue
-            if search and search not in line["raw"].lower():   continue
-            if dt_from and line["ts"] < dt_from:               continue
-            if dt_to   and line["ts"] > dt_to:                 continue
-            result.append(line)
-
-        self._set_text(None, result)
-        self._count_label.configure(text=f"{len(result)} entradas")
-
-    def _parse_datetime(self, date_str, time_str, is_end):
-        if not date_str:
-            return None
-        if not time_str:
-            time_str = "23:59" if is_end else "00:00"
-        try:
-            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-        except ValueError:
-            return None
-
-    # ── Renderizado ──────────────────────────────────────────────────────────
-
-    def _set_text(self, loading_msg, lines):
-        self._textbox.configure(state="normal")
-        self._textbox._textbox.delete("1.0", "end")
-        if loading_msg:
-            self._textbox._textbox.insert("end", loading_msg)
-        else:
-            for line in lines:
-                lvl = line["level"]
-                tag = lvl if lvl in LEVEL_COLORS else "INFO"
-                self._textbox._textbox.insert(
-                    "end",
-                    f"{line['ts_str']} [{lvl}] {line['module']}: {line['message']}\n",
-                    tag
-                )
-            self._textbox._textbox.see("end")
-        self._textbox.configure(state="disabled")
-
-    # ── Exportar ─────────────────────────────────────────────────────────────
-
-    def _export(self):
-        level  = self._level_var.get()
-        module = self._module_var.get()
-        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
-        dt_from = self._parse_datetime(
-            self._entry_value(self._date_from, _PH_DATE),
-            self._entry_value(self._time_from, _PH_TIME), False)
-        dt_to = self._parse_datetime(
-            self._entry_value(self._date_to, _PH_DATE),
-            self._entry_value(self._time_to, _PH_TIME), True)
-
-        result = []
-        for line in self._all_lines:
-            if level  != "TODOS" and line["level"]  != level:  continue
-            if module != "TODOS" and line["module"] != module: continue
-            if search and search not in line["raw"].lower():   continue
-            if dt_from and line["ts"] < dt_from:               continue
-            if dt_to   and line["ts"] > dt_to:                 continue
-            result.append(line["raw"])
-
-        from ui.widgets.dialogs import custom_msgbox
-        if not result:
-            custom_msgbox(self, "No hay entradas que exportar.", "Exportar")
-            return
-
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_path = DATA_DIR / f"log_export_{ts}.log"
-        try:
-            with open(export_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(result))
-            custom_msgbox(self, f"Exportado en:\n{export_path}", "Exportar")
-            logger.info(f"[LogViewerWindow] Log exportado: {export_path}")
-        except OSError as e:
-            custom_msgbox(self, f"Error al exportar:\n{e}", "Error")
-            logger.error(f"[LogViewerWindow] Error exportando: {e}")
 `````
 
 ## File: ui/__init__.py
@@ -1795,54 +1138,6 @@ fi
 
 echo ""
 echo "¡Listo! 🎉"
-`````
-
-## File: fix_timestamps.py
-`````python
-"""
-Script puntual para corregir el desfase UTC en los registros históricos.
-Suma 1 hora a todos los timestamps de las tablas metrics y events.
-
-Uso: python3 fix_timestamps.py
-"""
-import sqlite3
-from datetime import datetime
-
-DB_PATH = "data/history.db"
-
-conn = sqlite3.connect(DB_PATH)
-cursor = conn.cursor()
-
-# Contar registros antes
-cursor.execute("SELECT COUNT(*) FROM metrics")
-n_metrics = cursor.fetchone()[0]
-cursor.execute("SELECT COUNT(*) FROM events")
-n_events = cursor.fetchone()[0]
-
-print(f"Registros encontrados: {n_metrics} métricas, {n_events} eventos")
-print("Aplicando corrección +1h...")
-
-# Sumar 1 hora a todos los timestamps
-cursor.execute("""
-    UPDATE metrics
-    SET timestamp = datetime(timestamp, '+1 hour')
-""")
-cursor.execute("""
-    UPDATE events
-    SET timestamp = datetime(timestamp, '+1 hour')
-""")
-
-conn.commit()
-
-# Verificar un par de registros para confirmar
-cursor.execute("SELECT timestamp FROM metrics ORDER BY timestamp DESC LIMIT 3")
-rows = cursor.fetchall()
-print("\nÚltimos timestamps tras la corrección:")
-for r in rows:
-    print(f"  {r[0]}")
-
-conn.close()
-print("\nHecho. Todos los registros corregidos.")
 `````
 
 ## File: INSTALL_GUIDE.md
@@ -3296,280 +2591,6 @@ setup(
         "": ["*.md", "*.txt"],
     },
 )
-`````
-
-## File: test_logging.py
-`````python
-#!/usr/bin/env python3
-"""
-Script de prueba manual del sistema de logging
-Ejecutar desde la raíz del proyecto: python3 test_logging.py
-Ver logs en tiempo real con: tail -f data/logs/dashboard.log
-"""
-import sys
-import os
-import json
-import time
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from utils.logger import get_logger
-
-logger = get_logger("test")
-
-def separador(titulo):
-    print(f"\n{'='*60}")
-    print(f"  {titulo}")
-    print(f"{'='*60}")
-
-def ok(msg):
-    print(f"  ✅ {msg}")
-
-def info(msg):
-    print(f"  ℹ️  {msg}")
-
-
-# ============================================================
-# TEST FILE_MANAGER
-# ============================================================
-def test_file_manager():
-    separador("FILE MANAGER")
-    from config.settings import STATE_FILE, CURVE_FILE
-    from utils.file_manager import FileManager
-
-    # --- Test 1: load_state cuando no existe el archivo ---
-    print("\n[1] load_state con archivo inexistente:")
-    backup = None
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE) as f:
-            backup = f.read()
-        os.remove(STATE_FILE)
-
-    state = FileManager.load_state()
-    ok(f"Retornó estado por defecto: {state}")
-    info("Debe aparecer en log: [DEBUG] load_state: no existe, usando estado por defecto")
-
-    # Restaurar
-    if backup:
-        with open(STATE_FILE, "w") as f:
-            f.write(backup)
-
-    # --- Test 2: load_state con JSON corrupto ---
-    print("\n[2] load_state con JSON corrupto:")
-    with open(STATE_FILE, "w") as f:
-        f.write("{ esto no es json válido !!!}")
-
-    state = FileManager.load_state()
-    ok(f"Retornó estado por defecto: {state}")
-    info("Debe aparecer en log: [ERROR] load_state: JSON corrupto")
-
-    # Restaurar estado válido
-    FileManager.write_state({"mode": "auto", "target_pwm": None})
-    ok("Estado restaurado correctamente")
-
-    # --- Test 3: load_curve con archivo inexistente ---
-    print("\n[3] load_curve con archivo inexistente:")
-    curve_backup = None
-    if os.path.exists(CURVE_FILE):
-        with open(CURVE_FILE) as f:
-            curve_backup = f.read()
-        os.remove(CURVE_FILE)
-
-    curve = FileManager.load_curve()
-    ok(f"Retornó curva por defecto con {len(curve)} puntos")
-    info("Debe aparecer en log: [DEBUG] load_curve: no existe, usando curva por defecto")
-
-    if curve_backup:
-        with open(CURVE_FILE, "w") as f:
-            f.write(curve_backup)
-
-    # --- Test 4: load_curve con JSON corrupto ---
-    print("\n[4] load_curve con JSON corrupto:")
-    with open(CURVE_FILE, "w") as f:
-        f.write("{ corrupto }")
-
-    curve = FileManager.load_curve()
-    ok(f"Retornó curva por defecto con {len(curve)} puntos")
-    info("Debe aparecer en log: [ERROR] load_curve: JSON corrupto")
-
-    # Restaurar curva válida
-    if curve_backup:
-        with open(CURVE_FILE, "w") as f:
-            f.write(curve_backup)
-    else:
-        FileManager.save_curve([{"temp": 50, "pwm": 128}])
-
-    ok("Curva restaurada correctamente")
-
-    # --- Test 5: write_state correcto ---
-    print("\n[5] write_state normal:")
-    FileManager.write_state({"mode": "auto", "target_pwm": 128})
-    ok("Estado guardado sin errores")
-
-    # --- Test 6: save_curve correcta ---
-    print("\n[6] save_curve normal:")
-    FileManager.save_curve([{"temp": 50, "pwm": 100}, {"temp": 70, "pwm": 200}])
-    ok("Curva guardada sin errores")
-    info("Debe aparecer en log: [INFO] save_curve: curva guardada (2 puntos)")
-
-
-# ============================================================
-# TEST SYSTEM_UTILS
-# ============================================================
-def test_system_utils():
-    separador("SYSTEM UTILS")
-    from utils.system_utils import SystemUtils
-
-    # --- Test 1: get_cpu_temp ---
-    print("\n[1] get_cpu_temp:")
-    temp = SystemUtils.get_cpu_temp()
-    ok(f"Temperatura obtenida: {temp}°C")
-    if temp == 0.0:
-        info("Retornó 0.0 — revisa el log para ver qué método falló")
-    else:
-        info("Temperatura real leída correctamente")
-
-    # --- Test 2: get_hostname ---
-    print("\n[2] get_hostname:")
-    hostname = SystemUtils.get_hostname()
-    ok(f"Hostname: {hostname}")
-
-    # --- Test 3: get_nvme_temp ---
-    print("\n[3] get_nvme_temp:")
-    nvme = SystemUtils.get_nvme_temp()
-    ok(f"Temperatura NVMe: {nvme}°C")
-    if nvme == 0.0:
-        info("Retornó 0.0 — puede que no haya NVMe o falten permisos (normal)")
-        info("Revisa el log: debe aparecer qué método falló (smartctl/sysfs)")
-
-    # --- Test 4: list_usb_storage_devices ---
-    print("\n[4] list_usb_storage_devices:")
-    usb = SystemUtils.list_usb_storage_devices()
-    ok(f"Dispositivos USB encontrados: {len(usb)}")
-    for d in usb:
-        info(f"  → {d.get('name')} ({d.get('dev')})")
-
-    # --- Test 5: list_usb_other_devices ---
-    print("\n[5] list_usb_other_devices:")
-    otros = SystemUtils.list_usb_other_devices()
-    ok(f"Otros dispositivos USB: {len(otros)}")
-
-    # --- Test 6: get_interfaces_ips ---
-    print("\n[6] get_interfaces_ips:")
-    ips = SystemUtils.get_interfaces_ips()
-    ok(f"Interfaces detectadas: {len(ips)}")
-    for iface, ip in ips.items():
-        info(f"  → {iface}: {ip}")
-
-    # --- Test 7: run_script con script inexistente ---
-    print("\n[7] run_script con script inexistente:")
-    success, msg = SystemUtils.run_script("/ruta/que/no/existe.sh")
-    ok(f"Retornó success={success}, msg='{msg}'")
-    info("Debe aparecer en log: [ERROR] run_script: script no encontrado")
-
-    # --- Test 8: run_script real (crea uno temporal) ---
-    print("\n[8] run_script con script válido:")
-    tmp_script = "/tmp/test_dashboard.sh"
-    with open(tmp_script, "w") as f:
-        f.write("#!/bin/bash\necho 'Script de prueba OK'\nexit 0\n")
-    os.chmod(tmp_script, 0o755)
-
-    success, msg = SystemUtils.run_script(tmp_script)
-    ok(f"Retornó success={success}, msg='{msg}'")
-    info("Debe aparecer en log: [INFO] Script ejecutado correctamente")
-    os.remove(tmp_script)
-
-
-# ============================================================
-# TEST NETWORK_MONITOR
-# ============================================================
-def test_network_monitor():
-    separador("NETWORK MONITOR (SPEEDTEST)")
-    from core.network_monitor import NetworkMonitor
-
-    monitor = NetworkMonitor()
-
-    # --- Test 1: get_current_stats ---
-    print("\n[1] get_current_stats:")
-    stats = monitor.get_current_stats()
-    ok(f"Interfaz: {stats['interface']}, ↓{stats['download_mb']:.3f} MB/s, ↑{stats['upload_mb']:.3f} MB/s")
-
-    # --- Test 2: speedtest completo ---
-    print("\n[2] Speedtest (puede tardar ~30-60s):")
-    info("Iniciando speedtest... espera")
-    monitor.run_speedtest()
-
-    # Esperar resultado con timeout
-    timeout = 90
-    start = time.time()
-    while time.time() - start < timeout:
-        result = monitor.get_speedtest_result()
-        status = result['status']
-
-        if status == 'running':
-            print(f"  ⏳ Ejecutando... ({int(time.time()-start)}s)", end='\r')
-            time.sleep(2)
-        elif status == 'done':
-            print()
-            ok(f"Ping: {result['ping']}ms | ↓{result['download']:.2f} MB/s | ↑{result['upload']:.2f} MB/s")
-            info("Debe aparecer en log: [INFO] Speedtest completado con las métricas")
-            break
-        elif status == 'timeout':
-            print()
-            ok(f"Speedtest timeout (esperado si la conexión es lenta)")
-            info("Debe aparecer en log: [WARNING] Speedtest timeout")
-            break
-        elif status == 'error':
-            print()
-            ok(f"Speedtest error (puede que speedtest-cli no esté instalado)")
-            info("Debe aparecer en log: [ERROR] con el motivo del fallo")
-            break
-    else:
-        print()
-        info("Timeout de espera alcanzado en el script de prueba")
-
-    # --- Test 3: speedtest con binario inexistente (simulado) ---
-    print("\n[3] Verificar log de speedtest-cli no encontrado:")
-    info("Para probar esto, renombra temporalmente speedtest-cli y ejecuta de nuevo")
-    info("Debe aparecer en log: [ERROR] speedtest-cli no encontrado")
-
-
-# ============================================================
-# MAIN
-# ============================================================
-if __name__ == "__main__":
-    print("\n" + "="*60)
-    print("  TEST DE LOGGING - Dashboard v2.5.1")
-    print("  Abre otra terminal y ejecuta:")
-    print("  tail -f data/logs/dashboard.log")
-    print("="*60)
-
-    # Preguntar si hacer el speedtest (tarda mucho)
-    hacer_speedtest = "--speedtest" in sys.argv or "-s" in sys.argv
-
-    try:
-        test_file_manager()
-    except Exception as e:
-        print(f"\n❌ Error en test_file_manager: {e}")
-
-    try:
-        test_system_utils()
-    except Exception as e:
-        print(f"\n❌ Error en test_system_utils: {e}")
-
-    if hacer_speedtest:
-        try:
-            test_network_monitor()
-        except Exception as e:
-            print(f"\n❌ Error en test_network_monitor: {e}")
-    else:
-        separador("NETWORK MONITOR (SPEEDTEST)")
-        print("\n  ⏭️  Saltado. Para incluir el speedtest ejecuta:")
-        print("     python3 test_logging.py --speedtest")
-
-    separador("RESULTADO FINAL")
-    print("\n  Revisa data/logs/dashboard.log para verificar los mensajes.")
-    print("  Todos los tests deberían mostrar ✅ sin excepciones no capturadas.\n")
 `````
 
 ## File: config/__init__.py
@@ -5150,6 +4171,290 @@ def load_selected_theme() -> str:
         return DEFAULT_THEME
 `````
 
+## File: core/cleanup_service.py
+`````python
+"""
+Servicio de limpieza automática de archivos exportados y datos antiguos
+"""
+import os
+import glob
+import threading
+import time
+from typing import Optional
+from config.settings import DATA_DIR, EXPORTS_CSV_DIR, EXPORTS_LOG_DIR, EXPORTS_SCR_DIR
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class CleanupService:
+    """
+    Servicio background que limpia periódicamente archivos exportados
+    y datos antiguos de la base de datos.
+
+    Características:
+    - Singleton: Solo una instancia en toda la aplicación
+    - Thread-safe: Seguro para concurrencia
+    - Daemon: Se cierra automáticamente con el programa
+    - Configurable: límites de archivos y antigüedad ajustables
+    """
+
+    _instance: Optional['CleanupService'] = None
+    _lock = threading.Lock()
+
+    # ── Configuración por defecto ─────────────────────────────────────────────
+    DEFAULT_MAX_CSV        = 10      # Máx. archivos CSV a conservar
+    DEFAULT_MAX_PNG        = 10      # Máx. archivos PNG a conservar
+    DEFAULT_MAX_LOG        = 10      # Máx. archivos log exportados a conservar
+    DEFAULT_DB_DAYS        = 30      # Días de datos a conservar en BD
+    DEFAULT_INTERVAL_HOURS = 24      # Cada cuántas horas limpiar
+
+    def __new__(cls, *args, **kwargs):
+        """Singleton: solo una instancia"""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(
+        self,
+        data_logger=None,
+        max_csv: int = DEFAULT_MAX_CSV,
+        max_png: int = DEFAULT_MAX_PNG,
+        max_log: int = DEFAULT_MAX_LOG,
+        db_days: int = DEFAULT_DB_DAYS,
+        interval_hours: float = DEFAULT_INTERVAL_HOURS,
+    ):
+        """
+        Inicializa el servicio (solo la primera vez).
+
+        Args:
+            data_logger:     Instancia de DataLogger para limpiar la BD.
+                             Si es None, solo se limpian archivos.
+            max_csv:         Número máximo de CSV exportados a conservar.
+            max_png:         Número máximo de PNG exportados a conservar.
+            db_days:         Días de histórico a conservar en la BD.
+            interval_hours:  Horas entre ejecuciones del ciclo de limpieza.
+        """
+        if hasattr(self, '_initialized'):
+            return
+
+        self.data_logger    = data_logger
+        self.max_csv        = max_csv
+        self.max_png        = max_png
+        self.max_log        = max_log
+        self.db_days        = db_days
+        self.interval_hours = interval_hours
+
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._initialized = True
+
+        logger.info(
+            f"[CleanupService] Configurado — "
+            f"CSV: {max_csv}, PNG: {max_png}, LOG: {max_log}, "
+            f"BD: {db_days}d, intervalo: {interval_hours}h"
+        )
+
+    # ── Ciclo de vida ─────────────────────────────────────────────────────────
+
+    def start(self):
+        """Inicia el servicio en segundo plano."""
+        if self._running:
+            logger.info("[CleanupService] Ya está corriendo")
+            return
+
+        self._running = True
+        self._thread = threading.Thread(
+            target=self._run,
+            daemon=True,
+            name="CleanupService"
+        )
+        self._thread.start()
+        logger.info("[CleanupService] Servicio iniciado")
+
+    def stop(self):
+        """Detiene el servicio."""
+        if not self._running:
+            return
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=5)
+        logger.info("[CleanupService] Servicio detenido")
+
+    def _run(self):
+        """Bucle principal: limpia al arrancar y luego cada interval_hours."""
+        # Primera limpieza inmediata al arrancar
+        self._cleanup_cycle()
+
+        interval_seconds = self.interval_hours * 3600
+        elapsed = 0.0
+        while self._running:
+            time.sleep(0.5)
+            elapsed += 0.5
+            if elapsed >= interval_seconds:
+                self._cleanup_cycle()
+                elapsed = 0.0
+
+    # ── Lógica de limpieza ────────────────────────────────────────────────────
+
+    def _cleanup_cycle(self):
+        """Ejecuta un ciclo completo de limpieza."""
+        logger.info("[CleanupService] Iniciando ciclo de limpieza")
+        self.clean_csv()
+        self.clean_png()
+        self.clean_log_exports()
+        if self.data_logger:
+            self.clean_db()
+        logger.info("[CleanupService] Ciclo de limpieza completado")
+
+    def clean_csv(self, max_files: int = None) -> int:
+        """
+        Elimina los CSV exportados más antiguos que superen el límite.
+
+        Args:
+            max_files: Límite a aplicar. Si es None usa self.max_csv.
+
+        Returns:
+            Número de archivos eliminados.
+        """
+        limit = max_files if max_files is not None else self.max_csv
+        pattern = os.path.join(str(EXPORTS_CSV_DIR), "history_*.csv")
+        return self._trim_files(pattern, limit, "CSV")
+
+    def clean_png(self, max_files: int = None) -> int:
+        """
+        Elimina los PNG exportados más antiguos que superen el límite.
+
+        Args:
+            max_files: Límite a aplicar. Si es None usa self.max_png.
+
+        Returns:
+            Número de archivos eliminados.
+        """
+        limit = max_files if max_files is not None else self.max_png
+        pattern = os.path.join(str(EXPORTS_SCR_DIR), "*.png")
+        return self._trim_files(pattern, limit, "PNG")
+
+
+    def clean_log_exports(self, max_files: int = None) -> int:
+        """
+        Elimina los archivos de exportación de logs más antiguos que superen el límite.
+
+        Args:
+            max_files: Límite a aplicar. Si es None usa self.max_log.
+
+        Returns:
+            Número de archivos eliminados.
+        """
+        limit = max_files if max_files is not None else self.max_log
+        pattern = os.path.join(str(EXPORTS_LOG_DIR), "log_export_*.log")
+        return self._trim_files(pattern, limit, "LOG_EXPORT")
+
+    def clean_db(self, days: int = None) -> bool:
+        """
+        Elimina registros de la BD más antiguos que 'days' días.
+
+        Args:
+            days: Antigüedad máxima. Si es None usa self.db_days.
+
+        Returns:
+            True si la limpieza fue exitosa.
+        """
+        if not self.data_logger:
+            logger.warning("[CleanupService] No hay data_logger configurado")
+            return False
+
+        d = days if days is not None else self.db_days
+        try:
+            self.data_logger.clean_old_data(days=d)
+            logger.info(f"[CleanupService] BD limpiada — registros >'{d}' días eliminados")
+            return True
+        except Exception as e:
+            logger.error(f"[CleanupService] Error limpiando BD: {e}")
+            return False
+
+    def _trim_files(self, pattern: str, max_files: int, label: str) -> int:
+        """
+        Elimina los archivos más antiguos que superen max_files.
+
+        Args:
+            pattern:   Patrón glob de los archivos a gestionar.
+            max_files: Número máximo a conservar.
+            label:     Etiqueta para el log.
+
+        Returns:
+            Número de archivos eliminados.
+        """
+        try:
+            files = sorted(glob.glob(pattern), key=os.path.getmtime)
+            to_delete = files[:-max_files] if len(files) > max_files else []
+            for f in to_delete:
+                try:
+                    os.remove(f)
+                    logger.info(f"[CleanupService] {label} eliminado: {os.path.basename(f)}")
+                except Exception as e:
+                    logger.warning(f"[CleanupService] No se pudo eliminar {f}: {e}")
+            if to_delete:
+                logger.info(
+                    f"[CleanupService] {label}: {len(to_delete)} eliminados, "
+                    f"{len(files) - len(to_delete)} conservados"
+                )
+            return len(to_delete)
+        except Exception as e:
+            logger.error(f"[CleanupService] Error en _trim_files ({label}): {e}")
+            return 0
+
+    # ── Información y estado ──────────────────────────────────────────────────
+
+    def get_status(self) -> dict:
+        """
+        Devuelve el estado actual del servicio.
+
+        Returns:
+            Diccionario con configuración y estado del hilo.
+        """
+        csv_files = glob.glob(os.path.join(str(EXPORTS_CSV_DIR), "history_*.csv"))
+        png_files = glob.glob(os.path.join(str(EXPORTS_SCR_DIR), "*.png"))
+        log_files = glob.glob(os.path.join(str(EXPORTS_LOG_DIR), "log_export_*.log"))
+        return {
+            'running':        self._running,
+            'thread_alive':   self._thread.is_alive() if self._thread else False,
+            'interval_hours': self.interval_hours,
+            'max_csv':        self.max_csv,
+            'max_png':        self.max_png,
+            'max_log':        self.max_log,
+            'db_days':        self.db_days,
+            'csv_count':      len(csv_files),
+            'png_count':      len(png_files),
+            'log_count':      len(log_files),
+        }
+
+    def force_cleanup(self) -> dict:
+        """
+        Fuerza un ciclo de limpieza inmediato desde fuera del hilo.
+        Útil para llamadas manuales desde la UI.
+
+        Returns:
+            Diccionario con el número de archivos eliminados y resultado de BD.
+        """
+        logger.info("[CleanupService] Limpieza forzada manualmente")
+        deleted_csv = self.clean_csv()
+        deleted_png = self.clean_png()
+        deleted_log = self.clean_log_exports()
+        db_ok = self.clean_db() if self.data_logger else False
+        logger.info(
+            f"[CleanupService] Limpieza manual completada — "
+            f"CSV: {deleted_csv}, PNG: {deleted_png}, LOG: {deleted_log}, BD: {db_ok}"
+        )
+        return {'deleted_csv': deleted_csv, 'deleted_png': deleted_png, 'deleted_log': deleted_log, 'db_ok': db_ok}
+
+    def is_running(self) -> bool:
+        """Verifica si el servicio está corriendo."""
+        return self._running
+`````
+
 ## File: core/service_monitor.py
 `````python
 """
@@ -5565,6 +4870,406 @@ class UpdateMonitor:
         except Exception as e:
             logger.error(f"[UpdateMonitor] check_updates: error inesperado: {e}")
             return {"pending": 0, "status": "Error", "message": str(e)}
+`````
+
+## File: ui/windows/log_viewer.py
+`````python
+"""
+Ventana de visualización del log del dashboard
+Permite filtrar por nivel, módulo, texto libre e intervalo de tiempo
+y exportar el resultado filtrado a un archivo .log
+"""
+import re
+import threading
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import customtkinter as ctk
+
+from config.settings import (
+    COLORS, FONT_FAMILY, FONT_SIZES,
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR, EXPORTS_LOG_DIR
+)
+from ui.styles import make_window_header, make_futuristic_button, StyleManager
+from utils.logger import get_logger
+from core.cleanup_service import CleanupService
+
+logger = get_logger(__name__)
+
+LOG_FILE = DATA_DIR / "logs" / "dashboard.log"
+LOG_LEVELS = ["TODOS", "DEBUG", "INFO", "WARNING", "ERROR"]
+LEVEL_COLORS = {
+    "DEBUG":   "#888888",
+    "INFO":    "#00BFFF",
+    "WARNING": "#FFA500",
+    "ERROR":   "#FF4444",
+}
+
+_PH_SEARCH = "buscar..."
+_PH_DATE   = "YYYY-MM-DD"
+_PH_TIME   = "HH:MM"
+
+LOG_PATTERN = re.compile(
+    r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+Dashboard(?:\.(\S+?))?:\s+(.*)$'
+)
+
+
+class LogViewerWindow(ctk.CTkToplevel):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Visor de Logs")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.lift()
+        self.focus_force()
+
+        self._all_lines = []
+        self._modules   = []
+        self._loading   = False
+
+        self._level_var  = ctk.StringVar(value="TODOS")
+        self._module_var = ctk.StringVar(value="TODOS")
+        self._search_var = ctk.StringVar(value=_PH_SEARCH)
+        self._quick_var  = ctk.StringVar(value="1h")
+        self._date_from  = ctk.StringVar(value=_PH_DATE)
+        self._time_from  = ctk.StringVar(value=_PH_TIME)
+        self._date_to    = ctk.StringVar(value=_PH_DATE)
+        self._time_to    = ctk.StringVar(value=_PH_TIME)
+
+        self._create_ui()
+        self._load_log()
+
+    # ── Placeholder helpers ──────────────────────────────────────────────────
+
+    def _entry_focus_in(self, entry, var, placeholder):
+        if var.get() == placeholder:
+            var.set("")
+            entry.configure(text_color=COLORS['text'])
+
+    def _entry_focus_out(self, entry, var, placeholder):
+        if var.get().strip() == "":
+            var.set(placeholder)
+            entry.configure(text_color=COLORS['text_dim'])
+
+    def _entry_value(self, var, placeholder):
+        v = var.get().strip()
+        return "" if v == placeholder else v
+
+    def _make_entry(self, parent, var, placeholder, width):
+        e = ctk.CTkEntry(
+            parent,
+            textvariable=var,
+            width=width,
+            height=28,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'],
+            border_color=COLORS['primary'],
+            text_color=COLORS['text_dim'],
+        )
+        e.bind("<FocusIn>",  lambda ev: self._entry_focus_in(e, var, placeholder))
+        e.bind("<FocusOut>", lambda ev: self._entry_focus_out(e, var, placeholder))
+        return e
+
+    # ── UI ───────────────────────────────────────────────────────────────────
+
+    def _create_ui(self):
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+        make_window_header(main, title="VISOR DE LOGS", on_close=self.destroy)
+        self._create_filters(main)
+        ctk.CTkFrame(main, fg_color=COLORS['border'], height=1,
+                     corner_radius=0).pack(fill="x", padx=5, pady=(4, 0))
+        self._create_results(main)
+        self._create_bottom_bar(main)
+
+    def _create_filters(self, parent):
+        filters = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        filters.pack(fill="x", padx=5, pady=(4, 0))
+
+        # Fila 1: Nivel · Módulo · Búsqueda
+        row1 = ctk.CTkFrame(filters, fg_color="transparent")
+        row1.pack(fill="x", padx=8, pady=(6, 2))
+
+        ctk.CTkLabel(row1, text="Nivel:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        ctk.CTkOptionMenu(
+            row1, variable=self._level_var, values=LOG_LEVELS, width=100,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
+            command=lambda _: self._apply_filters()
+        ).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row1, text="Módulo:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        self._module_menu = ctk.CTkOptionMenu(
+            row1, variable=self._module_var, values=["TODOS"], width=160,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
+            command=lambda _: self._apply_filters()
+        )
+        self._module_menu.pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row1, text="Buscar:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        search_entry = self._make_entry(row1, self._search_var, _PH_SEARCH, width=140)
+        search_entry.bind("<Return>",     lambda e: self._apply_filters())
+        search_entry.bind("<KeyRelease>", lambda e: self.after(400, self._apply_filters))
+        search_entry.pack(side="left")
+
+        # Fila 2: Intervalo rápido | Intervalo manual
+        row2 = ctk.CTkFrame(filters, fg_color="transparent")
+        row2.pack(fill="x", padx=8, pady=(2, 6))
+
+        ctk.CTkLabel(row2, text="Últimos:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        ctk.CTkOptionMenu(
+            row2, variable=self._quick_var,
+            values=["15min", "1h", "6h", "24h", "Todo"], width=80,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
+            command=self._on_quick_interval
+        ).pack(side="left", padx=(0, 16))
+
+        ctk.CTkLabel(row2, text="│", text_color=COLORS['border'],
+                     font=(FONT_FAMILY, FONT_SIZES['medium'])).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row2, text="Desde:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._date_from, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._time_from, _PH_TIME, width=60).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row2, text="Hasta:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._date_to, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._time_to, _PH_TIME, width=60).pack(side="left", padx=(0, 8))
+
+        make_futuristic_button(
+            row2, text="Aplicar", command=self._apply_filters,
+            width=8, height=4, font_size=13
+        ).pack(side="left")
+
+    def _create_results(self, parent):
+        result_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        result_frame.pack(fill="both", expand=True, padx=5, pady=4)
+
+        self._textbox = ctk.CTkTextbox(
+            result_frame,
+            fg_color=COLORS['bg_dark'],
+            text_color=COLORS['text'],
+            font=("Courier New", 12),
+            wrap="none",
+            state="disabled",
+        )
+        self._textbox.pack(fill="both", expand=True, padx=4, pady=4)
+
+        self._textbox._textbox.tag_config("DEBUG",   foreground=LEVEL_COLORS["DEBUG"])
+        self._textbox._textbox.tag_config("INFO",    foreground=LEVEL_COLORS["INFO"])
+        self._textbox._textbox.tag_config("WARNING", foreground=LEVEL_COLORS["WARNING"])
+        self._textbox._textbox.tag_config("ERROR",   foreground=LEVEL_COLORS["ERROR"])
+
+        try:
+            children = self._textbox._textbox.master.children
+            vsb = children.get('!ctkscrollbar')
+            hsb = children.get('!ctkscrollbar2')
+            if vsb:
+                StyleManager.style_scrollbar_ctk(vsb)
+                vsb.configure(width=22)
+            if hsb:
+                StyleManager.style_scrollbar_ctk(hsb)
+                hsb.configure(height=22)
+        except Exception:
+            pass
+
+    def _create_bottom_bar(self, parent):
+        bar = ctk.CTkFrame(parent, fg_color="transparent")
+        bar.pack(fill="x", padx=5, pady=(0, 4))
+
+        self._count_label = ctk.CTkLabel(
+            bar, text="0 entradas",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim']
+        )
+        self._count_label.pack(side="left", padx=8)
+
+        make_futuristic_button(
+            bar, text="↓ Exportar", command=self._export,
+            width=10, height=5, font_size=14
+        ).pack(side="right", padx=4)
+
+        make_futuristic_button(
+            bar, text="↺ Recargar", command=self._load_log,
+            width=10, height=5, font_size=14
+        ).pack(side="right", padx=4)
+
+    # ── Carga ────────────────────────────────────────────────────────────────
+
+    def _load_log(self):
+        if self._loading:
+            return
+        self._loading = True
+        self._set_text("Cargando log...", [])
+        threading.Thread(target=self._read_log_thread, daemon=True).start()
+
+    def _read_log_thread(self):
+        lines = []
+        try:
+            rotated = Path(str(LOG_FILE) + ".1")
+            if rotated.exists():
+                with open(rotated, "r", encoding="utf-8", errors="replace") as f:
+                    for raw in f:
+                        p = self._parse_line(raw.rstrip())
+                        if p:
+                            lines.append(p)
+            if LOG_FILE.exists():
+                with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
+                    for raw in f:
+                        p = self._parse_line(raw.rstrip())
+                        if p:
+                            lines.append(p)
+        except Exception as e:
+            logger.error(f"[LogViewerWindow] Error leyendo log: {e}")
+
+        self._all_lines = lines
+        self._loading = False
+        modules = sorted(set(l["module"] for l in lines))
+        self.after(0, lambda: self._update_modules(modules))
+        self.after(0, self._apply_filters)
+
+    def _parse_line(self, raw):
+        m = LOG_PATTERN.match(raw)
+        if not m:
+            return None
+        ts_str, level, module, message = m.groups()
+        if not module:
+            module = "general"
+        try:
+            ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+        return {"ts": ts, "ts_str": ts_str, "level": level,
+                "module": module, "message": message, "raw": raw}
+
+    def _update_modules(self, modules):
+        values = ["TODOS"] + modules
+        self._module_menu.configure(values=values)
+        if self._module_var.get() not in values:
+            self._module_var.set("TODOS")
+
+    # ── Filtrado ─────────────────────────────────────────────────────────────
+
+    def _on_quick_interval(self, value):
+        now = datetime.now()
+        deltas = {"15min": timedelta(minutes=15), "1h": timedelta(hours=1),
+                  "6h": timedelta(hours=6), "24h": timedelta(hours=24)}
+        if value == "Todo":
+            for var, ph in [(self._date_from, _PH_DATE), (self._time_from, _PH_TIME),
+                            (self._date_to,   _PH_DATE), (self._time_to,   _PH_TIME)]:
+                var.set(ph)
+        else:
+            since = now - deltas[value]
+            self._date_from.set(since.strftime("%Y-%m-%d"))
+            self._time_from.set(since.strftime("%H:%M"))
+            self._date_to.set(now.strftime("%Y-%m-%d"))
+            self._time_to.set(now.strftime("%H:%M"))
+        self._apply_filters()
+
+    def _apply_filters(self):
+        level  = self._level_var.get()
+        module = self._module_var.get()
+        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
+        dt_from = self._parse_datetime(
+            self._entry_value(self._date_from, _PH_DATE),
+            self._entry_value(self._time_from, _PH_TIME), False)
+        dt_to = self._parse_datetime(
+            self._entry_value(self._date_to, _PH_DATE),
+            self._entry_value(self._time_to, _PH_TIME), True)
+
+        result = []
+        for line in self._all_lines:
+            if level  != "TODOS" and line["level"]  != level:  continue
+            if module != "TODOS" and line["module"] != module: continue
+            if search and search not in line["raw"].lower():   continue
+            if dt_from and line["ts"] < dt_from:               continue
+            if dt_to   and line["ts"] > dt_to:                 continue
+            result.append(line)
+
+        self._set_text(None, result)
+        self._count_label.configure(text=f"{len(result)} entradas")
+
+    def _parse_datetime(self, date_str, time_str, is_end):
+        if not date_str:
+            return None
+        if not time_str:
+            time_str = "23:59" if is_end else "00:00"
+        try:
+            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            return None
+
+    # ── Renderizado ──────────────────────────────────────────────────────────
+
+    def _set_text(self, loading_msg, lines):
+        self._textbox.configure(state="normal")
+        self._textbox._textbox.delete("1.0", "end")
+        if loading_msg:
+            self._textbox._textbox.insert("end", loading_msg)
+        else:
+            for line in lines:
+                lvl = line["level"]
+                tag = lvl if lvl in LEVEL_COLORS else "INFO"
+                self._textbox._textbox.insert(
+                    "end",
+                    f"{line['ts_str']} [{lvl}] {line['module']}: {line['message']}\n",
+                    tag
+                )
+            self._textbox._textbox.see("end")
+        self._textbox.configure(state="disabled")
+
+    # ── Exportar ─────────────────────────────────────────────────────────────
+
+    def _export(self):
+        level  = self._level_var.get()
+        module = self._module_var.get()
+        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
+        dt_from = self._parse_datetime(
+            self._entry_value(self._date_from, _PH_DATE),
+            self._entry_value(self._time_from, _PH_TIME), False)
+        dt_to = self._parse_datetime(
+            self._entry_value(self._date_to, _PH_DATE),
+            self._entry_value(self._time_to, _PH_TIME), True)
+
+        result = []
+        for line in self._all_lines:
+            if level  != "TODOS" and line["level"]  != level:  continue
+            if module != "TODOS" and line["module"] != module: continue
+            if search and search not in line["raw"].lower():   continue
+            if dt_from and line["ts"] < dt_from:               continue
+            if dt_to   and line["ts"] > dt_to:                 continue
+            result.append(line["raw"])
+
+        from ui.widgets.dialogs import custom_msgbox
+        if not result:
+            custom_msgbox(self, "No hay entradas que exportar.", "Exportar")
+            return
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        export_path = EXPORTS_LOG_DIR / f"log_export_{ts}.log"
+        try:
+            with open(export_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(result))
+            custom_msgbox(self, f"Exportado en:\n{export_path}", "Exportar")
+            logger.info(f"[LogViewerWindow] Log exportado: {export_path}")
+            try:
+                CleanupService().clean_log_exports()
+            except Exception as e:
+                logger.warning(f"[LogViewerWindow] No se pudo limpiar exports: {e}")
+        except OSError as e:
+            custom_msgbox(self, f"Error al exportar:\n{e}", "Error")
+            logger.error(f"[LogViewerWindow] Error exportando: {e}")
 `````
 
 ## File: ui/windows/service.py
@@ -8549,112 +8254,6 @@ python-dotenv>=1.0.0
 # ============================================
 `````
 
-## File: config/settings.py
-`````python
-"""
-Configuración centralizada del sistema de monitoreo
-"""
-from pathlib import Path
-from config.themes import load_selected_theme, get_theme_colors
-# Rutas del proyecto
-PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
-SCRIPTS_DIR = PROJECT_ROOT / "scripts"
-
-# Asegurar que los directorios existan
-DATA_DIR.mkdir(exist_ok=True)
-SCRIPTS_DIR.mkdir(exist_ok=True)
-
-# Archivos de estado
-STATE_FILE = DATA_DIR / "fan_state.json"
-CURVE_FILE = DATA_DIR / "fan_curve.json"
-
-# Configuración de pantalla DSI
-DSI_WIDTH = 800
-DSI_HEIGHT = 480
-DSI_X = 1124
-DSI_Y = 1080
-
-# Configuración de actualización
-UPDATE_MS = 2000
-HISTORY = 60
-GRAPH_WIDTH = 800
-GRAPH_HEIGHT = 20
-
-# Umbrales de advertencia y críticos
-CPU_WARN = 60
-CPU_CRIT = 85
-TEMP_WARN = 60
-TEMP_CRIT = 75
-RAM_WARN = 65
-RAM_CRIT = 85
-
-# Configuración de red
-NET_WARN = 2.0  # MB/s
-NET_CRIT = 6.0
-NET_INTERFACE = None  # None = auto | "eth0" | "wlan0"
-NET_MAX_MB = 10.0
-NET_MIN_SCALE = 0.5
-NET_MAX_SCALE = 200.0
-NET_IDLE_THRESHOLD = 0.2
-NET_IDLE_RESET_TIME = 15  # segundos
-
-# Lanzadores de scripts
-LAUNCHERS = [
-    {
-        "label": "󰣳 󰌘 Montar NAS",
-        "script": str(SCRIPTS_DIR / "montarnas.sh")
-    },
-    {
-        "label": "󰣳 󰌙 Desmontar NAS",
-        "script": str(SCRIPTS_DIR / "desmontarnas.sh")
-    },
-    {
-        "label": "󰚰  Update System",
-        "script": str(SCRIPTS_DIR / "update.sh")
-    },
-    {
-        "label": "󰌘  Conectar VPN",
-        "script": str(SCRIPTS_DIR / "conectar_vpn.sh")
-    },
-    {
-        "label": "󰌙  Desconectar VPN",
-        "script": str(SCRIPTS_DIR / "desconectar_vpn.sh")
-    },
-    {
-        "label": "󱓞  Iniciar fase1",
-        "script": str(SCRIPTS_DIR / "fase1.sh")
-    },
-    {
-        "label": "󰅙  Shutdown",
-        "script": str(SCRIPTS_DIR / "apagado.sh")
-    }
-]
-
-# ========================================
-# SISTEMA DE TEMAS
-# ========================================
-
-# Importar sistema de temas
-
-
-# Cargar tema seleccionado
-SELECTED_THEME = load_selected_theme()
-
-# Obtener colores del tema
-COLORS = get_theme_colors(SELECTED_THEME)
-
-# Fuente
-FONT_FAMILY = "FiraMono Nerd Font"
-FONT_SIZES = {
-    "small": 14,
-    "medium": 18,
-    "large": 20,
-    "xlarge": 24,
-    "xxlarge": 30
-}
-`````
-
 ## File: core/data_logger.py
 `````python
 """
@@ -9334,6 +8933,122 @@ class DiskWindow(ctk.CTkToplevel):
         self.widgets[f"{key}_label"].configure(text_color=color)
         g = self.graphs[key]
         g['widget'].update(history, g['max_val'], color)
+`````
+
+## File: config/settings.py
+`````python
+"""
+Configuración centralizada del sistema de monitoreo
+"""
+from pathlib import Path
+from config.themes import load_selected_theme, get_theme_colors
+# Rutas del proyecto
+PROJECT_ROOT = Path(__file__).parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+
+# Subdirectorios de exportación
+EXPORTS_DIR      = DATA_DIR / "exports"
+EXPORTS_CSV_DIR  = EXPORTS_DIR / "csv"
+EXPORTS_LOG_DIR  = EXPORTS_DIR / "logs"
+EXPORTS_SCR_DIR  = EXPORTS_DIR / "screenshots"
+
+# Asegurar que los directorios existan
+DATA_DIR.mkdir(exist_ok=True)
+SCRIPTS_DIR.mkdir(exist_ok=True)
+EXPORTS_DIR.mkdir(exist_ok=True)
+EXPORTS_CSV_DIR.mkdir(exist_ok=True)
+EXPORTS_LOG_DIR.mkdir(exist_ok=True)
+EXPORTS_SCR_DIR.mkdir(exist_ok=True)
+
+# Archivos de estado
+STATE_FILE = DATA_DIR / "fan_state.json"
+CURVE_FILE = DATA_DIR / "fan_curve.json"
+
+# Configuración de pantalla DSI
+DSI_WIDTH = 800
+DSI_HEIGHT = 480
+DSI_X = 1124
+DSI_Y = 1080
+
+# Configuración de actualización
+UPDATE_MS = 2000
+HISTORY = 60
+GRAPH_WIDTH = 800
+GRAPH_HEIGHT = 20
+
+# Umbrales de advertencia y críticos
+CPU_WARN = 60
+CPU_CRIT = 85
+TEMP_WARN = 60
+TEMP_CRIT = 75
+RAM_WARN = 65
+RAM_CRIT = 85
+
+# Configuración de red
+NET_WARN = 2.0  # MB/s
+NET_CRIT = 6.0
+NET_INTERFACE = None  # None = auto | "eth0" | "wlan0"
+NET_MAX_MB = 10.0
+NET_MIN_SCALE = 0.5
+NET_MAX_SCALE = 200.0
+NET_IDLE_THRESHOLD = 0.2
+NET_IDLE_RESET_TIME = 15  # segundos
+
+# Lanzadores de scripts
+LAUNCHERS = [
+    {
+        "label": "󰣳 󰌘 Montar NAS",
+        "script": str(SCRIPTS_DIR / "montarnas.sh")
+    },
+    {
+        "label": "󰣳 󰌙 Desmontar NAS",
+        "script": str(SCRIPTS_DIR / "desmontarnas.sh")
+    },
+    {
+        "label": "󰚰  Update System",
+        "script": str(SCRIPTS_DIR / "update.sh")
+    },
+    {
+        "label": "󰌘  Conectar VPN",
+        "script": str(SCRIPTS_DIR / "conectar_vpn.sh")
+    },
+    {
+        "label": "󰌙  Desconectar VPN",
+        "script": str(SCRIPTS_DIR / "desconectar_vpn.sh")
+    },
+    {
+        "label": "󱓞  Iniciar fase1",
+        "script": str(SCRIPTS_DIR / "fase1.sh")
+    },
+    {
+        "label": "󰅙  Shutdown",
+        "script": str(SCRIPTS_DIR / "apagado.sh")
+    }
+]
+
+# ========================================
+# SISTEMA DE TEMAS
+# ========================================
+
+# Importar sistema de temas
+
+
+# Cargar tema seleccionado
+SELECTED_THEME = load_selected_theme()
+
+# Obtener colores del tema
+COLORS = get_theme_colors(SELECTED_THEME)
+
+# Fuente
+FONT_FAMILY = "FiraMono Nerd Font"
+FONT_SIZES = {
+    "small": 14,
+    "medium": 18,
+    "large": 20,
+    "xlarge": 24,
+    "xxlarge": 30
+}
 `````
 
 ## File: ui/windows/network.py
@@ -12210,536 +11925,6 @@ class FanControlWindow(ctk.CTkToplevel):
 **Versión actual**: v2.9 — **Última actualización**: 2026-02-24
 `````
 
-## File: ui/windows/history.py
-`````python
-"""
-Ventana de histórico de datos
-"""
-import customtkinter as ctk
-from datetime import datetime, timedelta
-from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR
-from ui.styles import make_futuristic_button, StyleManager, make_window_header
-from ui.widgets import custom_msgbox , confirm_dialog
-from core.data_analyzer import DataAnalyzer
-from core.data_logger import DataLogger
-from core.cleanup_service import CleanupService
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib.figure import Figure
-from utils.logger import get_logger
-import os
-
-logger = get_logger(__name__)
-
-_DATE_FMT = "%Y-%m-%d %H:%M"
-
-
-class HistoryWindow(ctk.CTkToplevel):
-    """Ventana de visualización de histórico"""
-
-    def __init__(self, parent, cleanup_service: CleanupService):
-        super().__init__(parent)
-
-        # Referencias
-        self.analyzer         = DataAnalyzer()
-        self.logger           = DataLogger()
-        self.cleanup_service  = cleanup_service
-
-        # Estado de periodo
-        self.period_var = ctk.StringVar(value="24h")
-        self.period_start = ctk.StringVar(value="YYYY-MM-DD HH:MM")
-        self.period_end   = ctk.StringVar(value="YYYY-MM-DD HH:MM")
-
-        # Estado de rango personalizado
-        self._using_custom_range = False
-        self._custom_start: datetime = None
-        self._custom_end:   datetime = None
-
-        # Configurar ventana
-        self.title("Histórico de Datos")
-        self.configure(fg_color=COLORS['bg_medium'])
-        self.overrideredirect(True)
-        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
-        self.resizable(False, False)
-
-        # Crear interfaz
-        self._create_ui()
-
-        # Cargar datos iniciales
-        self._update_data()
-
-    # ─────────────────────────────────────────────
-    # Construcción de la UI
-    # ─────────────────────────────────────────────
-
-    def _create_ui(self):
-        self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
-        self._main.pack(fill="both", expand=True, padx=5, pady=5) 
-        # ── Header unificado ──────────────────────────────────────────────────
-        self._header = make_window_header(
-            self._main,
-            title="HISTÓRICO DE DATOS",
-            on_close=self.destroy,
-        )
-        # Barra de herramientas en línea propia debajo del header
-        self.toolbar_container = ctk.CTkFrame(self._main, fg_color=COLORS["bg_dark"])
-        self.toolbar_container.pack(fill="x", padx=5, pady=(0, 4))
-        self.toolbar_container.pack_configure(anchor="center")
-        self._create_period_controls(self._main)
-        self._create_range_panel(self._main)   # fila oculta de OptionMenus
-
-        scroll_container = ctk.CTkFrame(self._main, fg_color=COLORS['bg_medium'])
-        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-
-        canvas_tk = ctk.CTkCanvas(
-            scroll_container,
-            bg=COLORS['bg_medium'],
-            highlightthickness=0,
-            height=DSI_HEIGHT - 300
-        )
-        canvas_tk.pack(side="left", fill="both", expand=True)
-
-        scrollbar = ctk.CTkScrollbar(
-            scroll_container,
-            orientation="vertical",
-            command=canvas_tk.yview,
-            width=30
-        )
-        scrollbar.pack(side="right", fill="y")
-
-        StyleManager.style_scrollbar_ctk(scrollbar)
-
-        canvas_tk.configure(yscrollcommand=scrollbar.set)
-
-        inner = ctk.CTkFrame(canvas_tk, fg_color=COLORS['bg_medium'])
-        canvas_tk.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
-        inner.bind("<Configure>",
-                   lambda e: canvas_tk.configure(scrollregion=canvas_tk.bbox("all")))
-
-        self._create_graphs_area(inner)
-        self._create_stats_area(inner)
-        self._create_buttons(self._main)
-
-
-    def _create_period_controls(self, parent):
-        """Fila 1: radio buttons 24h/7d/30d + botón para abrir/cerrar el panel de rango."""
-        self._controls_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        self._controls_frame.pack(fill="x", padx=10, pady=(5, 0))
-
-        ctk.CTkLabel(
-            self._controls_frame,
-            text="Periodo:",
-            text_color=COLORS['text'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'])
-        ).pack(side="left", padx=10)
-
-        for period, label in [("24h", "24 horas"), ("7d", "7 días"), ("30d", "30 días")]:
-            rb = ctk.CTkRadioButton(
-                self._controls_frame,
-                text=label,
-                variable=self.period_var,
-                value=period,
-                command=self._on_period_radio,
-                text_color=COLORS['text'],
-                font=(FONT_FAMILY, FONT_SIZES['small'])
-            )
-            rb.pack(side="left", padx=10)
-            StyleManager.style_radiobutton_ctk(rb)
-
-        # Botón toggle del panel de rango
-        self._toggle_btn = make_futuristic_button(
-            self._controls_frame,
-            text="󰙹 Rango",
-            command=self._toggle_range_panel,
-            height=6,
-            width=13
-        )
-        self._toggle_btn.pack(side="right", padx=10)
-
-    def _create_range_panel(self, parent):
-        """
-        Fila 2 (oculta por defecto): selectores día/mes/año/hora/min
-        para inicio y fin del rango. Sin teclado — todo por OptionMenu.
-        """
-        self._range_panel = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        # No se hace pack aquí → empieza oculto
-        ctk.CTkLabel(
-            self._range_panel,
-            text="desde:",
-            text_color=COLORS['text_dim'],
-            font=(FONT_FAMILY, FONT_SIZES['small'])
-        ).pack(side="left", padx=(10, 2))
-
-        self.date_start = ctk.CTkEntry(
-            self._range_panel,
-            textvariable=self.period_start,
-            text_color=COLORS['text_dim'],
-            width=300,
-            font=(FONT_FAMILY, FONT_SIZES['small'])
-        )
-        # Limpiar al hacer foco si tiene el texto de ejemplo
-        self.date_start.bind("<FocusIn>",  lambda e: self._entry_focus_in(self.date_start, self.period_start))
-        self.date_start.bind("<FocusOut>", lambda e: self._entry_focus_out(self.date_start, self.period_start))
-        self.date_start.pack(side="left", padx=(0, 4))
-                # Entradas de fecha en la fila de controles (derecha)
-        ctk.CTkLabel(
-            self._range_panel,
-            text="hasta:",
-            text_color=COLORS['text_dim'],
-            font=(FONT_FAMILY, FONT_SIZES['small'])
-        ).pack(side="left", padx=(0, 2))
-
-        self.date_end = ctk.CTkEntry(
-            self._range_panel,
-            textvariable=self.period_end,
-            text_color=COLORS['text_dim'],
-            width=300,
-            font=(FONT_FAMILY, FONT_SIZES['small'])
-        )
-        self.date_end.bind("<FocusIn>",  lambda e: self._entry_focus_in(self.date_end, self.period_end))
-        self.date_end.bind("<FocusOut>", lambda e: self._entry_focus_out(self.date_end, self.period_end))
-        self.date_end.pack(side="left", padx=(0, 4))
-
-
-        # ── BOTÓN APLICAR ─────────────────────────────────────────
-        self._apply_btn = make_futuristic_button(
-            self._controls_frame,
-            text="✓Aplicar",
-            command=self._apply_custom_range,
-            height=6,
-            width=12,
-            state="disabled"  # solo se habilita al abrir el panel, para evitar confusión
-        )
-        self._apply_btn.pack(side="right", padx=(10, 5))
-
-    def _create_graphs_area(self, parent):
-        graphs_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
-        graphs_frame.pack(fill="both", expand=True, padx=(0, 10), pady=(0, 10))
-
-        self.fig = Figure(figsize=(9, 20), facecolor=COLORS['bg_medium'])
-        self.fig.set_tight_layout(True)
-
-        self.canvas = FigureCanvasTkAgg(self.fig, master=graphs_frame)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill="both", expand=True, pady=0)
-
-        # Toolbar invisible — sus métodos se invocan desde botones propios
-        self.toolbar = NavigationToolbar2Tk(self.canvas, self)
-        self.toolbar.pack_forget()
-
-        # Sub-frame centrado dentro de la barra de herramientas
-        _btn_row = ctk.CTkFrame(self.toolbar_container, fg_color="transparent")
-        _btn_row.pack(expand=True)
-
-        for text, cmd, w in [
-            ("🏠 Inicio",  self.toolbar.home,          12),
-            ("🔍 Zoom",    self.toolbar.zoom,           12),
-            ("🖐️ Mover",  self.toolbar.pan,            12),
-            (" Guardar",  self._export_figure_image,   12),
-        ]:
-            make_futuristic_button(
-                _btn_row, text=text, command=cmd, height=6, width=w
-            ).pack(side="left", padx=5, pady=4)
-
-        self.canvas.mpl_connect('button_press_event',   self._on_click)
-        self.canvas.mpl_connect('button_release_event', self._on_release)
-        self.canvas.mpl_connect('motion_notify_event',  self._on_motion)
-
-    def _create_stats_area(self, parent):
-        stats_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
-        stats_frame.pack(fill="x", padx=10, pady=5)
-
-        ctk.CTkLabel(
-            stats_frame,
-            text="Estadísticas:",
-            text_color=COLORS['secondary'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
-        ).pack(pady=(10, 5))
-
-        self.stats_label = ctk.CTkLabel(
-            stats_frame,
-            text="Cargando...",
-            text_color=COLORS['text'],
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            justify="left"
-        )
-        self.stats_label.pack(pady=(0, 10), padx=20)
-
-    def _create_buttons(self, parent):
-        buttons = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
-        buttons.pack(fill="x", pady=10, padx=10)
-
-        for text, cmd, side, w in [
-            ("Actualizar",       self._update_data,    "left",  18),
-            ("Exportar CSV",     self._export_csv,     "left",  18),
-            ("Limpiar Antiguos", self._clean_old_data, "left",  18),
-        ]:
-            make_futuristic_button(
-                buttons, text=text, command=cmd, width=w, height=6
-            ).pack(side=side, padx=5)
-
-    # ─────────────────────────────────────────────
-    # Control del panel de rango
-    # ─────────────────────────────────────────────
-
-    def _toggle_range_panel(self):
-        """Muestra u oculta la fila de OptionMenus de rango personalizado."""
-        if self._range_panel.winfo_ismapped():
-            self._range_panel.pack_forget()
-            self._toggle_btn.configure(text="󰙹 Rango")
-            self._apply_btn.configure(state="disabled")
-        else:
-            # Insertar después del frame de controles de periodo
-            self._range_panel.pack(
-                fill="x", padx=10, pady=(10, 5),
-                after=self._controls_frame
-            )
-            self._toggle_btn.configure(text="✕ Cerrar")
-            self._apply_btn.configure(state="normal")
-
-
-    # ─────────────────────────────────────────────
-    # Lógica de actualización
-    # ─────────────────────────────────────────────
-
-    _PLACEHOLDER = "YYYY-MM-DD HH:MM"
-
-    def _entry_focus_in(self, entry: ctk.CTkEntry, var: ctk.StringVar):
-        """Al enfocar: si tiene el texto de ejemplo, lo borra y pone color normal."""
-        if var.get() == self._PLACEHOLDER:
-            var.set("")
-            entry.configure(text_color=COLORS['text'])
-
-    def _entry_focus_out(self, entry: ctk.CTkEntry, var: ctk.StringVar):
-        """Al perder foco: si quedó vacío, restaura el texto de ejemplo en gris."""
-        if var.get().strip() == "":
-            var.set(self._PLACEHOLDER)
-            entry.configure(text_color=COLORS['text_dim'])
-
-    def _on_period_radio(self):
-        """Al pulsar radio button fijo: desactiva modo custom y actualiza."""
-        self._using_custom_range = False
-        self._update_data()
-
-    def _apply_custom_range(self):
-        """Lee los OptionMenus y aplica el rango sin necesidad de teclado."""
-        _PH = self._PLACEHOLDER
-        start_dt_text = self.period_start.get().strip()
-        end_dt_text   = self.period_end.get().strip()
-        if start_dt_text == _PH: start_dt_text = ""
-        if end_dt_text   == _PH: end_dt_text   = ""
-        try:
-            start_dt = datetime.strptime(start_dt_text, _DATE_FMT)
-        except ValueError as e:
-            custom_msgbox(self, f"Fecha de inicio inválida:\n{e}", "❌ Error")
-            return
-
-        try:
-            end_dt = datetime.strptime(end_dt_text, _DATE_FMT)
-        except ValueError as e:
-            custom_msgbox(self, f"Fecha de fin inválida:\n{e}", "❌ Error")
-            return
-
-        if end_dt <= start_dt:
-            custom_msgbox(self, "La fecha de fin debe ser\nposterior a la de inicio.", "⚠️ Rango inválido")
-            return
-
-        if (end_dt - start_dt).days > 90:
-            custom_msgbox(self, "El rango no puede superar 90 días.", "⚠️ Rango demasiado amplio")
-            return
-
-        self._using_custom_range = True
-        self._custom_start = start_dt
-        self._custom_end   = end_dt
-
-        logger.info(
-            f"[HistoryWindow] Rango aplicado: "
-            f"{start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%Y-%m-%d %H:%M')}"
-        )
-        self._update_data()
-
-    def _update_data(self):
-        """Actualiza estadísticas y gráficas según el modo activo."""
-        if self._using_custom_range:
-            start = self._custom_start
-            end   = self._custom_end
-            stats = self.analyzer.get_stats_between(start, end)
-            rango_label = f"{start.strftime('%Y-%m-%d %H:%M')} → {end.strftime('%Y-%m-%d %H:%M')}"
-            hours = None  # no se usa en modo custom
-        else:
-            period = self.period_var.get()
-            hours  = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[period]
-            stats  = self.analyzer.get_stats(hours)
-            rango_label = period
-
-        total_records = self.logger.get_metrics_count()
-        db_size       = self.logger.get_db_size_mb()
-
-        stats_text = (
-            f"• CPU promedio: {stats.get('cpu_avg', 0):.1f}%  "
-            f"(min: {stats.get('cpu_min', 0):.1f}%, max: {stats.get('cpu_max', 0):.1f}%)\n"
-            f"• RAM promedio: {stats.get('ram_avg', 0):.1f}%  "
-            f"(min: {stats.get('ram_min', 0):.1f}%, max: {stats.get('ram_max', 0):.1f}%)\n"
-            f"• Temp promedio: {stats.get('temp_avg', 0):.1f}°C  "
-            f"(min: {stats.get('temp_min', 0):.1f}°C, max: {stats.get('temp_max', 0):.1f}°C)\n"
-            f"• Red Down: {stats.get('down_avg', 0):.2f} MB/s  "
-            f"(min: {stats.get('down_min', 0):.2f}, max: {stats.get('down_max', 0):.2f})\n"
-            f"• Red Up: {stats.get('up_avg', 0):.2f} MB/s  "
-            f"(min: {stats.get('up_min', 0):.2f}, max: {stats.get('up_max', 0):.2f})\n"
-            f"• Disk Read: {stats.get('disk_read_avg', 0):.2f} MB/s  "
-            f"(min: {stats.get('disk_read_min', 0):.2f}, max: {stats.get('disk_read_max', 0):.2f})\n"
-            f"• Disk Write: {stats.get('disk_write_avg', 0):.2f} MB/s  "
-            f"(min: {stats.get('disk_write_min', 0):.2f}, max: {stats.get('disk_write_max', 0):.2f})\n"
-            f"• PWM promedio: {stats.get('pwm_avg', 0):.0f}  "
-            f"(min: {stats.get('pwm_min', 0):.0f}, max: {stats.get('pwm_max', 0):.0f})\n"
-            f"• Actualizaciones disponibles promedio: {stats.get('updates_available_avg', 0):.2f}\n"
-            f"• Actualizaciones disponibles (min: {stats.get('updates_available_min', 0)})\n"
-            f"• Actualizaciones disponibles (max: {stats.get('updates_available_max', 0)})\n"
-            f"• Muestras: {stats.get('total_samples', 0)} en {rango_label}\n"
-            f"• Total registros: {total_records}  |  DB: {db_size:.2f} MB"
-        )
-        self.stats_label.configure(text=stats_text)
-
-        if self._using_custom_range:
-            self._update_graphs_between(self._custom_start, self._custom_end)
-        else:
-            self._update_graphs(hours)
-
-    # ─────────────────────────────────────────────
-    # Gráficas
-    # ─────────────────────────────────────────────
-
-    _METRICS = [
-        ('cpu_percent',     'CPU %',           'primary'),
-        ('ram_percent',     'RAM %',           'secondary'),
-        ('temperature',     'Temp °C',         'danger'),
-        ('net_download_mb', 'Red Down MB/s',   'primary'),
-        ('net_upload_mb',   'Red Up MB/s',     'secondary'),
-        ('disk_read_mb',    'Disk Read MB/s',  'primary'),
-        ('disk_write_mb',   'Disk Write MB/s', 'secondary'),
-        ('fan_pwm',         'PWM',             'warning'),
-    ]
-
-    def _update_graphs(self, hours: int):
-        self.fig.clear()
-        axes = [self.fig.add_subplot(8, 1, i) for i in range(1, 9)]
-        for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
-            ts, vals = self.analyzer.get_graph_data(metric, hours)
-            self._draw_metric(ax, ts, vals, ylabel, COLORS[color_key])
-        self.fig.tight_layout()
-        self.canvas.draw()
-
-    def _update_graphs_between(self, start: datetime, end: datetime):
-        self.fig.clear()
-        axes = [self.fig.add_subplot(8, 1, i) for i in range(1, 9)]
-        for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
-            ts, vals = self.analyzer.get_graph_data_between(metric, start, end)
-            self._draw_metric(ax, ts, vals, ylabel, COLORS[color_key])
-        self.fig.tight_layout()
-        self.canvas.draw()
-
-    def _draw_metric(self, ax, timestamps, values, ylabel: str, color: str):
-        ax.set_facecolor(COLORS['bg_dark'])
-        ax.tick_params(colors=COLORS['text'])
-        ax.set_ylabel(ylabel, color=COLORS['text'])
-        ax.set_xlabel('Tiempo', color=COLORS['text'])
-        ax.grid(True, alpha=0.2)
-        if timestamps:
-            ax.plot(timestamps, values, color=color, linewidth=1.5)
-
-    # ─────────────────────────────────────────────
-    # Exportación
-    # ─────────────────────────────────────────────
-
-    def _export_csv(self):
-        if self._using_custom_range:
-            start = self._custom_start
-            end   = self._custom_end
-            label = f"custom_{start.strftime('%Y%m%d%H%M')}_{end.strftime('%Y%m%d%H%M')}"
-            path  = f"{DATA_DIR}/history_{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            try:
-                self.analyzer.export_to_csv_between(path, start, end)
-                custom_msgbox(self, f"Datos exportados a:\n{path}", "✅ Exportado")
-            except Exception as e:
-                custom_msgbox(self, f"Error al exportar:\n{e}", "❌ Error")
-        else:
-            period = self.period_var.get()
-            hours  = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[period]
-            path   = f"{DATA_DIR}/history_{period}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            try:
-                self.analyzer.export_to_csv(path, hours)
-                custom_msgbox(self, f"Datos exportados a:\n{path}", "✅ Exportado")
-            except Exception as e:
-                custom_msgbox(self, f"Error al exportar:\n{e}", "❌ Error")
-
-    def _clean_old_data(self):
-        """Fuerza un ciclo de limpieza completo a través de CleanupService."""
-        status = self.cleanup_service.get_status()
-
-        def do_clean():
-            try:
-                result = self.cleanup_service.force_cleanup()
-                msg = (
-                    f"Limpieza completada:\n\n"
-                    f"• CSV eliminados: {result['deleted_csv']}\n"
-                    f"• PNG eliminados: {result['deleted_png']}\n"
-                    f"• BD limpiada: {'Sí' if result['db_ok'] else 'No'}"
-                )
-                custom_msgbox(self, msg, "✅ Limpiado")
-                logger.info(f"[HistoryWindow] Limpieza manual completada: {result}")
-                self._update_data()
-            except Exception as e:
-                logger.error(f"[HistoryWindow] Error en limpieza manual: {e}")
-                custom_msgbox(self, f"Error al limpiar:\n{e}", "❌ Error")
-
-        confirm_dialog(
-            parent=self,
-            text=(
-                f"¿Forzar limpieza ahora?\n\n"
-                f"• CSV actuales: {status['csv_count']} (límite: {status['max_csv']})\n"
-                f"• PNG actuales: {status['png_count']} (límite: {status['max_png']})\n"
-                f"• BD: registros >'{status['db_days']}' días\n\n"
-                f"Esto liberará espacio en disco."
-            ),
-            title="⚠️ Confirmar Limpieza",
-            on_confirm=do_clean,
-            on_cancel=None
-        )
-
-    def _export_figure_image(self):
-        
-        try:
-            save_dir = os.path.join(os.getcwd(), "data/screenshots")
-            os.makedirs(save_dir, exist_ok=True)
-            filepath = os.path.join(
-                save_dir,
-                f"graficas_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.png"
-            )
-            self.fig.savefig(
-                filepath, dpi=150,
-                facecolor=self.fig.get_facecolor(),
-                bbox_inches='tight'
-            )
-            logger.info(f"[HistoryWindow] Figura guardada: {filepath}")
-            custom_msgbox(self, f"Imagen guardada en:\n\n{filepath}", "✅ Captura Guardada")
-        except Exception as e:
-            logger.error(f"[HistoryWindow] Error guardando imagen: {e}")
-            custom_msgbox(self, f"Error al guardar la imagen: {e}", "❌ Error")
-
-    # ─────────────────────────────────────────────
-    # Eventos matplotlib
-    # ─────────────────────────────────────────────
-
-    def _on_click(self, event):
-        if event.inaxes:
-            logger.debug(f"Click en gráfica: x={event.xdata}, y={event.ydata}")
-
-    def _on_release(self, event):
-        pass
-
-    def _on_motion(self, event):
-        pass
-`````
-
 ## File: README.md
 `````markdown
 # 🖥️ Sistema de Monitoreo y Control - Dashboard v2.9
@@ -13243,6 +12428,548 @@ CustomTkinter - psutil - matplotlib - Ookla Speedtest CLI - Homebridge - Raspber
 ---
 
 Dashboard v2.9: Profesional, Unificado, Tactil, Auto-mantenido, conectado a HomeKit y sin bloqueos en UI
+`````
+
+## File: ui/windows/history.py
+`````python
+"""
+Ventana de histórico de datos
+"""
+import customtkinter as ctk
+from datetime import datetime, timedelta
+from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR, EXPORTS_CSV_DIR, EXPORTS_SCR_DIR
+from ui.styles import make_futuristic_button, StyleManager, make_window_header
+from ui.widgets import custom_msgbox , confirm_dialog
+from core.data_analyzer import DataAnalyzer
+from core.data_logger import DataLogger
+from core.cleanup_service import CleanupService
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.figure import Figure
+from utils.logger import get_logger
+import os
+
+logger = get_logger(__name__)
+
+_DATE_FMT = "%Y-%m-%d %H:%M"
+
+
+class HistoryWindow(ctk.CTkToplevel):
+    """Ventana de visualización de histórico"""
+
+    def __init__(self, parent, cleanup_service: CleanupService):
+        super().__init__(parent)
+
+        # Referencias
+        self.analyzer         = DataAnalyzer()
+        self.logger           = DataLogger()
+        self.cleanup_service  = cleanup_service
+
+        # Estado de periodo
+        self.period_var = ctk.StringVar(value="24h")
+        self.period_start = ctk.StringVar(value="YYYY-MM-DD HH:MM")
+        self.period_end   = ctk.StringVar(value="YYYY-MM-DD HH:MM")
+
+        # Estado de rango personalizado
+        self._using_custom_range = False
+        self._custom_start: datetime = None
+        self._custom_end:   datetime = None
+
+        # Configurar ventana
+        self.title("Histórico de Datos")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+
+        # Crear interfaz
+        self._create_ui()
+
+        # Cargar datos iniciales
+        self._update_data()
+
+    # ─────────────────────────────────────────────
+    # Construcción de la UI
+    # ─────────────────────────────────────────────
+
+    def _create_ui(self):
+        self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        self._main.pack(fill="both", expand=True, padx=5, pady=5) 
+        # ── Header unificado ──────────────────────────────────────────────────
+        self._header = make_window_header(
+            self._main,
+            title="HISTÓRICO DE DATOS",
+            on_close=self.destroy,
+        )
+        # Barra de herramientas en línea propia debajo del header
+        self.toolbar_container = ctk.CTkFrame(self._main, fg_color=COLORS["bg_dark"])
+        self.toolbar_container.pack(fill="x", padx=5, pady=(0, 4))
+        self.toolbar_container.pack_configure(anchor="center")
+        self._create_period_controls(self._main)
+        self._create_range_panel(self._main)   # fila oculta de OptionMenus
+
+        scroll_container = ctk.CTkFrame(self._main, fg_color=COLORS['bg_medium'])
+        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
+
+        canvas_tk = ctk.CTkCanvas(
+            scroll_container,
+            bg=COLORS['bg_medium'],
+            highlightthickness=0,
+            height=DSI_HEIGHT - 300
+        )
+        canvas_tk.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ctk.CTkScrollbar(
+            scroll_container,
+            orientation="vertical",
+            command=canvas_tk.yview,
+            width=30
+        )
+        scrollbar.pack(side="right", fill="y")
+
+        StyleManager.style_scrollbar_ctk(scrollbar)
+
+        canvas_tk.configure(yscrollcommand=scrollbar.set)
+
+        inner = ctk.CTkFrame(canvas_tk, fg_color=COLORS['bg_medium'])
+        canvas_tk.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
+        inner.bind("<Configure>",
+                   lambda e: canvas_tk.configure(scrollregion=canvas_tk.bbox("all")))
+
+        self._create_graphs_area(inner)
+        self._create_stats_area(inner)
+        self._create_buttons(self._main)
+
+
+    def _create_period_controls(self, parent):
+        """Fila 1: radio buttons 24h/7d/30d + botón para abrir/cerrar el panel de rango."""
+        self._controls_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
+        self._controls_frame.pack(fill="x", padx=10, pady=(5, 0))
+
+        ctk.CTkLabel(
+            self._controls_frame,
+            text="Periodo:",
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'])
+        ).pack(side="left", padx=10)
+
+        for period, label in [("24h", "24 horas"), ("7d", "7 días"), ("30d", "30 días")]:
+            rb = ctk.CTkRadioButton(
+                self._controls_frame,
+                text=label,
+                variable=self.period_var,
+                value=period,
+                command=self._on_period_radio,
+                text_color=COLORS['text'],
+                font=(FONT_FAMILY, FONT_SIZES['small'])
+            )
+            rb.pack(side="left", padx=10)
+            StyleManager.style_radiobutton_ctk(rb)
+
+        # Botón toggle del panel de rango
+        self._toggle_btn = make_futuristic_button(
+            self._controls_frame,
+            text="󰙹 Rango",
+            command=self._toggle_range_panel,
+            height=6,
+            width=13
+        )
+        self._toggle_btn.pack(side="right", padx=10)
+
+    def _create_range_panel(self, parent):
+        """
+        Fila 2 (oculta por defecto): selectores día/mes/año/hora/min
+        para inicio y fin del rango. Sin teclado — todo por OptionMenu.
+        """
+        self._range_panel = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
+        # No se hace pack aquí → empieza oculto
+        ctk.CTkLabel(
+            self._range_panel,
+            text="desde:",
+            text_color=COLORS['text_dim'],
+            font=(FONT_FAMILY, FONT_SIZES['small'])
+        ).pack(side="left", padx=(10, 2))
+
+        self.date_start = ctk.CTkEntry(
+            self._range_panel,
+            textvariable=self.period_start,
+            text_color=COLORS['text_dim'],
+            width=300,
+            font=(FONT_FAMILY, FONT_SIZES['small'])
+        )
+        # Limpiar al hacer foco si tiene el texto de ejemplo
+        self.date_start.bind("<FocusIn>",  lambda e: self._entry_focus_in(self.date_start, self.period_start))
+        self.date_start.bind("<FocusOut>", lambda e: self._entry_focus_out(self.date_start, self.period_start))
+        self.date_start.pack(side="left", padx=(0, 4))
+                # Entradas de fecha en la fila de controles (derecha)
+        ctk.CTkLabel(
+            self._range_panel,
+            text="hasta:",
+            text_color=COLORS['text_dim'],
+            font=(FONT_FAMILY, FONT_SIZES['small'])
+        ).pack(side="left", padx=(0, 2))
+
+        self.date_end = ctk.CTkEntry(
+            self._range_panel,
+            textvariable=self.period_end,
+            text_color=COLORS['text_dim'],
+            width=300,
+            font=(FONT_FAMILY, FONT_SIZES['small'])
+        )
+        self.date_end.bind("<FocusIn>",  lambda e: self._entry_focus_in(self.date_end, self.period_end))
+        self.date_end.bind("<FocusOut>", lambda e: self._entry_focus_out(self.date_end, self.period_end))
+        self.date_end.pack(side="left", padx=(0, 4))
+
+
+        # ── BOTÓN APLICAR ─────────────────────────────────────────
+        self._apply_btn = make_futuristic_button(
+            self._controls_frame,
+            text="✓Aplicar",
+            command=self._apply_custom_range,
+            height=6,
+            width=12,
+            state="disabled"  # solo se habilita al abrir el panel, para evitar confusión
+        )
+        self._apply_btn.pack(side="right", padx=(10, 5))
+
+    def _create_graphs_area(self, parent):
+        graphs_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
+        graphs_frame.pack(fill="both", expand=True, padx=(0, 10), pady=(0, 10))
+
+        self.fig = Figure(figsize=(9, 20), facecolor=COLORS['bg_medium'])
+        self.fig.set_tight_layout(True)
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=graphs_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill="both", expand=True, pady=0)
+
+        # Toolbar invisible — sus métodos se invocan desde botones propios
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self)
+        self.toolbar.pack_forget()
+
+        # Sub-frame centrado dentro de la barra de herramientas
+        _btn_row = ctk.CTkFrame(self.toolbar_container, fg_color="transparent")
+        _btn_row.pack(expand=True)
+
+        for text, cmd, w in [
+            ("🏠 Inicio",  self.toolbar.home,          12),
+            ("🔍 Zoom",    self.toolbar.zoom,           12),
+            ("🖐️ Mover",  self.toolbar.pan,            12),
+            (" Guardar",  self._export_figure_image,   12),
+        ]:
+            make_futuristic_button(
+                _btn_row, text=text, command=cmd, height=6, width=w
+            ).pack(side="left", padx=5, pady=4)
+
+        self.canvas.mpl_connect('button_press_event',   self._on_click)
+        self.canvas.mpl_connect('button_release_event', self._on_release)
+        self.canvas.mpl_connect('motion_notify_event',  self._on_motion)
+
+    def _create_stats_area(self, parent):
+        stats_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
+        stats_frame.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(
+            stats_frame,
+            text="Estadísticas:",
+            text_color=COLORS['secondary'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
+        ).pack(pady=(10, 5))
+
+        self.stats_label = ctk.CTkLabel(
+            stats_frame,
+            text="Cargando...",
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            justify="left"
+        )
+        self.stats_label.pack(pady=(0, 10), padx=20)
+
+    def _create_buttons(self, parent):
+        buttons = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
+        buttons.pack(fill="x", pady=10, padx=10)
+
+        for text, cmd, side, w in [
+            ("Actualizar",       self._update_data,    "left",  18),
+            ("Exportar CSV",     self._export_csv,     "left",  18),
+            ("Limpiar Antiguos", self._clean_old_data, "left",  18),
+        ]:
+            make_futuristic_button(
+                buttons, text=text, command=cmd, width=w, height=6
+            ).pack(side=side, padx=5)
+
+    # ─────────────────────────────────────────────
+    # Control del panel de rango
+    # ─────────────────────────────────────────────
+
+    def _toggle_range_panel(self):
+        """Muestra u oculta la fila de OptionMenus de rango personalizado."""
+        if self._range_panel.winfo_ismapped():
+            self._range_panel.pack_forget()
+            self._toggle_btn.configure(text="󰙹 Rango")
+            self._apply_btn.configure(state="disabled")
+        else:
+            # Insertar después del frame de controles de periodo
+            self._range_panel.pack(
+                fill="x", padx=10, pady=(10, 5),
+                after=self._controls_frame
+            )
+            self._toggle_btn.configure(text="✕ Cerrar")
+            self._apply_btn.configure(state="normal")
+
+
+    # ─────────────────────────────────────────────
+    # Lógica de actualización
+    # ─────────────────────────────────────────────
+
+    _PLACEHOLDER = "YYYY-MM-DD HH:MM"
+
+    def _entry_focus_in(self, entry: ctk.CTkEntry, var: ctk.StringVar):
+        """Al enfocar: si tiene el texto de ejemplo, lo borra y pone color normal."""
+        if var.get() == self._PLACEHOLDER:
+            var.set("")
+            entry.configure(text_color=COLORS['text'])
+
+    def _entry_focus_out(self, entry: ctk.CTkEntry, var: ctk.StringVar):
+        """Al perder foco: si quedó vacío, restaura el texto de ejemplo en gris."""
+        if var.get().strip() == "":
+            var.set(self._PLACEHOLDER)
+            entry.configure(text_color=COLORS['text_dim'])
+
+    def _on_period_radio(self):
+        """Al pulsar radio button fijo: desactiva modo custom y actualiza."""
+        self._using_custom_range = False
+        self._update_data()
+
+    def _apply_custom_range(self):
+        """Lee los OptionMenus y aplica el rango sin necesidad de teclado."""
+        _PH = self._PLACEHOLDER
+        start_dt_text = self.period_start.get().strip()
+        end_dt_text   = self.period_end.get().strip()
+        if start_dt_text == _PH: start_dt_text = ""
+        if end_dt_text   == _PH: end_dt_text   = ""
+        try:
+            start_dt = datetime.strptime(start_dt_text, _DATE_FMT)
+        except ValueError as e:
+            custom_msgbox(self, f"Fecha de inicio inválida:\n{e}", "❌ Error")
+            return
+
+        try:
+            end_dt = datetime.strptime(end_dt_text, _DATE_FMT)
+        except ValueError as e:
+            custom_msgbox(self, f"Fecha de fin inválida:\n{e}", "❌ Error")
+            return
+
+        if end_dt <= start_dt:
+            custom_msgbox(self, "La fecha de fin debe ser\nposterior a la de inicio.", "⚠️ Rango inválido")
+            return
+
+        if (end_dt - start_dt).days > 90:
+            custom_msgbox(self, "El rango no puede superar 90 días.", "⚠️ Rango demasiado amplio")
+            return
+
+        self._using_custom_range = True
+        self._custom_start = start_dt
+        self._custom_end   = end_dt
+
+        logger.info(
+            f"[HistoryWindow] Rango aplicado: "
+            f"{start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%Y-%m-%d %H:%M')}"
+        )
+        self._update_data()
+
+    def _update_data(self):
+        """Actualiza estadísticas y gráficas según el modo activo."""
+        if self._using_custom_range:
+            start = self._custom_start
+            end   = self._custom_end
+            stats = self.analyzer.get_stats_between(start, end)
+            rango_label = f"{start.strftime('%Y-%m-%d %H:%M')} → {end.strftime('%Y-%m-%d %H:%M')}"
+            hours = None  # no se usa en modo custom
+        else:
+            period = self.period_var.get()
+            hours  = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[period]
+            stats  = self.analyzer.get_stats(hours)
+            rango_label = period
+
+        total_records = self.logger.get_metrics_count()
+        db_size       = self.logger.get_db_size_mb()
+
+        stats_text = (
+            f"• CPU promedio: {stats.get('cpu_avg', 0):.1f}%  "
+            f"(min: {stats.get('cpu_min', 0):.1f}%, max: {stats.get('cpu_max', 0):.1f}%)\n"
+            f"• RAM promedio: {stats.get('ram_avg', 0):.1f}%  "
+            f"(min: {stats.get('ram_min', 0):.1f}%, max: {stats.get('ram_max', 0):.1f}%)\n"
+            f"• Temp promedio: {stats.get('temp_avg', 0):.1f}°C  "
+            f"(min: {stats.get('temp_min', 0):.1f}°C, max: {stats.get('temp_max', 0):.1f}°C)\n"
+            f"• Red Down: {stats.get('down_avg', 0):.2f} MB/s  "
+            f"(min: {stats.get('down_min', 0):.2f}, max: {stats.get('down_max', 0):.2f})\n"
+            f"• Red Up: {stats.get('up_avg', 0):.2f} MB/s  "
+            f"(min: {stats.get('up_min', 0):.2f}, max: {stats.get('up_max', 0):.2f})\n"
+            f"• Disk Read: {stats.get('disk_read_avg', 0):.2f} MB/s  "
+            f"(min: {stats.get('disk_read_min', 0):.2f}, max: {stats.get('disk_read_max', 0):.2f})\n"
+            f"• Disk Write: {stats.get('disk_write_avg', 0):.2f} MB/s  "
+            f"(min: {stats.get('disk_write_min', 0):.2f}, max: {stats.get('disk_write_max', 0):.2f})\n"
+            f"• PWM promedio: {stats.get('pwm_avg', 0):.0f}  "
+            f"(min: {stats.get('pwm_min', 0):.0f}, max: {stats.get('pwm_max', 0):.0f})\n"
+            f"• Actualizaciones disponibles promedio: {stats.get('updates_available_avg', 0):.2f}\n"
+            f"• Actualizaciones disponibles (min: {stats.get('updates_available_min', 0)})\n"
+            f"• Actualizaciones disponibles (max: {stats.get('updates_available_max', 0)})\n"
+            f"• Muestras: {stats.get('total_samples', 0)} en {rango_label}\n"
+            f"• Total registros: {total_records}  |  DB: {db_size:.2f} MB"
+        )
+        self.stats_label.configure(text=stats_text)
+
+        if self._using_custom_range:
+            self._update_graphs_between(self._custom_start, self._custom_end)
+        else:
+            self._update_graphs(hours)
+
+    # ─────────────────────────────────────────────
+    # Gráficas
+    # ─────────────────────────────────────────────
+
+    _METRICS = [
+        ('cpu_percent',     'CPU %',           'primary'),
+        ('ram_percent',     'RAM %',           'secondary'),
+        ('temperature',     'Temp °C',         'danger'),
+        ('net_download_mb', 'Red Down MB/s',   'primary'),
+        ('net_upload_mb',   'Red Up MB/s',     'secondary'),
+        ('disk_read_mb',    'Disk Read MB/s',  'primary'),
+        ('disk_write_mb',   'Disk Write MB/s', 'secondary'),
+        ('fan_pwm',         'PWM',             'warning'),
+    ]
+
+    def _update_graphs(self, hours: int):
+        self.fig.clear()
+        axes = [self.fig.add_subplot(8, 1, i) for i in range(1, 9)]
+        for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
+            ts, vals = self.analyzer.get_graph_data(metric, hours)
+            self._draw_metric(ax, ts, vals, ylabel, COLORS[color_key])
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    def _update_graphs_between(self, start: datetime, end: datetime):
+        self.fig.clear()
+        axes = [self.fig.add_subplot(8, 1, i) for i in range(1, 9)]
+        for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
+            ts, vals = self.analyzer.get_graph_data_between(metric, start, end)
+            self._draw_metric(ax, ts, vals, ylabel, COLORS[color_key])
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    def _draw_metric(self, ax, timestamps, values, ylabel: str, color: str):
+        ax.set_facecolor(COLORS['bg_dark'])
+        ax.tick_params(colors=COLORS['text'])
+        ax.set_ylabel(ylabel, color=COLORS['text'])
+        ax.set_xlabel('Tiempo', color=COLORS['text'])
+        ax.grid(True, alpha=0.2)
+        if timestamps:
+            ax.plot(timestamps, values, color=color, linewidth=1.5)
+
+    # ─────────────────────────────────────────────
+    # Exportación
+    # ─────────────────────────────────────────────
+
+    def _export_csv(self):
+        if self._using_custom_range:
+            start = self._custom_start
+            end   = self._custom_end
+            label = f"custom_{start.strftime('%Y%m%d%H%M')}_{end.strftime('%Y%m%d%H%M')}"
+            path  = str(EXPORTS_CSV_DIR / f"history_{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+            try:
+                self.analyzer.export_to_csv_between(path, start, end)
+                custom_msgbox(self, f"Datos exportados a:\n{path}", "✅ Exportado")
+                try:
+                    CleanupService().clean_csv()
+                except Exception as ce:
+                    logger.warning(f"[HistoryWindow] No se pudo limpiar CSV: {ce}")
+            except Exception as e:
+                custom_msgbox(self, f"Error al exportar:\n{e}", "❌ Error")
+        else:
+            period = self.period_var.get()
+            hours  = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[period]
+            path   = str(EXPORTS_CSV_DIR / f"history_{period}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+            try:
+                self.analyzer.export_to_csv(path, hours)
+                custom_msgbox(self, f"Datos exportados a:\n{path}", "✅ Exportado")
+                try:
+                    CleanupService().clean_csv()
+                except Exception as ce:
+                    logger.warning(f"[HistoryWindow] No se pudo limpiar CSV: {ce}")
+            except Exception as e:
+                custom_msgbox(self, f"Error al exportar:\n{e}", "❌ Error")
+
+    def _clean_old_data(self):
+        """Fuerza un ciclo de limpieza completo a través de CleanupService."""
+        status = self.cleanup_service.get_status()
+
+        def do_clean():
+            try:
+                result = self.cleanup_service.force_cleanup()
+                msg = (
+                    f"Limpieza completada:\n\n"
+                    f"• CSV eliminados: {result['deleted_csv']}\n"
+                    f"• PNG eliminados: {result['deleted_png']}\n"
+                    f"• BD limpiada: {'Sí' if result['db_ok'] else 'No'}"
+                )
+                custom_msgbox(self, msg, "✅ Limpiado")
+                logger.info(f"[HistoryWindow] Limpieza manual completada: {result}")
+                self._update_data()
+            except Exception as e:
+                logger.error(f"[HistoryWindow] Error en limpieza manual: {e}")
+                custom_msgbox(self, f"Error al limpiar:\n{e}", "❌ Error")
+
+        confirm_dialog(
+            parent=self,
+            text=(
+                f"¿Forzar limpieza ahora?\n\n"
+                f"• CSV actuales: {status['csv_count']} (límite: {status['max_csv']})\n"
+                f"• PNG actuales: {status['png_count']} (límite: {status['max_png']})\n"
+                f"• BD: registros >'{status['db_days']}' días\n\n"
+                f"Esto liberará espacio en disco."
+            ),
+            title="⚠️ Confirmar Limpieza",
+            on_confirm=do_clean,
+            on_cancel=None
+        )
+
+    def _export_figure_image(self):
+        
+        try:
+            save_dir = str(EXPORTS_SCR_DIR)
+            os.makedirs(save_dir, exist_ok=True)
+            filepath = os.path.join(
+                save_dir,
+                f"graficas_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.png"
+            )
+            self.fig.savefig(
+                filepath, dpi=150,
+                facecolor=self.fig.get_facecolor(),
+                bbox_inches='tight'
+            )
+            logger.info(f"[HistoryWindow] Figura guardada: {filepath}")
+            custom_msgbox(self, f"Imagen guardada en:\n\n{filepath}", "✅ Captura Guardada")
+            try:
+                CleanupService().clean_png()
+            except Exception as ce:
+                logger.warning(f"[HistoryWindow] No se pudo limpiar PNG: {ce}")
+        except Exception as e:
+            logger.error(f"[HistoryWindow] Error guardando imagen: {e}")
+            custom_msgbox(self, f"Error al guardar la imagen: {e}", "❌ Error")
+
+    # ─────────────────────────────────────────────
+    # Eventos matplotlib
+    # ─────────────────────────────────────────────
+
+    def _on_click(self, event):
+        if event.inaxes:
+            logger.debug(f"Click en gráfica: x={event.xdata}, y={event.ydata}")
+
+    def _on_release(self, event):
+        pass
+
+    def _on_motion(self, event):
+        pass
 `````
 
 ## File: main.py
