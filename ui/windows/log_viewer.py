@@ -30,6 +30,7 @@ LEVEL_COLORS = {
 }
 
 _PH_SEARCH = "buscar..."
+_PH_MODULE = "módulo..."
 _PH_DATE   = "YYYY-MM-DD"
 _PH_TIME   = "HH:MM"
 
@@ -56,7 +57,8 @@ class LogViewerWindow(ctk.CTkToplevel):
         self._loading   = False
 
         self._level_var  = ctk.StringVar(value="TODOS")
-        self._module_var = ctk.StringVar(value="TODOS")
+        self._module_var = ctk.StringVar(value=_PH_MODULE)
+        self._modules    = []  # lista completa de módulos disponibles
         self._search_var = ctk.StringVar(value=_PH_SEARCH)
         self._quick_var  = ctk.StringVar(value="1h")
         self._date_from  = ctk.StringVar(value=_PH_DATE)
@@ -129,13 +131,10 @@ class LogViewerWindow(ctk.CTkToplevel):
 
         ctk.CTkLabel(row1, text="Módulo:", font=(FONT_FAMILY, FONT_SIZES['small']),
                      text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._module_menu = ctk.CTkOptionMenu(
-            row1, variable=self._module_var, values=["TODOS"], width=160,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=lambda _: self._apply_filters()
-        )
-        self._module_menu.pack(side="left", padx=(0, 12))
+        self._module_entry = self._make_entry(row1, self._module_var, _PH_MODULE, width=160)
+        self._module_entry.bind("<Return>",     lambda e: self._apply_filters())
+        self._module_entry.bind("<KeyRelease>", lambda e: self.after(300, self._apply_filters))
+        self._module_entry.pack(side="left", padx=(0, 12))
 
         ctk.CTkLabel(row1, text="Buscar:", font=(FONT_FAMILY, FONT_SIZES['small']),
                      text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
@@ -278,10 +277,7 @@ class LogViewerWindow(ctk.CTkToplevel):
                 "module": module, "message": message, "raw": raw}
 
     def _update_modules(self, modules):
-        values = ["TODOS"] + modules
-        self._module_menu.configure(values=values)
-        if self._module_var.get() not in values:
-            self._module_var.set("TODOS")
+        self._modules = modules  # guardar lista para filtrado parcial
 
     # ── Filtrado ─────────────────────────────────────────────────────────────
 
@@ -303,7 +299,7 @@ class LogViewerWindow(ctk.CTkToplevel):
 
     def _apply_filters(self):
         level  = self._level_var.get()
-        module = self._module_var.get()
+        module = self._entry_value(self._module_var, _PH_MODULE).lower()
         search = self._entry_value(self._search_var, _PH_SEARCH).lower()
         dt_from = self._parse_datetime(
             self._entry_value(self._date_from, _PH_DATE),
@@ -315,7 +311,7 @@ class LogViewerWindow(ctk.CTkToplevel):
         result = []
         for line in self._all_lines:
             if level  != "TODOS" and line["level"]  != level:  continue
-            if module != "TODOS" and line["module"] != module: continue
+            if module and module not in line["module"].lower():   continue
             if search and search not in line["raw"].lower():   continue
             if dt_from and line["ts"] < dt_from:               continue
             if dt_to   and line["ts"] > dt_to:                 continue
@@ -357,7 +353,7 @@ class LogViewerWindow(ctk.CTkToplevel):
 
     def _export(self):
         level  = self._level_var.get()
-        module = self._module_var.get()
+        module = self._entry_value(self._module_var, _PH_MODULE).lower()
         search = self._entry_value(self._search_var, _PH_SEARCH).lower()
         dt_from = self._parse_datetime(
             self._entry_value(self._date_from, _PH_DATE),
@@ -369,7 +365,7 @@ class LogViewerWindow(ctk.CTkToplevel):
         result = []
         for line in self._all_lines:
             if level  != "TODOS" and line["level"]  != level:  continue
-            if module != "TODOS" and line["module"] != module: continue
+            if module and module not in line["module"].lower():   continue
             if search and search not in line["raw"].lower():   continue
             if dt_from and line["ts"] < dt_from:               continue
             if dt_to   and line["ts"] > dt_to:                 continue

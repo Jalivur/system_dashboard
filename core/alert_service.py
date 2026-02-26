@@ -32,7 +32,10 @@ THRESHOLDS = {
     'ram':   {'warn': 85, 'crit': 95},
     'disk':  {'warn': 85, 'crit': 95},
 }
-
+# Constante: máximo de entradas en el historial
+MAX_HISTORY_ENTRIES = 100
+# Archivo JSON para persistir el historial de alertas enviadas
+_HISTORY_FILE = Path(__file__).resolve().parent.parent / "data" / "alert_history.json"
 
 def _load_telegram_config() -> tuple:
     """Lee TOKEN y CHAT_ID desde .env / os.environ."""
@@ -121,13 +124,13 @@ class AlertService:
     def _check_metrics(self) -> None:
         stats = self.system_monitor.get_current_stats()
         checks = [
-            ('temp', stats.get('temp',        0), '°C',  '🌡️ Temperatura'),
-            ('cpu',  stats.get('cpu',          0), '%',   '🔥 CPU'),
-            ('ram',  stats.get('ram',          0), '%',   '💾 RAM'),
-            ('disk', stats.get('disk_usage',   0), '%',   '💿 Disco'),
+            ('temp', stats.get('temp',       0), '°C', '🌡️ Temperatura'),
+            ('cpu',  stats.get('cpu',         0), '%',  '🔥 CPU'),
+            ('ram',  stats.get('ram',         0), '%',  '💾 RAM'),
+            ('disk', stats.get('disk_usage',  0), '%',  '💿 Disco'),
         ]
         for key, value, unit, label in checks:
-            thr  = THRESHOLDS[key]
+            thr = THRESHOLDS[key]
             if value >= thr['crit']:
                 level, emoji = 'crit', '🔴'
             elif value >= thr['warn']:
@@ -135,7 +138,6 @@ class AlertService:
             else:
                 level = None
 
-            alert_key = f"{key}_{level}" if level else None
             if level:
                 msg = (
                     f"{emoji} *Dashboard — {label} alta*\n"
@@ -143,29 +145,28 @@ class AlertService:
                     f"Umbral {'crítico' if level=='crit' else 'de aviso'}: "
                     f"{thr[level]}{unit}"
                 )
-                self._trigger(alert_key, msg)
+                self._trigger(f"{key}_{level}", msg, value=value, unit=unit, level=level)
             else:
-                # Condición resuelta — resetear para permitir futura alerta
                 for suffix in ('warn', 'crit'):
                     self._reset(f"{key}_{suffix}")
 
     def _check_services(self) -> None:
-        stats = self.service_monitor.get_stats()
+        stats  = self.service_monitor.get_stats()
         failed = stats.get('failed', 0)
-        key = 'services_failed'
+        key    = 'services_failed'
         if failed > 0:
             msg = (
                 f"⚠️ *Dashboard — Servicios caídos*\n"
                 f"Hay *{failed}* servicio{'s' if failed > 1 else ''} en estado FAILED.\n"
                 f"Abre Monitor Servicios para más detalles."
             )
-            self._trigger(key, msg)
+            self._trigger(key, msg, value=float(failed), unit=" servicios", level="crit")
         else:
             self._reset(key)
 
     # ── Lógica anti-spam (edge-trigger + sustain) ─────────────────────────────
-
-    def _trigger(self, key: str, message: str) -> None:
+    def _trigger(self, key: str, message: str, value: float = 0.0,
+                unit: str = "", level: str = "") -> None:
         """
         Activa una alerta con retardo anti-spam.
         Solo envía si la condición lleva ALERT_SUSTAIN_S segundos activa
@@ -182,12 +183,56 @@ class AlertService:
             if now - entry['first_seen'] >= ALERT_SUSTAIN_S:
                 entry['sent'] = True
         # Enviar fuera del lock
-        self._send(message)
+        if self._send(message):
+            self._save_to_history(key, message, value, unit, level)
 
     def _reset(self, key: str) -> None:
         """Resetea el estado de una alerta (condición resuelta)."""
         with self._lock:
             self._state.pop(key, None)
+            
+    def _save_to_history(self, key: str, message: str, value: float, unit: str, level: str) -> None:
+        """Guarda la alerta disparada en el historial JSON (máx. MAX_HISTORY_ENTRIES)."""
+        entry = {
+            "ts":      time.strftime("%Y-%m-%d %H:%M:%S"),
+            "key":     key,
+            "level":   level,       # 'warn' o 'crit'
+            "value":   round(value, 1),
+            "unit":    unit,
+            "message": message.replace("*", "").replace("\n", " "),  # limpiar markdown
+        }
+        try:
+            _HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            history = []
+            if _HISTORY_FILE.exists():
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    history = json.load(f)
+            history.append(entry)
+            # Mantener solo las últimas MAX_HISTORY_ENTRIES
+            history = history[-MAX_HISTORY_ENTRIES:]
+            with open(_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error("[AlertService] Error guardando historial: %s", e)
+
+    def get_history(self) -> list:
+        """Devuelve el historial completo (más reciente al final)."""
+        try:
+            if _HISTORY_FILE.exists():
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return []
+
+    def clear_history(self) -> None:
+        """Borra el historial de alertas."""
+        try:
+            if _HISTORY_FILE.exists():
+                _HISTORY_FILE.unlink()
+            logger.info("[AlertService] Historial de alertas borrado")
+        except Exception as e:
+            logger.error("[AlertService] Error borrando historial: %s", e)
 
     # ── Envío a Telegram ──────────────────────────────────────────────────────
 

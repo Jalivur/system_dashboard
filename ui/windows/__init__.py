@@ -13,6 +13,9 @@ from .update import UpdatesWindow
 from .history import HistoryWindow
 from .theme_selector import ThemeSelector
 from .homebridge import HomebridgeWindow
+from .network_local import NetworkLocalWindow
+from .pihole_window import PiholeWindow
+from .alert_history import AlertHistoryWindow
 
 __all__ = [
     'FanControlWindow',
@@ -26,5 +29,9 @@ __all__ = [
     'UpdatesWindow',
     'HistoryWindow',
     'ThemeSelector',
-    'HomebridgeWindow'
+    'HomebridgeWindow',
+    'NetworkLocalWindow',
+    'PiholeWindow',
+    'AlertHistoryWindow',
+    
 ]
