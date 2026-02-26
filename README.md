@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v2.9
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.0
 
 Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge y logging completo.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-2.9-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.0-orange.svg)]()
 
 ---
 
@@ -101,6 +101,13 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Terminal de apagado**: Visualiza `apagado.sh` en tiempo real
 - **Con confirmación**: Evita acciones accidentales
 
+### 📋 **Visor de Logs**
+- **Filtros avanzados**: Por nivel (DEBUG/INFO/WARNING/ERROR), módulo, texto libre e intervalo de fechas/horas
+- **Colores por nivel**: gris / azul / naranja / rojo
+- **Selector rápido**: 15min, 1h, 6h, 24h o rango manual
+- **Exportación**: Guarda el resultado filtrado en `data/exports/logs/`
+- **Recarga manual**: Lee también el archivo rotado `.log.1`
+
 ### 🔔 **Badges de Notificación Visual**
 - **9 badges** en el menú principal con alertas en tiempo real
 - **Temperatura**: naranja >60°C, rojo >70°C (Control Ventiladores + Monitor Placa)
@@ -114,7 +121,8 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### 🧹 **Limpieza Automática**
 - **CleanupService**: servicio background singleton
-- Limpia CSV exportados (máx. 10), PNG exportados (máx. 10)
+- Limpia CSV exportados (máx. 10), PNG exportados (máx. 10), logs exportados (máx. 10)
+- Limpieza automática también al exportar — no solo en el ciclo de 24h
 - Limpia BD SQLite: registros >30 días cada 24h
 - Red de seguridad: si BD supera 5MB limpia a 7 días al arrancar
 - Botón "Limpiar Antiguos" fuerza limpieza manual completa
@@ -211,7 +219,7 @@ La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarj
 
 ---
 
-## 󰍜 Menú Principal (14 botones)
+## 󰍜 Menú Principal (15 botones)
 
 ```
 ┌─────────────────────────────────────┐
@@ -230,13 +238,15 @@ La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarj
 │  Histórico       │  Actualizaciones  │
 │  Datos           │                   │
 ├──────────────────┼───────────────────┤
-│  Homebridge      │  Cambiar Tema     │
+│  Homebridge      │  Visor de Logs    │
 ├──────────────────┼───────────────────┤
-│  Reiniciar       │  Salir            │
+│  Cambiar Tema    │  Reiniciar        │
+├──────────────────┼───────────────────┤
+│  Salir           │                   │
 └──────────────────┴───────────────────┘
 ```
 
-### **Las 14 Ventanas:**
+### **Las 15 Ventanas:**
 
 1. **Control Ventiladores** - Configura modos y curvas PWM
 2. **Monitor Placa** - CPU, RAM, temperatura en tiempo real (status en header)
@@ -246,12 +256,13 @@ La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarj
 6. **Lanzadores** - Ejecuta scripts con terminal en vivo
 7. **Monitor Procesos** - Gestión avanzada de procesos
 8. **Monitor Servicios** - Control de servicios systemd
-9. **Histórico Datos** - Visualización de métricas históricas
+9. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
 10. **Actualizaciones** - Gestión de paquetes del sistema
 11. **Homebridge** - Control de accesorios HomeKit con switches táctiles
-12. **Cambiar Tema** - Selecciona entre 15 temas
-13. **Reiniciar** - Reinicia el dashboard
-14. **Salir** - Cierra la app o apaga el sistema
+12. **Visor de Logs** - Visualización y exportación del log del dashboard
+13. **Cambiar Tema** - Selecciona entre 15 temas
+14. **Reiniciar** - Reinicia el dashboard
+15. **Salir** - Cierra la app o apaga el sistema
 
 ---
 
@@ -282,7 +293,7 @@ La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarj
 ```
 system_dashboard/
 ├── config/
-│   ├── settings.py                 # Constantes globales y LAUNCHERS
+│   ├── settings.py                 # Constantes globales, LAUNCHERS y rutas de exports
 │   └── themes.py                   # 15 temas pre-configurados
 ├── core/
 │   ├── fan_controller.py           # Control PWM y curvas
@@ -300,7 +311,7 @@ system_dashboard/
 │   ├── cleanup_service.py          # Limpieza automática background (singleton)
 │   └── __init__.py
 ├── ui/
-│   ├── main_window.py              # Ventana principal (14 botones + badges)
+│   ├── main_window.py              # Ventana principal (15 botones + badges)
 │   ├── styles.py                   # make_window_header(), make_futuristic_button(),
 │   │                               # make_homebridge_switch(), StyleManager
 │   ├── widgets/
@@ -312,6 +323,7 @@ system_dashboard/
 │       ├── update.py, fan_control.py
 │       ├── launchers.py, theme_selector.py
 │       ├── homebridge.py           # Ventana de control Homebridge con CTkSwitch
+│       ├── log_viewer.py           # Visor de logs con filtros y exportación
 │       └── __init__.py
 ├── utils/
 │   ├── file_manager.py             # Gestión de JSON (escritura atómica)
@@ -320,7 +332,11 @@ system_dashboard/
 ├── data/                            # Auto-generado al ejecutar
 │   ├── fan_state.json, fan_curve.json, theme_config.json
 │   ├── history.db                  # SQLite histórico
-│   └── logs/dashboard.log          # Log del sistema
+│   ├── logs/dashboard.log          # Log del sistema
+│   └── exports/                    # Archivos exportados (máx. 10 por tipo)
+│       ├── csv/                    # Exportaciones CSV del histórico
+│       ├── logs/                   # Exportaciones del visor de logs
+│       └── screenshots/            # Capturas de gráficas
 ├── scripts/                         # Scripts personalizados del usuario
 ├── .env                             # Credenciales Homebridge (NO en git)
 ├── .env.example                     # Plantilla de configuración
@@ -414,6 +430,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 | Homebridge no conecta | Verificar IP/puerto en `.env` y que Insecure Mode esté activo |
 | Badge hb_offline siempre rojo | Comprobar `HOMEBRIDGE_HOST` en `.env` y red entre Pis |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
+| No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
@@ -432,20 +449,28 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 | Métrica | Valor |
 |---------|-------|
-| Versión | 2.9 |
-| Archivos Python | 43 |
-| Líneas de código | ~13,200 |
-| Ventanas | 14 |
+| Versión | 3.0 |
+| Archivos Python | 44 |
+| Ventanas | 15 |
 | Temas | 15 |
 | Servicios background | 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main) |
 | Badges en menú | 9 |
 | Cobertura logging | 100% módulos core y UI |
+| Exports organizados | 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo |
 
 ---
 
 ## Changelog
 
-### **v2.9** - 2026-02-24 ⭐ ACTUAL
+### **v3.0** - 2026-02-26 ⭐ ACTUAL
+- ✅ **NUEVO**: Visor de Logs — ventana con filtros por nivel, módulo, texto libre e intervalo de fechas/horas
+- ✅ **NUEVO**: Exportación de logs filtrados a `data/exports/logs/`
+- ✅ **NUEVO**: Carpetas organizadas para exports — `data/exports/{csv,logs,screenshots}` (creadas automáticamente al arrancar)
+- ✅ **MEJORA**: Limpieza automática al exportar — no solo en el ciclo de 24h o al pulsar manualmente
+- ✅ **MEJORA**: `CleanupService` gestiona ahora también logs exportados (máx. 10)
+- ✅ **FIX**: Eliminado `grab_set()` en `FanControlWindow` que bloqueaba el teclado en todas las ventanas al cerrarse
+
+### **v2.9** - 2026-02-24
 - ✅ **MEJORA**: `SystemMonitor` — caché en background thread (cada 2s); la UI nunca llama psutil directamente
 - ✅ **MEJORA**: `ServiceMonitor` — caché en background thread (cada 10s); `is-enabled` en llamada batch en lugar de N subprocesses
 - ✅ **MEJORA**: `_update()` de `MainWindow` solo lee cachés — hilo de UI completamente libre de syscalls bloqueantes
@@ -498,4 +523,4 @@ CustomTkinter - psutil - matplotlib - Ookla Speedtest CLI - Homebridge - Raspber
 
 ---
 
-Dashboard v2.9: Profesional, Unificado, Tactil, Auto-mantenido, conectado a HomeKit y sin bloqueos en UI
+Dashboard v3.0: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit y sin bloqueos en UI
