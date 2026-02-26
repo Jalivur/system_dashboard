@@ -1,4 +1,4 @@
-# 📚 Índice de Documentación - System Dashboard v2.9
+# 📚 Índice de Documentación - System Dashboard v3.0
 
 Guía completa de toda la documentación del proyecto actualizada.
 
@@ -8,7 +8,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ### **Para Empezar:**
 1. **[README.md](README.md)** ⭐  
-   Documentación completa del proyecto v2.9. **Empieza aquí.**
+   Documentación completa del proyecto v3.0. **Empieza aquí.**
 
 2. **[QUICKSTART.md](QUICKSTART.md)** ⚡  
    Instalación y ejecución en 5 minutos.
@@ -87,8 +87,11 @@ Guía completa de toda la documentación del proyecto actualizada.
 - `core/system_monitor.py` — Caché en background thread (cada 2s)
 - `core/service_monitor.py` — Caché en background thread (cada 10s), is-enabled batch
 - `ui/windows/homebridge.py` — Ventana con switches CTkSwitch (90×46px)
+- `ui/windows/log_viewer.py` — Visor de logs con filtros y exportación
 - `ui/styles.py` — `make_homebridge_switch()` añadida
 - Badges `hb_offline`, `hb_on`, `hb_fault` en `ui/main_window.py`
+- `config/settings.py` — `EXPORTS_DIR`, `EXPORTS_CSV_DIR`, `EXPORTS_LOG_DIR`, `EXPORTS_SCR_DIR`
+- `core/cleanup_service.py` — gestiona también `log_export_*.log` (máx. 10)
 
 ---
 
@@ -146,7 +149,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ```
 📚 Documentación/
-├── README.md                    ⭐ Documento principal v2.9
+├── README.md                    ⭐ Documento principal v3.0
 ├── QUICKSTART.md                ⚡ Inicio rápido
 ├── INDEX.md                     📑 Este archivo
 ├── INSTALL_GUIDE.md             🔧 Instalación
@@ -168,7 +171,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 1. README.md - Leer sección "Características"
 2. QUICKSTART.md - Instalar y ejecutar
 3. THEMES_GUIDE.md - Personalizar colores
-4. Explorar las 14 ventanas del dashboard 🎉
+4. Explorar las 15 ventanas del dashboard 🎉
 
 ### **Usuario Avanzado:**
 1. README.md completo
@@ -197,6 +200,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 - **Configurar ventiladores** → FAN_CONTROL_GUIDE.md
 - **Integrar con OLED** → INTEGRATION_GUIDE.md
 - **Configurar Homebridge** → QUICKSTART.md sección Homebridge
+- **Ver logs del dashboard** → Botón "Visor de Logs" en el menú principal
 - **Añadir nueva ventana con header** → `ui/styles.py` → `make_window_header()`
 - **Añadir funciones** → ARCHITECTURE.md + IDEAS_EXPANSION.md
 
@@ -212,26 +216,25 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ---
 
-## 📊 Estadísticas del Proyecto v2.9
+## 📊 Estadísticas del Proyecto v3.0
 
-- **Archivos Python**: 43
-- **Líneas de código**: ~13,000
-- **Ventanas**: 14 ventanas funcionales
+- **Archivos Python**: 44
+- **Ventanas**: 15 ventanas funcionales
 - **Temas**: 15 temas pre-configurados
 - **Documentos**: 12 guías
 - **Servicios background**: 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main)
 - **Badges en menú**: 9
+- **Exports organizados**: 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo
 
 ---
 
-## 🆕 Novedades en v2.9
+## 🆕 Novedades en v3.0
 
 ### **Funcionalidades Nuevas:**
-- ✅ **Integración Homebridge** — Control de enchufes e interruptores HomeKit desde el dashboard
-- ✅ **HomebridgeMonitor** — Sondeo background cada 30s, JWT con renovación automática
-- ✅ **HomebridgeWindow** — Grid táctil de 2 columnas con toggle por dispositivo
-- ✅ **3 badges Homebridge** — offline 🔴, enchufes ON 🟠, fallo 🔴
-- ✅ **Configuración `.env`** — Credenciales fuera del código fuente
+- ✅ **Visor de Logs** — Ventana con filtros por nivel, módulo, texto e intervalo de fechas/horas
+- ✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente al arrancar
+- ✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo en ciclo de 24h
+- ✅ **Fix entries** — Eliminado `grab_set()` en FanControlWindow que bloqueaba el teclado
 
 ---
 
@@ -245,7 +248,8 @@ Guía completa de toda la documentación del proyecto actualizada.
 | **v2.6** | 12 | + Badges, CleanupService |
 | **v2.7** | 12 | + Header unificado, Speedtest Ookla |
 | **v2.8** | 12 | + Homebridge, 9 badges |
-| **v2.9** | 14 | + Switches táctiles, caché background ⭐ |
+| **v2.9** | 14 | + Switches táctiles, caché background |
+| **v3.0** | 15 | + Visor Logs, exports organizados, fix entries ⭐ |
 
 ---
 

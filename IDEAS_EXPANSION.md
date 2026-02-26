@@ -1,4 +1,4 @@
-# 💡 Ideas de Expansión - Dashboard v2.9
+# 💡 Ideas de Expansión - Dashboard v3.0
 
 ---
 
@@ -173,6 +173,33 @@
 - ✅ Colores del tema activo: success (ON), bg_light (OFF), danger (fallo)
 - ✅ Nombre del dispositivo integrado como etiqueta del switch
 
+### ~~**15. Visor de Logs**~~ ✅ Implementado en v3.0
+**Implementado en v3.0**
+- ✅ Ventana `LogViewerWindow` con filtros por nivel (DEBUG/INFO/WARNING/ERROR), módulo, texto libre e intervalo de fechas/horas
+- ✅ Selector rápido: 15min, 1h, 6h, 24h o rango manual con date/time entries
+- ✅ Colores por nivel: gris (DEBUG), azul (INFO), naranja (WARNING), rojo (ERROR)
+- ✅ Exportación del resultado filtrado a `data/exports/logs/`
+- ✅ Recarga manual — lee también el archivo rotado `.log.1`
+- ✅ Scrollbar táctil (22px) integrado con `StyleManager.style_scrollbar_ctk`
+
+---
+
+### ~~**16. Exports organizados y limpieza al exportar**~~ ✅ Implementado en v3.0
+**Implementado en v3.0**
+- ✅ Carpetas `data/exports/{csv,logs,screenshots}` creadas automáticamente al arrancar (`settings.py`)
+- ✅ `CleanupService` gestiona también `log_export_*.log` (máx. 10) — `DEFAULT_MAX_LOG`, `clean_log_exports()`
+- ✅ Limpieza automática al exportar CSV, PNG y logs — no solo en el ciclo de 24h
+- ✅ `get_status()` y `force_cleanup()` actualizados con `log_count` y `deleted_log`
+
+---
+
+### ~~**17. Fix grab_set en FanControlWindow**~~ ✅ Implementado en v3.0
+**Implementado en v3.0**
+- ✅ Eliminado `grab_set()` en `FanControlWindow` que bloqueaba el teclado en todas las ventanas al cerrarse
+- ✅ El bug afectaba a entries en `history.py`, `service.py`, `process_window.py` y `log_viewer.py`
+
+---
+
 ## 🔄 En Evaluación
 
 ### **Monitor de Contenedores Docker**
@@ -256,14 +283,20 @@
 - ✅ 3 badges Homebridge en menú principal
 - ✅ Configuración por .env (credenciales seguras)
 
-### **v2.9** ✅ ACTUAL — 2026-02-24
+### **v2.9** ✅ — 2026-02-24
 - ✅ SystemMonitor y ServiceMonitor con caché en background thread
 - ✅ ServiceMonitor: is-enabled batch, sondeo 10s, refresh_now() tras acciones
 - ✅ HomebridgeWindow: CTkSwitch táctil 90×46px en lugar de botones
 - ✅ make_homebridge_switch() en ui/styles.py
 - ✅ Logging completo en todos los servicios background (FanAutoService incluido)
 
-### **v3.0** (Futuro)
+### **v3.0** ✅ ACTUAL — 2026-02-26
+- ✅ Visor de Logs con filtros avanzados y exportación
+- ✅ Exports organizados en data/exports/{csv,logs,screenshots}
+- ✅ Limpieza automática al exportar (CSV, PNG, logs)
+- ✅ Fix grab_set en FanControlWindow — entries funcionan en todas las ventanas
+
+### **v3.1** (Futuro)
 - [ ] Alertas externas (Telegram/webhook)
 - [ ] API REST básica
 - [ ] Monitor Docker (si aplica)
@@ -283,6 +316,8 @@
 | Notificaciones visuales internas | ✅ 100% |
 | UI unificada y táctil | ✅ 100% |
 | Integración Homebridge (enchufes/interruptores) | ✅ 100% |
+| Visor de logs con filtros y exportación | ✅ 100% |
+| Exports organizados y limpieza automática | ✅ 100% |
 | Homebridge extendido (termostatos, sensores) | ⏳ 0% |
 | Alertas externas | ⏳ 0% |
 | Docker | ⏳ 0% |
@@ -290,4 +325,4 @@
 
 ---
 
-**Versión actual**: v2.9 — **Última actualización**: 2026-02-24
+**Versión actual**: v3.0 — **Última actualización**: 2026-02-26

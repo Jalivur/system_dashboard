@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v2.9
+# 🚀 Inicio Rápido - Dashboard v3.0
 
 ---
 
@@ -40,7 +40,7 @@ python3 main.py
 
 ---
 
-## 🎯 Menú Principal (14 botones)
+## 🎯 Menú Principal (15 botones)
 
 ```
 ┌───────────────────────────────────┐
@@ -59,15 +59,17 @@ python3 main.py
 │  Histórico      │  Actualizaciones │
 │  Datos          │                  │
 ├─────────────────┼──────────────────┤
-│  Homebridge     │  Cambiar Tema    │
+│  Homebridge     │  Visor de Logs   │
 ├─────────────────┼──────────────────┤
-│  Reiniciar      │  Salir           │
+│  Cambiar Tema   │  Reiniciar       │
+├─────────────────┼──────────────────┤
+│  Salir          │                  │
 └─────────────────┴──────────────────┘
 ```
 
 ---
 
-## 🖥️ Las 14 Ventanas
+## 🖥️ Las 15 Ventanas
 
 **1. Monitor Placa** — CPU, RAM y temperatura en tiempo real (status en header)
 
@@ -91,13 +93,17 @@ python3 main.py
 
 **11. Homebridge** — Control de accesorios HomeKit con **switches táctiles** (90×46px) por dispositivo
 
-**12. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
+**12. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo de tiempo; exportación a `data/exports/logs/`
 
-**13. Reiniciar** — Reinicia el dashboard aplicando cambios de código
+**13. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
 
-**14. Salir** — Salir de la app o apagar el sistema
+**14. Reiniciar** — Reinicia el dashboard aplicando cambios de código
+
+**15. Salir** — Salir de la app o apagar el sistema
 
 > **Todas las ventanas** incluyen header unificado con título, status en tiempo real y botón ✕ táctil (52×42px) optimizado para pantalla DSI.
+
+> **Exports organizados** en `data/exports/{csv,logs,screenshots}` — carpetas creadas automáticamente, máx. 10 archivos por tipo.
 
 ---
 
@@ -159,12 +165,19 @@ grep ERROR data/logs/dashboard.log
 | Homebridge no conecta | Revisar `.env` y activar Insecure Mode en Homebridge |
 | Badge hb_offline siempre rojo | Comprobar conectividad entre Pis y `HOMEBRIDGE_HOST` |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
+| No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
 
-## 🆕 Novedades v2.9
+## 🆕 Novedades v3.0
 
+✅ **Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación incluida  
+✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente  
+✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo cada 24h  
+✅ **Fix entries** — Eliminado `grab_set()` en FanControl que bloqueaba el teclado  
+
+### v2.9 (referencia)
 ✅ **Switches táctiles Homebridge** — CTkSwitch de 90×46px, optimizado para el dedo en DSI  
 ✅ **Sin bloqueos en UI** — SystemMonitor y ServiceMonitor con caché en background thread  
 ✅ **ServiceMonitor optimizado** — is-enabled en llamada batch, sondeo cada 10s  
@@ -187,4 +200,4 @@ grep ERROR data/logs/dashboard.log
 
 ---
 
-**Dashboard v2.9** 🚀🏠✨
+**Dashboard v3.0** 🚀🏠✨
