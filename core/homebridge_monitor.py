@@ -227,8 +227,12 @@ class HomebridgeMonitor:
     def get_accessories(self) -> List[Dict]:
         """
         Consulta Homebridge y actualiza self._accessories.
-        Llamado por el sondeo en background y por la ventana al abrir.
-        Devuelve la lista de enchufes/interruptores (característica 'On').
+        Ahora reconoce 5 tipos de dispositivo:
+          switch      — característica On (enchufe / interruptor)
+          thermostat  — CurrentTemperature + TargetTemperature
+          sensor      — CurrentTemperature o CurrentRelativeHumidity (solo lectura)
+          blind       — CurrentPosition (persiana / estor)
+          light       — On + Brightness (luz regulable)
         """
         data = self._request("GET", "/api/accessories")
         if data is None:
@@ -239,32 +243,70 @@ class HomebridgeMonitor:
         self._reachable = True
         accesorios = data if isinstance(data, list) else data.get("accessories", [])
 
-        switches = []
+        devices = []
         for acc in accesorios:
             values = acc.get("values", {})
-            if "On" in values:
-                fault  = int(values.get("StatusFault",  0))
-                active = int(values.get("StatusActive", 1))
-                switches.append({
-                    "uniqueId":    acc.get("uniqueId", ""),
-                    "displayName": acc.get("serviceName", acc.get("name", "Desconocido")),
-                    "on":          bool(values["On"]),
-                    "fault":       fault == 1,
-                    "inactive":    active == 0,
-                    "serviceName": acc.get("serviceName", ""),
-                    "room":        acc.get("humanType", ""),
+            name   = acc.get("serviceName", acc.get("name", "Desconocido"))
+            uid    = acc.get("uniqueId", "")
+            fault  = int(values.get("StatusFault",  0)) == 1
+            active = int(values.get("StatusActive", 1)) == 1
+            base   = {
+                "uniqueId":    uid,
+                "displayName": name,
+                "fault":       fault,
+                "inactive":    not active,
+                "room":        acc.get("humanType", ""),
+            }
+
+            if "Brightness" in values and "On" in values:
+                # Luz regulable
+                devices.append({**base,
+                    "type":       "light",
+                    "on":         bool(values["On"]),
+                    "brightness": int(values.get("Brightness", 0)),
+                })
+            elif "On" in values:
+                # Enchufe / interruptor
+                devices.append({**base,
+                    "type": "switch",
+                    "on":   bool(values["On"]),
+                })
+            elif "TargetTemperature" in values:
+                # Termostato
+                devices.append({**base,
+                    "type":        "thermostat",
+                    "current_temp": float(values.get("CurrentTemperature", 0)),
+                    "target_temp":  float(values.get("TargetTemperature",  20)),
+                })
+            elif "CurrentPosition" in values:
+                # Persiana / estor
+                devices.append({**base,
+                    "type":     "blind",
+                    "position": int(values.get("CurrentPosition", 0)),
+                })
+            elif "CurrentTemperature" in values or "CurrentRelativeHumidity" in values:
+                # Sensor de temperatura / humedad
+                devices.append({**base,
+                    "type":     "sensor",
+                    "temp":     float(values.get("CurrentTemperature", 0))
+                                if "CurrentTemperature" in values else None,
+                    "humidity": float(values.get("CurrentRelativeHumidity", 0))
+                                if "CurrentRelativeHumidity" in values else None,
                 })
 
         with self._accessories_lock:
-            self._accessories = switches
+            self._accessories = devices
 
         logger.debug(
-            "[HomebridgeMonitor] Sondeo OK — %d dispositivos, %d ON, %d con fallo",
-            len(switches),
-            sum(1 for a in switches if a["on"]),
-            sum(1 for a in switches if a["fault"]),
+            "[HomebridgeMonitor] Sondeo OK — %d dispositivos (%s)",
+            len(devices),
+            ", ".join(
+                f"{t}:{sum(1 for d in devices if d['type']==t)}"
+                for t in ('switch','light','thermostat','sensor','blind')
+                if any(d['type']==t for d in devices)
+            ),
         )
-        return switches
+        return devices
 
     def get_accessories_cached(self) -> List[Dict]:
         """
@@ -322,3 +364,30 @@ class HomebridgeMonitor:
             return 0
         with self._accessories_lock:
             return sum(1 for a in self._accessories if a.get("fault", False))
+        
+    def set_brightness(self, unique_id: str, brightness: int) -> bool:
+        """Establece el brillo de una luz (0–100)."""
+        brightness = max(0, min(100, brightness))
+        result = self._request(
+            "PUT", f"/api/accessories/{unique_id}",
+            {"characteristicType": "Brightness", "value": brightness}
+        )
+        if result is not None:
+            logger.info("[HomebridgeMonitor] Brillo %s → %d%%", unique_id, brightness)
+            threading.Thread(target=self.get_accessories, daemon=True,
+                             name="HB-PostBrightness").start()
+            return True
+        return False
+
+    def set_target_temp(self, unique_id: str, temp: float) -> bool:
+        """Establece la temperatura objetivo de un termostato."""
+        result = self._request(
+            "PUT", f"/api/accessories/{unique_id}",
+            {"characteristicType": "TargetTemperature", "value": temp}
+        )
+        if result is not None:
+            logger.info("[HomebridgeMonitor] Termostato %s → %.1f°C", unique_id, temp)
+            threading.Thread(target=self.get_accessories, daemon=True,
+                             name="HB-PostTemp").start()
+            return True
+        return False

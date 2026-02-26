@@ -181,11 +181,10 @@ class HomebridgeWindow(ctk.CTkToplevel):
         self._update_job = self.after(HB_UPDATE_MS, self._fetch_and_render)
 
     def _create_device_card(self, acc: dict, grid_row: int, grid_col: int):
-        """Tarjeta con switch táctil para encender / apagar el dispositivo."""
-        is_on    = acc["on"]
+        """Tarjeta adaptada al tipo de dispositivo."""
+        dev_type = acc.get("type", "switch")
         is_fault = acc.get("fault", False)
-        is_inact = acc.get("inactive", False)
-        disabled = is_fault or is_inact
+        disabled = is_fault or acc.get("inactive", False)
 
         card = ctk.CTkFrame(
             self._device_frame,
@@ -194,19 +193,26 @@ class HomebridgeWindow(ctk.CTkToplevel):
         )
         card.grid(row=grid_row, column=grid_col, sticky="nsew", padx=4, pady=4)
 
-        # ── Indicador de fallo (solo visible si hay problema) ─────────────────
         if disabled:
             ctk.CTkLabel(
-                card,
-                text="⚠  FALLO",
+                card, text="⚠  FALLO",
                 text_color=COLORS.get('danger', '#ff4444'),
                 font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
             ).pack(pady=(10, 0))
         else:
-            # Espaciado superior equivalente para mantener altura uniforme
             ctk.CTkFrame(card, fg_color="transparent", height=10).pack()
 
-        # ── Switch ────────────────────────────────────────────────────────────
+        if dev_type in ("switch", "light"):
+            self._card_switch(card, acc, disabled)
+        elif dev_type == "thermostat":
+            self._card_thermostat(card, acc, disabled)
+        elif dev_type == "sensor":
+            self._card_sensor(card, acc)
+        elif dev_type == "blind":
+            self._card_blind(card, acc, disabled)
+
+    def _card_switch(self, card, acc, disabled):
+        """Switch ON/OFF (enchufe, interruptor, luz básica)."""
         def on_toggle(new_state, uid=acc["uniqueId"]):
             self._toggle(uid, new_state)
 
@@ -214,11 +220,119 @@ class HomebridgeWindow(ctk.CTkToplevel):
             card,
             text=acc["displayName"],
             command=on_toggle,
-            is_on=is_on,
+            is_on=acc["on"],
             disabled=disabled,
         )
         sw.pack(padx=16, pady=(8, 18))
 
+    def _card_thermostat(self, card, acc, disabled):
+        """Termostato: temperatura actual + botones +/- para objetivo."""
+        ctk.CTkLabel(
+            card,
+            text=acc["displayName"],
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+        ).pack(pady=(4, 0))
+
+        ctk.CTkLabel(
+            card,
+            text=f"Actual: {acc['current_temp']:.1f}°C",
+            text_color=COLORS.get('primary', '#00ffff'),
+            font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
+        ).pack()
+
+        target_frame = ctk.CTkFrame(card, fg_color="transparent")
+        target_frame.pack(pady=(4, 12))
+
+        target_var = ctk.StringVar(value=f"{acc['target_temp']:.1f}°C")
+
+        ctk.CTkLabel(
+            target_frame, text="Objetivo:",
+            text_color=COLORS['text_dim'],
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+        ).pack(side="left", padx=4)
+
+        target_lbl = ctk.CTkLabel(
+            target_frame, textvariable=target_var,
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+        )
+        target_lbl.pack(side="left", padx=4)
+
+        uid   = acc["uniqueId"]
+        _temp = [acc["target_temp"]]  # mutable closure
+
+        def change(delta):
+            if disabled:
+                return
+            _temp[0] = round(_temp[0] + delta, 1)
+            target_var.set(f"{_temp[0]:.1f}°C")
+            threading.Thread(
+                target=lambda: self.hb.set_target_temp(uid, _temp[0]),
+                daemon=True, name="HB-SetTemp"
+            ).start()
+
+        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
+        btn_frame.pack(pady=(0, 12))
+
+        for label, delta in [("  −  ", -0.5), ("  +  ", +0.5)]:
+            make_futuristic_button(
+                btn_frame, text=label,
+                command=lambda d=delta: change(d),
+                width=8, height=5,
+            ).pack(side="left", padx=4)
+
+    def _card_sensor(self, card, acc):
+        """Sensor de temperatura / humedad (solo lectura)."""
+        ctk.CTkLabel(
+            card,
+            text=acc["displayName"],
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+        ).pack(pady=(4, 0))
+
+        if acc.get("temp") is not None:
+            ctk.CTkLabel(
+                card,
+                text=f"🌡  {acc['temp']:.1f}°C",
+                text_color=COLORS.get('primary', '#00ffff'),
+                font=(FONT_FAMILY, FONT_SIZES['xlarge'], "bold"),
+            ).pack(pady=4)
+
+        if acc.get("humidity") is not None:
+            ctk.CTkLabel(
+                card,
+                text=f"💧  {acc['humidity']:.0f}%",
+                text_color=COLORS.get('secondary', '#aaaaff'),
+                font=(FONT_FAMILY, FONT_SIZES['large']),
+            ).pack(pady=(0, 12))
+
+    def _card_blind(self, card, acc, disabled):
+        """Persiana / estor con barra de posición."""
+        ctk.CTkLabel(
+            card,
+            text=acc["displayName"],
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+        ).pack(pady=(4, 0))
+
+        pos_var = ctk.IntVar(value=acc["position"])
+
+        ctk.CTkLabel(
+            card,
+            text=f"Posición: {acc['position']}%",
+            text_color=COLORS.get('primary', '#00ffff'),
+            font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
+        ).pack()
+
+        # Barra visual (solo lectura — las persianas se controlan desde HomeKit)
+        ctk.CTkProgressBar(
+            card,
+            variable=pos_var,
+            progress_color=COLORS.get('primary', '#00ffff'),
+            fg_color=COLORS['bg_light'],
+            width=140, height=12,
+        ).pack(pady=(4, 12))
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _toggle(self, unique_id: str, turn_on: bool):
