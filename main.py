@@ -9,7 +9,7 @@ import atexit
 import threading
 import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
-from core import SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor
+from core import SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from ui.main_window import MainWindow
@@ -66,6 +66,13 @@ def main():
     )
     data_service.start()
     
+    # Iniciar servicio de alertas
+    alert_service = AlertService(
+    system_monitor=system_monitor,
+    service_monitor=service_monitor,
+    )
+    alert_service.start()
+    
     # Iniciar servicio de limpieza automática
     cleanup_service = CleanupService(
         data_logger=DataLogger(),
@@ -89,6 +96,7 @@ def main():
         homebridge_monitor.stop()
         system_monitor.stop()
         service_monitor.stop()
+        alert_service.stop()
     
     atexit.register(cleanup)
     

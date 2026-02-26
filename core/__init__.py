@@ -10,7 +10,8 @@ from .process_monitor import ProcessMonitor
 from .service_monitor import ServiceMonitor
 from .update_monitor import UpdateMonitor
 from .cleanup_service import CleanupService
-from .homebridge_monitor import HomebridgeMonitor          
+from .homebridge_monitor import HomebridgeMonitor  
+from .alert_service import AlertService        
 
 __all__ = [
     'FanController',
@@ -23,4 +24,5 @@ __all__ = [
     'UpdateMonitor',
     'CleanupService',
     'HomebridgeMonitor',                                 
+    'AlertService',
 ]
