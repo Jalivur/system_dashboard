@@ -13,6 +13,7 @@ from utils.logger import get_logger
 import sys
 import os
 from datetime import datetime
+import psutil  # uptime badge
 logger = get_logger(__name__)
 
 
@@ -57,6 +58,8 @@ class MainWindow:
         self.homebridge_window = None
         self.log_viewer_window = None
 
+        self._uptime_tick = 0  # uptime badge: contador para actualizar cada ~60s
+
         logger.info(f"[MainWindow] Dashboard iniciado en {self.system_utils.get_hostname()}")
 
         self._create_ui()
@@ -88,6 +91,15 @@ class MainWindow:
             font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
             anchor="center",
         ).pack(side="left", expand=True)
+
+        self._uptime_label = ctk.CTkLabel(  # uptime badge
+            header_bar,
+            text="⏱ --",
+            text_color=COLORS['text_dim'],
+            font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
+            anchor="e",
+        )
+        self._uptime_label.pack(side="right", padx=(0, 4))  # izq del reloj
 
         self._clock_label = ctk.CTkLabel(
             header_bar,
@@ -544,8 +556,24 @@ class MainWindow:
     # ── Loop de actualización ─────────────────────────────────────────────────
 
     def _tick_clock(self):
-        """Actualiza el reloj cada segundo"""
+        """Actualiza el reloj cada segundo y el uptime cada minuto."""
         self._clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
+
+        # Uptime badge: recalcular cada 60 ticks (~60s) y en el primero
+        self._uptime_tick += 1
+        if self._uptime_tick == 1 or self._uptime_tick >= 60:
+            self._uptime_tick = 1
+            try:
+                import time as _time
+                uptime_s = _time.time() - psutil.boot_time()
+                days    = int(uptime_s // 86400)
+                hours   = int((uptime_s % 86400) // 3600)
+                minutes = int((uptime_s % 3600) // 60)
+                uptime_str = f"⏱ {days}d {hours}h" if days > 0 else f"⏱ {hours}h {minutes}m"
+                self._uptime_label.configure(text=uptime_str)
+            except Exception:
+                pass
+
         self.root.after(1000, self._tick_clock)
 
     def _start_update_loop(self):

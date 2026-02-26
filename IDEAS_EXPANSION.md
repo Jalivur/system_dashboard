@@ -1,4 +1,4 @@
-# 💡 Ideas de Expansión - Dashboard v3.0
+# 💡 Ideas de Expansión - Dashboard v3.1
 
 ---
 
@@ -140,16 +140,10 @@
 - ✅ Ventana `HomebridgeWindow` con grid de 2 columnas estilo Lanzadores
 - ✅ Indicador ● color por dispositivo (on/off), ⚠ rojo si `StatusFault=1`
 - ✅ Soporte para accesorios con característica HomeKit `On` (enchufes e interruptores)
-- ✅ 3 badges en el botón "Homebridge" del menú:
-  - `hb_offline` 🔴 — Homebridge sin conexión
-  - `hb_on` 🟠 — N enchufes encendidos
-  - `hb_fault` 🔴 — N dispositivos con StatusFault=1
+- ✅ 3 badges en el botón "Homebridge" del menú
 - ✅ `_reachable = None` al arrancar → badges no aparecen hasta primera consulta real
 - ✅ Configuración por `.env` — credenciales fuera del código
 - ✅ Dependencia `python-dotenv>=1.0.0` con fallback manual si no está instalada
-
----
-
 
 ---
 
@@ -172,6 +166,8 @@
 - ✅ Estado disabled en rojo para dispositivos con fallo (no interactivo)
 - ✅ Colores del tema activo: success (ON), bg_light (OFF), danger (fallo)
 - ✅ Nombre del dispositivo integrado como etiqueta del switch
+
+---
 
 ### ~~**15. Visor de Logs**~~ ✅ Implementado en v3.0
 **Implementado en v3.0**
@@ -200,52 +196,85 @@
 
 ---
 
-## 🔄 En Evaluación
-
-### **Monitor de Contenedores Docker**
-**Prioridad**: Alta si usas Docker en la Pi  
-**Complejidad**: Media
-
-- Start/Stop/Restart contenedores
-- Ver logs en tiempo real
-- Estadísticas de uso por contenedor (CPU, RAM)
-- Ver puertos expuestos
-- Similar a `docker ps` y `docker stats` pero visual
-
----
-
-### **Soporte Homebridge extendido**
-**Prioridad**: Media  
-**Complejidad**: Baja-Media
-
-- Termostatos (característica `CurrentTemperature`, `TargetTemperature`)
-- Sensores de temperatura/humedad (solo lectura)
-- Persianas y estores (característica `CurrentPosition`)
-- Luces con brillo (`Brightness`)
+### ~~**18. Alertas Externas por Telegram**~~ ✅ Implementado en v3.1
+**Implementado en v3.1**
+- ✅ `AlertService` en `core/` — singleton, daemon thread, comprobación cada 15s
+- ✅ Sin dependencias nuevas — usa `urllib` de la stdlib
+- ✅ Métricas monitorizadas: temperatura, CPU, RAM, disco (umbrales warn + crit independientes) y servicios fallidos
+- ✅ Anti-spam: edge-trigger + sustain de 60s (condición debe mantenerse antes de enviar)
+- ✅ Reseteo automático cuando la condición baja del umbral (permite nuevo flanco)
+- ✅ `send_test()` para verificar configuración sin esperar una alerta real
+- ✅ Configurable por `.env`: `TELEGRAM_TOKEN` + `TELEGRAM_CHAT_ID`
+- ✅ Si las variables no están configuradas, el servicio arranca pero no envía (warning en log)
+- ✅ Integrado en `main.py` con `start()`/`stop()` y `atexit` igual que el resto de servicios
 
 ---
 
-### **Alertas Externas**
-**Prioridad**: Baja  
-**Complejidad**: Media
-
-- Notificaciones por Telegram o webhook
-- Alertas por temperatura alta sostenida, CPU, disco lleno, servicios caídos
-- Configurable por umbral y duración
+### ~~**19. Homebridge Extendido**~~ ✅ Implementado en v3.1
+**Implementado en v3.1**
+- ✅ `HomebridgeMonitor` reconoce ahora 5 tipos de dispositivo:
+  - `switch` — característica `On` (enchufe / interruptor)
+  - `light` — `On` + `Brightness` (luz regulable)
+  - `thermostat` — `CurrentTemperature` + `TargetTemperature`
+  - `sensor` — `CurrentTemperature` y/o `CurrentRelativeHumidity` (solo lectura)
+  - `blind` — `CurrentPosition` (persiana / estor)
+- ✅ `set_brightness(unique_id, brightness)` — control de brillo 0–100%
+- ✅ `set_target_temp(unique_id, temp)` — control de temperatura objetivo en termostatos
+- ✅ Tarjetas adaptativas en `HomebridgeWindow._create_device_card()` según `acc["type"]`
+- ✅ Termostato: temperatura actual + botones +/− 0.5°C con closure mutable
+- ✅ Sensor: lectura de temp y/o humedad con íconos 🌡 💧
+- ✅ Persiana: barra `CTkProgressBar` mostrando posición actual (control en HomeKit)
 
 ---
 
-### **Monitor de GPU**
-**Prioridad**: Muy baja (Raspberry Pi sin GPU dedicada)  
-**Complejidad**: Media
+### ~~**20. UI Diálogo Salir**~~ ✅ Implementado en v3.1
+**Implementado en v3.1**
+- ✅ Radiobuttons táctiles 30×30px en el diálogo de salir (`radiobutton_width=30, radiobutton_height=30`)
+- ✅ Botones ajustados a referencia estándar: Continuar `width=15, height=8`, Cancelar `width=20, height=10`
+- ✅ `buttons_frame` con `side="bottom"` para evitar hueco inferior en el layout
+
+---
+
+## 🔄 Planificado v3.2
+
+### ~~**Historial de Alertas**~~ — Guía disponible: `GUIA_HISTORIAL_ALERTAS.md`
+**Complejidad**: 🟢 Baja — 2-3h  
+**Archivos**: `core/alert_service.py` (modificar), `ui/windows/alert_history.py` (nuevo)
+
+- Persistencia en `data/alert_history.json` (máx. 100 entradas)
+- Ventana nueva "Historial Alertas" con tarjetas por alerta: timestamp, métrica, nivel, valor
+- Colores por nivel: naranja (warn), rojo (crit)
+- Botón "Borrar todo" con confirmación
+- Solo guarda alertas enviadas con éxito a Telegram (o siempre si se prefiere)
+
+---
+
+### ~~**Panel de Red Local (arp-scan)**~~ — Guía disponible: `GUIA_PANEL_RED_PIHOLE.md`
+**Complejidad**: 🟡 Media — 3h  
+**Archivos**: `core/network_scanner.py` (nuevo), `ui/windows/network_local.py` (nuevo)
+
+- Escaneo con `sudo arp-scan --localnet` en thread background
+- Lista de dispositivos: IP, MAC, fabricante, hostname resuelto
+- Refresco manual + automático cada 60s
+- Prerequisito: añadir `arp-scan` a sudoers para ejecución sin contraseña
+
+---
+
+### ~~**Pi-hole Stats**~~ — Guía disponible: `GUIA_PANEL_RED_PIHOLE.md`
+**Complejidad**: 🟡 Media — 2-3h  
+**Archivos**: `core/pihole_monitor.py` (nuevo), `ui/windows/pihole_window.py` (nuevo)
+
+- `PiholeMonitor` — 9º servicio background, sondeo cada 60s, API Pi-hole v5
+- Métricas: queries hoy, bloqueadas, % bloqueado, dominios en lista, clientes únicos, estado
+- Configurable por `.env`: `PIHOLE_HOST`, `PIHOLE_PORT`, `PIHOLE_TOKEN`
+- Badge `pihole_offline` en el menú si Pi-hole no responde
+- Nota: requiere Pi-hole v5 (api.php); v6 tiene API diferente
 
 ---
 
 ## 🚀 Ideas Futuras (Backlog)
 
-**Automatización**: cron visual, profiles de ventiladores por hora, auto-reinicio de servicios caídos
-
-**Red avanzada**: monitor de dispositivos en red (nmap), Pi-hole stats, VPN panel
+**Automatización**: cron visual, perfiles de ventiladores por hora, auto-reinicio servicios caídos
 
 **Backup**: programar backups, estado con progreso, sincronización cloud
 
@@ -268,7 +297,6 @@
 - ✅ Badges de notificación visual en menú principal (6 badges, 5 botones)
 - ✅ CleanupService — limpieza automática background de CSV, PNG y BD
 - ✅ Fan control: entries con placeholder en lugar de sliders
-- ✅ Inyección de dependencias profesional (CleanupService → HistoryWindow)
 
 ### **v2.7** ✅ — 2026-02-23
 - ✅ Header unificado `make_window_header()` en todas las ventanas
@@ -281,7 +309,6 @@
 - ✅ HomebridgeMonitor con JWT, sondeo 30s, caché en memoria
 - ✅ HomebridgeWindow con toggle táctil en grid 2 columnas
 - ✅ 3 badges Homebridge en menú principal
-- ✅ Configuración por .env (credenciales seguras)
 
 ### **v2.9** ✅ — 2026-02-24
 - ✅ SystemMonitor y ServiceMonitor con caché en background thread
@@ -290,17 +317,25 @@
 - ✅ make_homebridge_switch() en ui/styles.py
 - ✅ Logging completo en todos los servicios background (FanAutoService incluido)
 
-### **v3.0** ✅ ACTUAL — 2026-02-26
+### **v3.0** ✅ — 2026-02-26
 - ✅ Visor de Logs con filtros avanzados y exportación
 - ✅ Exports organizados en data/exports/{csv,logs,screenshots}
 - ✅ Limpieza automática al exportar (CSV, PNG, logs)
 - ✅ Fix grab_set en FanControlWindow — entries funcionan en todas las ventanas
 
-### **v3.1** (Futuro)
-- [ ] Alertas externas (Telegram/webhook)
+### **v3.1** ✅ ACTUAL — 2026-02-26
+- ✅ Alertas externas por Telegram (AlertService, anti-spam, 5 métricas)
+- ✅ Homebridge extendido (5 tipos: switch, light, thermostat, sensor, blind)
+- ✅ UI diálogo salir mejorada (radiobuttons 30×30, botones ajustados)
+
+### **v3.2** (Próxima)
+- [ ] Historial de alertas (ventana + persistencia JSON)
+- [ ] Panel de red local (arp-scan, lista dispositivos)
+- [ ] Pi-hole stats (monitor background, ventana métricas, badge)
+
+### **v3.3** (Futuro)
+- [ ] Automatización (cron visual, perfiles ventiladores, auto-reinicio)
 - [ ] API REST básica
-- [ ] Monitor Docker (si aplica)
-- [ ] Soporte Homebridge extendido (termostatos, sensores, persianas)
 
 ---
 
@@ -315,14 +350,16 @@
 | Logging y observabilidad | ✅ 100% |
 | Notificaciones visuales internas | ✅ 100% |
 | UI unificada y táctil | ✅ 100% |
-| Integración Homebridge (enchufes/interruptores) | ✅ 100% |
+| Integración Homebridge (5 tipos) | ✅ 100% |
 | Visor de logs con filtros y exportación | ✅ 100% |
 | Exports organizados y limpieza automática | ✅ 100% |
-| Homebridge extendido (termostatos, sensores) | ⏳ 0% |
-| Alertas externas | ⏳ 0% |
-| Docker | ⏳ 0% |
+| Alertas externas Telegram | ✅ 100% |
+| Historial de alertas | 📋 Guía lista |
+| Panel de red local (arp-scan) | 📋 Guía lista |
+| Pi-hole stats | 📋 Guía lista |
 | Automatización | ⏳ 0% |
+| API REST | ⏳ 0% |
 
 ---
 
-**Versión actual**: v3.0 — **Última actualización**: 2026-02-26
+**Versión actual**: v3.1 — **Próxima**: v3.2 — **Última actualización**: 2026-02-26

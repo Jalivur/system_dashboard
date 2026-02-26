@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.0
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.1
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge y logging completo.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge y alertas externas por Telegram.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-3.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.1-orange.svg)]()
 
 ---
 
@@ -36,15 +36,30 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Speedtest integrado**: CLI oficial de Ookla (JSON nativo, resultados en MB/s reales)
 - **Status en header**: interfaz activa + velocidades actuales
 
-### 🏠 **Integración Homebridge**
-- **Control de accesorios HomeKit**: Enchufes e interruptores desde el dashboard
+### 🏠 **Integración Homebridge Extendida**
+- **5 tipos de dispositivo**: switch/enchufe, luz regulable (brillo), termostato, sensor temperatura/humedad, persiana/estor
 - **CTkSwitch táctil** (90×46px): Toggle grande optimizado para uso con el dedo en pantalla DSI
+- **Tarjetas adaptativas**: Cada tipo muestra su propia interfaz de control
+  - **Luces**: switch ON/OFF igual que enchufes
+  - **Termostatos**: temperatura actual + botones +/− 0.5°C para temperatura objetivo
+  - **Sensores**: temperatura y/o humedad en modo solo lectura
+  - **Persianas**: posición actual (%) con barra visual (control desde HomeKit)
 - **Indicador visual**: switch verde ON / gris OFF, ⚠ rojo bloqueado si `StatusFault=1`
 - **Sondeo ligero en background**: Cada 30 segundos sin bloquear la UI
 - **Autenticación JWT** con renovación automática en 401
-- **3 badges en el menú**: offline (🔴), enchufes encendidos (🟠), dispositivos con fallo (🔴)
+- **3 badges en el menú**: offline (🔴), dispositivos encendidos (🟠), dispositivos con fallo (🔴)
 - **Configuración por `.env`**: IP, puerto, usuario y contraseña de Homebridge
 - Requiere **Insecure Mode** activado en Homebridge para acceder a accesorios
+
+### 📲 **Alertas Externas por Telegram**
+- **Sin dependencias nuevas**: usa `urllib` de la stdlib de Python
+- **Métricas monitorizadas**: temperatura, CPU, RAM, disco y servicios fallidos
+- **Umbrales configurables**: warn y crit independientes por métrica
+- **Anti-spam inteligente**: edge-trigger + sustain de 60s (condición debe mantenerse antes de enviar)
+- **Reseteo automático**: cuando la condición baja del umbral, permite una nueva alerta en el siguiente flanco
+- **Configurable por `.env`**: `TELEGRAM_TOKEN` + `TELEGRAM_CHAT_ID`
+- **Mensaje de prueba**: `alert_service.send_test()` para verificar la configuración
+- **8º servicio background**: integrado en `main.py` con `start()`/`stop()` igual que el resto
 
 ### ⚙️ **Monitor de Procesos**
 - **Lista en tiempo real**: Top 20 procesos con CPU/RAM
@@ -97,7 +112,7 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### /󰿅 **Reinicio y Apagado**
 - **Botón Reiniciar**: Reinicia el dashboard aplicando cambios de código
-- **Botón Salir**: Salir de la app o apagar el sistema
+- **Botón Salir**: Salir de la app o apagar el sistema con radiobuttons táctiles (30×30px)
 - **Terminal de apagado**: Visualiza `apagado.sh` en tiempo real
 - **Con confirmación**: Evita acciones accidentales
 
@@ -116,7 +131,7 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Servicios fallidos**: rojo con contador (Monitor Servicios)
 - **Actualizaciones pendientes**: naranja con contador (Actualizaciones)
 - **Homebridge offline**: rojo si sin conexión
-- **Enchufes encendidos**: naranja con contador de dispositivos ON
+- **Dispositivos encendidos**: naranja con contador
 - **Dispositivos con fallo**: rojo si `StatusFault=1`
 
 ### 🧹 **Limpieza Automática**
@@ -215,7 +230,36 @@ HOMEBRIDGE_PASS=tu_contraseña
 
 El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
 
-La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarjeta incluye un **switch grande (90×46px)** con el nombre del dispositivo como etiqueta, optimizado para activar/desactivar con el dedo. Si un dispositivo tiene `StatusFault=1` el switch aparece bloqueado con un aviso ⚠ FALLO en rojo.
+La ventana Homebridge muestra los accesorios en un grid de 2 columnas con tarjetas adaptativas según el tipo de dispositivo.
+
+---
+
+## 📲 Configuración de Alertas Telegram
+
+Añade al archivo `.env` existente:
+
+```env
+TELEGRAM_TOKEN=123456789:ABCdefGHI...   # Token del bot (@BotFather)
+TELEGRAM_CHAT_ID=987654321              # ID del chat o canal destino
+```
+
+> Si `TELEGRAM_TOKEN` o `TELEGRAM_CHAT_ID` no están configurados, `AlertService` arranca igualmente pero registra un warning y no envía nada.
+
+Para verificar la configuración desde Python:
+
+```python
+alert_service.send_test()
+```
+
+### Umbrales por defecto
+
+| Métrica  | Aviso (🟠) | Crítico (🔴) |
+|----------|-----------|------------|
+| Temperatura | 60°C | 70°C |
+| CPU | 85% | 95% |
+| RAM | 85% | 95% |
+| Disco | 85% | 95% |
+| Servicios | — | cualquier FAILED |
 
 ---
 
@@ -258,7 +302,7 @@ La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarj
 8. **Monitor Servicios** - Control de servicios systemd
 9. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
 10. **Actualizaciones** - Gestión de paquetes del sistema
-11. **Homebridge** - Control de accesorios HomeKit con switches táctiles
+11. **Homebridge** - Control de 5 tipos de dispositivos HomeKit
 12. **Visor de Logs** - Visualización y exportación del log del dashboard
 13. **Cambiar Tema** - Selecciona entre 15 temas
 14. **Reiniciar** - Reinicia el dashboard
@@ -304,7 +348,8 @@ system_dashboard/
 │   ├── process_monitor.py          # Gestión de procesos
 │   ├── service_monitor.py          # Servicios systemd — caché 10s, batch is-enabled
 │   ├── update_monitor.py           # Actualizaciones con caché 12h
-│   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s)
+│   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s, 5 tipos)
+│   ├── alert_service.py            # Alertas Telegram (urllib, anti-spam, 5 métricas)
 │   ├── data_logger.py              # SQLite logging
 │   ├── data_analyzer.py            # Análisis histórico
 │   ├── data_collection_service.py  # Recolección automática (singleton)
@@ -322,7 +367,7 @@ system_dashboard/
 │       ├── process_window.py, service.py, history.py
 │       ├── update.py, fan_control.py
 │       ├── launchers.py, theme_selector.py
-│       ├── homebridge.py           # Ventana de control Homebridge con CTkSwitch
+│       ├── homebridge.py           # 5 tarjetas adaptativas por tipo de dispositivo
 │       ├── log_viewer.py           # Visor de logs con filtros y exportación
 │       └── __init__.py
 ├── utils/
@@ -338,11 +383,10 @@ system_dashboard/
 │       ├── logs/                   # Exportaciones del visor de logs
 │       └── screenshots/            # Capturas de gráficas
 ├── scripts/                         # Scripts personalizados del usuario
-├── .env                             # Credenciales Homebridge (NO en git)
+├── .env                             # Credenciales Homebridge + Telegram (NO en git)
 ├── .env.example                     # Plantilla de configuración
 ├── install_system.sh               # Instalación directa (recomendada)
 ├── install.sh                      # Instalación con venv (alternativa)
-├── test_logging.py                 # Prueba del sistema de logging
 ├── main.py
 └── requirements.txt
 ```
@@ -368,13 +412,16 @@ LAUNCHERS = [
 ]
 ```
 
-### **`.env` (Homebridge)**
+### **`.env` (Homebridge + Telegram)**
 
 ```env
 HOMEBRIDGE_HOST=192.168.1.X
 HOMEBRIDGE_PORT=8581
 HOMEBRIDGE_USER=admin
 HOMEBRIDGE_PASS=tu_contraseña
+
+TELEGRAM_TOKEN=123456789:ABCdefGHI...
+TELEGRAM_CHAT_ID=987654321
 ```
 
 ---
@@ -396,12 +443,13 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 
 Todos los servicios background registran su inicio y parada. Al arrancar verás entradas como:
 ```
-[SystemMonitor]   Sondeo iniciado (cada 2.0s)
-[ServiceMonitor]  Sondeo iniciado (cada 10s)
+[SystemMonitor]     Sondeo iniciado (cada 2.0s)
+[ServiceMonitor]    Sondeo iniciado (cada 10s)
 [HomebridgeMonitor] Sondeo iniciado (cada 30s)
-[FanAutoService]  Servicio iniciado
-[DataCollection]  Servicio iniciado (cada 5 min)
-[CleanupService]  Servicio iniciado
+[FanAutoService]    Servicio iniciado
+[DataCollection]    Servicio iniciado (cada 5 min)
+[CleanupService]    Servicio iniciado
+[AlertService]      Servicio iniciado (cada 15s)
 ```
 
 ---
@@ -412,7 +460,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 - **Uso RAM**: ~100-150 MB
 - **Base de datos**: ~5 MB por 10,000 registros
 - **Actualización UI**: 2 segundos (configurable en `UPDATE_MS`) — solo lectura de caché, sin syscalls bloqueantes
-- **Threads background**: 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main)
+- **Threads background**: 8 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + main)
 - **Log**: máx. 2MB con rotación automática
 
 ---
@@ -431,6 +479,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 | Badge hb_offline siempre rojo | Comprobar `HOMEBRIDGE_HOST` en `.env` y red entre Pis |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
 | No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
+| Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env`; ejecutar `send_test()` |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
@@ -449,20 +498,28 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 | Métrica | Valor |
 |---------|-------|
-| Versión | 3.0 |
-| Archivos Python | 44 |
+| Versión | 3.1 |
+| Archivos Python | 45 |
 | Ventanas | 15 |
 | Temas | 15 |
-| Servicios background | 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main) |
+| Servicios background | 8 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + main) |
 | Badges en menú | 9 |
 | Cobertura logging | 100% módulos core y UI |
 | Exports organizados | 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo |
+| Tipos Homebridge | 5 (switch, light, thermostat, sensor, blind) |
 
 ---
 
 ## Changelog
 
-### **v3.0** - 2026-02-26 ⭐ ACTUAL
+### **v3.1** - 2026-02-26 ⭐ ACTUAL
+- ✅ **NUEVO**: Alertas externas por Telegram — `AlertService` con anti-spam (edge-trigger + sustain 60s), umbrales para temp/CPU/RAM/disco y servicios, sin dependencias nuevas (urllib stdlib)
+- ✅ **NUEVO**: Homebridge extendido — soporte para 5 tipos de dispositivo: switch, luz regulable, termostato, sensor temperatura/humedad, persiana
+- ✅ **NUEVO**: `set_brightness()` y `set_target_temp()` en `HomebridgeMonitor`
+- ✅ **NUEVO**: Tarjetas adaptativas en `HomebridgeWindow` según tipo de dispositivo
+- ✅ **MEJORA**: Diálogo salir — radiobuttons táctiles (30×30px), botones ajustados, layout corregido
+
+### **v3.0** - 2026-02-26
 - ✅ **NUEVO**: Visor de Logs — ventana con filtros por nivel, módulo, texto libre e intervalo de fechas/horas
 - ✅ **NUEVO**: Exportación de logs filtrados a `data/exports/logs/`
 - ✅ **NUEVO**: Carpetas organizadas para exports — `data/exports/{csv,logs,screenshots}` (creadas automáticamente al arrancar)
@@ -494,8 +551,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 ### **v2.6** - 2026-02-22
 - ✅ **NUEVO**: 6 badges de notificación visual en menú principal
 - ✅ **NUEVO**: `CleanupService` — limpieza automática background de CSV, PNG y BD
-- ✅ **NUEVO**: Fan control
- con entries en lugar de sliders
+- ✅ **NUEVO**: Fan control con entries en lugar de sliders
 
 ### v2.5.1 - 2026-02-19
 - Logging completo, Ventana Actualizaciones, Fix atexit DataCollectionService
@@ -523,4 +579,4 @@ CustomTkinter - psutil - matplotlib - Ookla Speedtest CLI - Homebridge - Raspber
 
 ---
 
-Dashboard v3.0: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit y sin bloqueos en UI
+Dashboard v3.1: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit, con Alertas Telegram y sin bloqueos en UI

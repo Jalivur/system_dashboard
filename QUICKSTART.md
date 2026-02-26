@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v3.0
+# 🚀 Inicio Rápido - Dashboard v3.1
 
 ---
 
@@ -91,7 +91,7 @@ python3 main.py
 
 **10. Actualizaciones** — Estado de paquetes, instalar con terminal integrada
 
-**11. Homebridge** — Control de accesorios HomeKit con **switches táctiles** (90×46px) por dispositivo
+**11. Homebridge** — Control de **5 tipos de dispositivos HomeKit**: switches/enchufes, luces con brillo, termostatos, sensores temperatura/humedad, persianas
 
 **12. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo de tiempo; exportación a `data/exports/logs/`
 
@@ -137,7 +137,30 @@ HOMEBRIDGE_PASS=tu_contraseña
 
 > **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`). Sin él, la API no permite acceder a los accesorios.
 
-La ventana Homebridge muestra los accesorios en grid de 2 columnas. Cada tarjeta incluye un **switch táctil (90×46px)** con el nombre del dispositivo como etiqueta. Desliza o pulsa el switch para encender/apagar con el dedo. Si un dispositivo tiene `StatusFault=1` aparece ⚠ FALLO en rojo y el switch queda bloqueado.
+La ventana Homebridge muestra los accesorios en grid de 2 columnas con tarjetas adaptativas según el tipo:
+
+- **Switch / Enchufe / Luz básica**: CTkSwitch táctil (90×46px)
+- **Luz regulable**: switch ON/OFF con control de brillo
+- **Termostato**: temperatura actual + botones +/− 0.5°C para temperatura objetivo
+- **Sensor**: temperatura y/o humedad en modo solo lectura
+- **Persiana / Estor**: posición actual (%) con barra visual
+
+Si un dispositivo tiene `StatusFault=1` aparece ⚠ FALLO en rojo y el switch queda bloqueado.
+
+---
+
+## 📲 Configurar Alertas Telegram
+
+Añade al mismo archivo `.env`:
+
+```env
+TELEGRAM_TOKEN=123456789:ABCdefGHI...   # Token del bot (@BotFather)
+TELEGRAM_CHAT_ID=987654321              # ID del chat o canal destino
+```
+
+Las alertas se envían cuando temperatura, CPU, RAM o disco superan los umbrales durante 60 segundos sostenidos (anti-spam). También avisa si hay servicios en estado FAILED.
+
+> Si no configuras estas variables, el dashboard funciona igual — las alertas simplemente no se envían.
 
 ---
 
@@ -166,12 +189,18 @@ grep ERROR data/logs/dashboard.log
 | Badge hb_offline siempre rojo | Comprobar conectividad entre Pis y `HOMEBRIDGE_HOST` |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
 | No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
+| Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env` |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
 
-## 🆕 Novedades v3.0
+## 🆕 Novedades v3.1
 
+✅ **Alertas Telegram** — `AlertService` con anti-spam (edge-trigger + sustain 60s), monitoriza temp/CPU/RAM/disco y servicios  
+✅ **Homebridge extendido** — 5 tipos de dispositivo: switch, luz regulable, termostato, sensor, persiana  
+✅ **UI diálogo salir** — radiobuttons táctiles 30×30px, botones ajustados, layout corregido  
+
+### v3.0 (referencia)
 ✅ **Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación incluida  
 ✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente  
 ✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo cada 24h  
@@ -183,13 +212,6 @@ grep ERROR data/logs/dashboard.log
 ✅ **ServiceMonitor optimizado** — is-enabled en llamada batch, sondeo cada 10s  
 ✅ **Logging completo** — Todos los servicios registran inicio y parada  
 
-### v2.8 (referencia)
-✅ **Integración Homebridge** — Ventana de control de accesorios HomeKit (enchufes e interruptores)  
-✅ **HomebridgeMonitor** — Sondeo ligero en background cada 30s, JWT con renovación automática  
-✅ **3 badges Homebridge** — offline 🔴, enchufes encendidos 🟠, dispositivos con fallo 🔴  
-✅ **Toggle táctil** — Activa/desactiva cada dispositivo directamente desde la pantalla DSI  
-✅ **Configuración `.env`** — Credenciales separadas del código fuente  
-
 ---
 
 ## 📚 Más Información
@@ -200,4 +222,4 @@ grep ERROR data/logs/dashboard.log
 
 ---
 
-**Dashboard v3.0** 🚀🏠✨
+**Dashboard v3.1** 🚀🏠📲✨
