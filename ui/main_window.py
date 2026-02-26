@@ -5,7 +5,9 @@ import tkinter as tk
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_X, DSI_Y, SCRIPTS_DIR
 from ui.styles import StyleManager, make_futuristic_button
-from ui.windows import FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow
+from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, 
+                        HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow, 
+                        NetworkLocalWindow)
 from ui.windows.log_viewer import LogViewerWindow
 from ui.widgets import confirm_dialog, terminal_dialog
 from utils.system_utils import SystemUtils
@@ -21,7 +23,7 @@ class MainWindow:
     """Ventana principal del dashboard"""
     
     def __init__(self, root, system_monitor, fan_controller, network_monitor,
-                 disk_monitor, process_monitor, service_monitor, update_monitor, cleanup_service, homebridge_monitor,
+                 disk_monitor, process_monitor, service_monitor, update_monitor, cleanup_service, homebridge_monitor, network_scanner,
                  update_interval=2000):
         self.root = root
         self.system_monitor = system_monitor
@@ -33,6 +35,7 @@ class MainWindow:
         self.update_monitor = update_monitor
         self.cleanup_service = cleanup_service
         self.homebridge_monitor = homebridge_monitor
+        self.network_scanner = network_scanner
         
         self.update_interval = update_interval
         self.system_utils = SystemUtils()
@@ -57,6 +60,7 @@ class MainWindow:
         self.theme_window = None
         self.homebridge_window = None
         self.log_viewer_window = None
+        self.network_local_window = None
 
         self._uptime_tick = 0  # uptime badge: contador para actualizar cada ~60s
 
@@ -168,6 +172,7 @@ class MainWindow:
             ("󰆧  Actualizaciones",       self.open_update_window,   ["updates"]),
             ("󰟐  Homebridge",        self.open_homebridge,     ["hb_offline", "hb_on", "hb_fault"]),
             ("󰷐  Visor de Logs",        self.open_log_viewer,      []),
+            ("🖧  Red Local",   self.open_network_local,   []),
             ("󰔎  Cambiar Tema",          self.open_theme_selector,  []),
             ("  Reiniciar",                 self.restart_application,  []),
             ("󰿅  Salir",                 self.exit_application,     []),
@@ -411,6 +416,17 @@ class MainWindow:
             self.log_viewer_window.bind("<Destroy>", lambda e: self._btn_idle("󰷐  Visor de Logs"))
         else:
             self.log_viewer_window.lift()
+    
+    def open_network_local(self):
+        """Abre el panel de red local."""
+        if self.network_local_window is None or not self.network_local_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Red Local")
+            self._btn_active("🖧  Red Local")
+            self.network_local_window = NetworkLocalWindow(self.root)
+            self.network_local_window.bind(
+                "<Destroy>", lambda e: self._btn_idle("🖧  Red Local"))
+        else:
+            self.network_local_window.lift()
 
     
     # ── Salir / Reiniciar ─────────────────────────────────────────────────────

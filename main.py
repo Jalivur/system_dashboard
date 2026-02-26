@@ -9,7 +9,8 @@ import atexit
 import threading
 import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
-from core import SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService
+from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, 
+                  ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from ui.main_window import MainWindow
@@ -46,6 +47,7 @@ def main():
     update_monitor = UpdateMonitor()
     homebridge_monitor = HomebridgeMonitor()
     homebridge_monitor.start()
+    network_scanner = NetworkScanner()
 
     # Comprobación inicial de actualizaciones en background
     # No bloquea el arranque y llena el caché para toda la sesión
@@ -112,7 +114,8 @@ def main():
         service_monitor=service_monitor,
         update_monitor=update_monitor,
         cleanup_service=cleanup_service,
-        homebridge_monitor=homebridge_monitor
+        homebridge_monitor=homebridge_monitor,
+        network_scanner=network_scanner
     )
 
     try:

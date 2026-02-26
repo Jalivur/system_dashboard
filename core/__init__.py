@@ -11,7 +11,8 @@ from .service_monitor import ServiceMonitor
 from .update_monitor import UpdateMonitor
 from .cleanup_service import CleanupService
 from .homebridge_monitor import HomebridgeMonitor  
-from .alert_service import AlertService        
+from .alert_service import AlertService
+from .network_scanner import NetworkScanner        
 
 __all__ = [
     'FanController',
@@ -25,4 +26,5 @@ __all__ = [
     'CleanupService',
     'HomebridgeMonitor',                                 
     'AlertService',
+    'NetworkScanner',
 ]
