@@ -121,6 +121,7 @@ def main():
         homebridge_monitor=homebridge_monitor,
         network_scanner=network_scanner,
         pihole_monitor=pihole_monitor,
+        alert_service=alert_service,
     )
 
     try:
