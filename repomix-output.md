@@ -51,6 +51,8 @@ core/
   fan_controller.py
   homebridge_monitor.py
   network_monitor.py
+  network_scanner.py
+  pihole_monitor.py
   process_monitor.py
   service_monitor.py
   system_monitor.py
@@ -62,6 +64,7 @@ ui/
     graphs.py
   windows/
     __init__.py
+    alert_history.py
     disk.py
     fan_control.py
     history.py
@@ -69,7 +72,9 @@ ui/
     launchers.py
     log_viewer.py
     monitor.py
+    network_local.py
     network.py
+    pihole_window.py
     process_window.py
     service.py
     theme_selector.py
@@ -104,238 +109,433 @@ THEMES_GUIDE.md
 
 # Files
 
-## File: core/alert_service.py
-`````python
+## File: core/network_scanner.py
+````python
 """
-Servicio de alertas externas por Telegram.
-Sin dependencias nuevas — usa urllib de la stdlib.
+Escáner de red local usando arp-scan.
+Requiere: sudo arp-scan (disponible en Kali por defecto)
 
-Lógica anti-spam: cada alerta debe mantenerse activa durante
-ALERT_SUSTAIN_S segundos antes de enviarse, y no se repite
-hasta que baje del umbral y vuelva a subir (edge-trigger).
+Ejecuta arp-scan en un thread de background para no bloquear la UI.
 """
+import subprocess
 import threading
+import socket
+import re
 import time
-import json
-import urllib.request
-import urllib.error
-from pathlib import Path
-from typing import Dict, Optional
-import os
-from dotenv import load_dotenv
+from typing import List, Dict, Optional
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Tiempo que la condición debe mantenerse antes de enviar (segundos)
-ALERT_SUSTAIN_S = 60
+# Timeout para arp-scan (segundos)
+ARP_TIMEOUT = 15
 
-# Intervalo de comprobación (segundos)
-CHECK_INTERVAL  = 15
+# Regex para parsear líneas de arp-scan:
+# Regex actualizado — fabricante con paréntesis opcional
+_ARP_LINE = re.compile(
+    r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\t([\da-fA-F:]{17})\t(.*)$'
+)
 
-# Umbrales (se pueden sobrescribir en settings.py si se prefiere)
-THRESHOLDS = {
-    'temp':  {'warn': 60, 'crit': 70},
-    'cpu':   {'warn': 85, 'crit': 95},
-    'ram':   {'warn': 85, 'crit': 95},
-    'disk':  {'warn': 85, 'crit': 95},
+class NetworkScanner:
+    """
+    Escáner de red local con arp-scan.
+
+    Uso:
+        scanner = NetworkScanner()
+        scanner.scan()                    # lanza en background
+        devices = scanner.get_devices()   # lee caché (no bloquea)
+        status  = scanner.get_status()    # 'idle' | 'scanning' | 'done' | 'error'
+    """
+
+    def __init__(self):
+        self._devices: List[Dict] = []
+        self._status  = "idle"     # idle | scanning | done | error
+        self._error   = ""
+        self._last_scan: Optional[float] = None
+        self._lock    = threading.Lock()
+
+    # ── API pública ───────────────────────────────────────────────────────────
+
+    def scan(self) -> None:
+        """Lanza el escaneo en background. Si ya hay uno en curso, no hace nada."""
+        with self._lock:
+            if self._status == "scanning":
+                return
+            self._status = "scanning"
+        threading.Thread(target=self._do_scan, daemon=True, name="ARPScan").start()
+        logger.info("[NetworkScanner] Escaneo iniciado")
+
+    def get_devices(self) -> List[Dict]:
+        """Devuelve la lista de dispositivos del último escaneo (caché)."""
+        with self._lock:
+            return list(self._devices)
+
+    def get_status(self) -> str:
+        """Estado actual: 'idle' | 'scanning' | 'done' | 'error'."""
+        with self._lock:
+            return self._status
+
+    def get_error(self) -> str:
+        """Mensaje de error si status == 'error'."""
+        with self._lock:
+            return self._error
+
+    def get_last_scan_age(self) -> Optional[float]:
+        """Segundos desde el último escaneo completado. None si nunca se ha escaneado."""
+        with self._lock:
+            if self._last_scan is None:
+                return None
+            return time.time() - self._last_scan
+
+    # ── Escaneo ───────────────────────────────────────────────────────────────
+
+    def _do_scan(self) -> None:
+        """Ejecuta arp-scan y parsea el resultado."""
+        try:
+            result = subprocess.run(
+                [
+                    "sudo", "arp-scan", "--localnet",
+                    "--ouifile=/usr/share/arp-scan/ieee-oui.txt",
+                    "--macfile=/etc/arp-scan/mac-vendor.txt",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=ARP_TIMEOUT,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"arp-scan salió con código {result.returncode}: {result.stderr.strip()}"
+                )
+            devices = self._parse_output(result.stdout)
+            with self._lock:
+                self._devices    = devices
+                self._status     = "done"
+                self._last_scan  = time.time()
+                self._error      = ""
+            logger.info("[NetworkScanner] Escaneo completado — %d dispositivos", len(devices))
+
+        except subprocess.TimeoutExpired:
+            with self._lock:
+                self._status = "error"
+                self._error  = f"Timeout ({ARP_TIMEOUT}s) — red puede ser grande"
+            logger.warning("[NetworkScanner] Timeout en arp-scan")
+
+        except FileNotFoundError:
+            with self._lock:
+                self._status = "error"
+                self._error  = "arp-scan no encontrado — instalar con: sudo apt install arp-scan"
+            logger.error("[NetworkScanner] arp-scan no instalado")
+
+        except Exception as e:
+            with self._lock:
+                self._status = "error"
+                self._error  = str(e)
+            logger.error("[NetworkScanner] Error en escaneo: %s", e)
+
+    def _parse_output(self, output: str) -> list:
+        devices = []
+        for line in output.splitlines():
+            line = line.strip()
+            # Ignorar líneas de cabecera, pie y vacías
+            if not line:
+                continue
+            if line.startswith(('Interface:', 'Starting', 'WARNING', 'Ending')):
+                continue
+            if 'packets' in line or 'hosts' in line:
+                continue
+
+            m = _ARP_LINE.match(line)
+            if not m:
+                continue
+
+            ip     = m.group(1)
+            mac    = m.group(2).upper()
+            vendor = m.group(3).strip().strip('()')  # quita los paréntesis de (Unknown)
+            vendor = vendor if vendor and vendor.lower() != 'unknown' else ""
+
+            hostname = self._resolve_hostname(ip)
+            devices.append({
+                "ip":       ip,
+                "mac":      mac,
+                "vendor":   vendor,
+                "hostname": hostname,
+            })
+
+        devices.sort(key=lambda d: tuple(int(x) for x in d["ip"].split(".")))
+        return devices
+
+    @staticmethod
+    def _resolve_hostname(ip: str) -> str:
+        """Intenta resolver el hostname de una IP. Devuelve '' si falla."""
+        try:
+            return socket.gethostbyaddr(ip)[0]
+        except Exception:
+            return ""
+````
+
+## File: core/pihole_monitor.py
+````python
+"""
+Monitor de Pi-hole v6.
+Sondea la API REST de Pi-hole v6 cada POLL_INTERVAL_S segundos.
+Credenciales leídas desde .env: PIHOLE_HOST, PIHOLE_PORT, PIHOLE_PASSWORD.
+
+Sin dependencias nuevas — usa urllib de la stdlib.
+"""
+import json
+import os
+import threading
+import time
+import urllib.request
+import urllib.error
+from pathlib import Path
+from typing import Dict, Optional
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+# ── Carga de .env ─────────────────────────────────────────────────────────────
+def _load_env():
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(env_path, override=False)
+    except ImportError:
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+
+_load_env()
+
+PIHOLE_HOST     = os.environ.get("PIHOLE_HOST",     "")
+PIHOLE_PORT     = int(os.environ.get("PIHOLE_PORT", "80"))
+PIHOLE_PASSWORD = os.environ.get("PIHOLE_PASSWORD", "")
+
+POLL_INTERVAL_S  = 60
+REQUEST_TIMEOUT  = 5
+SESSION_VALIDITY = 1800  # segundos — renovar antes de que expire
+
+_EMPTY_STATS: Dict = {
+    "status":          "unknown",
+    "queries_today":   0,
+    "blocked_today":   0,
+    "percent_blocked": 0.0,
+    "domains_blocked": 0,
+    "unique_clients":  0,
+    "reachable":       False,
 }
 
 
-def _load_telegram_config() -> tuple:
-    """Lee TOKEN y CHAT_ID desde .env / os.environ."""
-    
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if env_path.exists():
-        try:
-            load_dotenv(env_path, override=False)
-        except ImportError:
-            with open(env_path) as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith('#') or '=' not in line:
-                        continue
-                    k, _, v = line.partition('=')
-                    k = k.strip()
-                    if k not in os.environ:
-                        os.environ[k] = v.strip().strip('"').strip("'")
-    token   = os.environ.get('TELEGRAM_TOKEN', '')
-    chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
-    return token, chat_id
-
-
-class AlertService:
+class PiholeMonitor:
     """
-    Servicio background que monitoriza métricas y envía alertas a Telegram.
-
-    Instanciar en main.py y pasar system_monitor / service_monitor.
-    Llamar a start() y stop() igual que el resto de servicios.
+    Monitor de Pi-hole v6 con sondeo en background.
+    Autenticación por sesión (sid) con renovación automática antes de expirar.
     """
 
-    def __init__(self, system_monitor, service_monitor):
-        self.system_monitor  = system_monitor
-        self.service_monitor = service_monitor
-
-        self._token, self._chat_id = _load_telegram_config()
-
-        if not self._token or not self._chat_id:
-            logger.warning(
-                "[AlertService] TELEGRAM_TOKEN o TELEGRAM_CHAT_ID no configurados — "
-                "alertas desactivadas"
-            )
-
-        # Estado interno para anti-spam
-        # key -> {'first_seen': timestamp, 'sent': bool}
-        self._state: Dict[str, dict] = {}
-        self._lock   = threading.Lock()
-
-        self._running  = False
-        self._stop_evt = threading.Event()
+    def __init__(self):
+        self._stats: Dict       = dict(_EMPTY_STATS)
+        self._sid: Optional[str] = None
+        self._sid_obtained: Optional[float] = None  # timestamp de cuando se obtuvo
+        self._stats_lock        = threading.Lock()
+        self._sid_lock          = threading.Lock()
+        self._running           = False
+        self._stop_evt          = threading.Event()
         self._thread: Optional[threading.Thread] = None
+
+        if not PIHOLE_HOST:
+            logger.warning(
+                "[PiholeMonitor] PIHOLE_HOST no configurado en .env — monitor desactivado"
+            )
+        else:
+            logger.info(
+                "[PiholeMonitor] Inicializado — http://%s:%d (v6)", PIHOLE_HOST, PIHOLE_PORT
+            )
 
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
-        if self._running:
+        if self._running or not PIHOLE_HOST:
             return
         self._running = True
         self._stop_evt.clear()
         self._thread = threading.Thread(
-            target=self._loop, daemon=True, name="AlertService"
-        )
+            target=self._poll_loop, daemon=True, name="PiholePoll")
         self._thread.start()
-        logger.info("[AlertService] Servicio iniciado (cada %ds)", CHECK_INTERVAL)
+        logger.info("[PiholeMonitor] Sondeo iniciado (cada %ds)", POLL_INTERVAL_S)
 
     def stop(self) -> None:
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=5)
-        logger.info("[AlertService] Servicio detenido")
+            self._thread.join(timeout=REQUEST_TIMEOUT + 1)
+        self._logout()
+        logger.info("[PiholeMonitor] Sondeo detenido")
 
-    # ── Bucle principal ───────────────────────────────────────────────────────
-
-    def _loop(self) -> None:
+    def _poll_loop(self) -> None:
         while self._running:
             try:
-                self._check_metrics()
-                self._check_services()
+                self._fetch()
             except Exception as e:
-                logger.error("[AlertService] Error en _loop: %s", e)
-            self._stop_evt.wait(timeout=CHECK_INTERVAL)
+                logger.error("[PiholeMonitor] Error en poll_loop: %s", e)
+            self._stop_evt.wait(timeout=POLL_INTERVAL_S)
             if self._stop_evt.is_set():
                 break
 
-    def _check_metrics(self) -> None:
-        stats = self.system_monitor.get_current_stats()
-        checks = [
-            ('temp', stats.get('temp',        0), '°C',  '🌡️ Temperatura'),
-            ('cpu',  stats.get('cpu',          0), '%',   '🔥 CPU'),
-            ('ram',  stats.get('ram',          0), '%',   '💾 RAM'),
-            ('disk', stats.get('disk_usage',   0), '%',   '💿 Disco'),
-        ]
-        for key, value, unit, label in checks:
-            thr  = THRESHOLDS[key]
-            if value >= thr['crit']:
-                level, emoji = 'crit', '🔴'
-            elif value >= thr['warn']:
-                level, emoji = 'warn', '🟠'
-            else:
-                level = None
+    # ── Autenticación ─────────────────────────────────────────────────────────
 
-            alert_key = f"{key}_{level}" if level else None
-            if level:
-                msg = (
-                    f"{emoji} *Dashboard — {label} alta*\n"
-                    f"Valor actual: *{value:.1f}{unit}*\n"
-                    f"Umbral {'crítico' if level=='crit' else 'de aviso'}: "
-                    f"{thr[level]}{unit}"
-                )
-                self._trigger(alert_key, msg)
-            else:
-                # Condición resuelta — resetear para permitir futura alerta
-                for suffix in ('warn', 'crit'):
-                    self._reset(f"{key}_{suffix}")
+    def _authenticate(self) -> bool:
+        """Obtiene un sid de sesión. Devuelve True si tiene éxito."""
+        if not PIHOLE_PASSWORD:
+            # Sin contraseña — Pi-hole puede permitir acceso anónimo
+            logger.debug("[PiholeMonitor] Sin contraseña configurada — intentando sin auth")
+            return True
 
-    def _check_services(self) -> None:
-        stats = self.service_monitor.get_stats()
-        failed = stats.get('failed', 0)
-        key = 'services_failed'
-        if failed > 0:
-            msg = (
-                f"⚠️ *Dashboard — Servicios caídos*\n"
-                f"Hay *{failed}* servicio{'s' if failed > 1 else ''} en estado FAILED.\n"
-                f"Abre Monitor Servicios para más detalles."
-            )
-            self._trigger(key, msg)
-        else:
-            self._reset(key)
-
-    # ── Lógica anti-spam (edge-trigger + sustain) ─────────────────────────────
-
-    def _trigger(self, key: str, message: str) -> None:
-        """
-        Activa una alerta con retardo anti-spam.
-        Solo envía si la condición lleva ALERT_SUSTAIN_S segundos activa
-        y no se ha enviado ya para este 'flanco'.
-        """
-        now = time.time()
-        with self._lock:
-            entry = self._state.get(key)
-            if entry is None:
-                self._state[key] = {'first_seen': now, 'sent': False}
-                return
-            if entry['sent']:
-                return
-            if now - entry['first_seen'] >= ALERT_SUSTAIN_S:
-                entry['sent'] = True
-        # Enviar fuera del lock
-        self._send(message)
-
-    def _reset(self, key: str) -> None:
-        """Resetea el estado de una alerta (condición resuelta)."""
-        with self._lock:
-            self._state.pop(key, None)
-
-    # ── Envío a Telegram ──────────────────────────────────────────────────────
-
-    def _send(self, text: str) -> bool:
-        """Envía un mensaje Markdown a Telegram. Devuelve True si tiene éxito."""
-        if not self._token or not self._chat_id:
-            return False
-        url     = f"https://api.telegram.org/bot{self._token}/sendMessage"
-        payload = json.dumps({
-            "chat_id":    self._chat_id,
-            "text":       text,
-            "parse_mode": "Markdown",
-        }).encode()
+        payload = json.dumps({"password": PIHOLE_PASSWORD}).encode("utf-8")
         req = urllib.request.Request(
-            url, data=payload,
+            f"http://{PIHOLE_HOST}:{PIHOLE_PORT}/api/auth",
+            data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                result = json.loads(resp.read())
-                if result.get("ok"):
-                    logger.info("[AlertService] Mensaje enviado a Telegram")
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                sid = data.get("session", {}).get("sid")
+                if sid:
+                    with self._sid_lock:
+                        self._sid         = sid
+                        self._sid_obtained = time.time()
+                    logger.info("[PiholeMonitor] Autenticación correcta (sid obtenido)")
                     return True
-            logger.warning("[AlertService] Respuesta inesperada de Telegram: %s", result)
-            return False
+                logger.warning("[PiholeMonitor] Respuesta sin sid: %s", data)
+                return False
         except Exception as e:
-            logger.error("[AlertService] Error enviando a Telegram: %s", e)
+            logger.error("[PiholeMonitor] Error de autenticación: %s", e)
             return False
 
-    def send_test(self) -> bool:
-        """Envía un mensaje de prueba. Útil para verificar la configuración."""
-        return self._send(
-            "✅ *Dashboard — Test de alertas*\n"
-            "La conexión con Telegram funciona correctamente."
-        )
-`````
+    def _sid_valid(self) -> bool:
+        """True si el sid existe y no ha expirado (con margen de 60s)."""
+        with self._sid_lock:
+            if not self._sid or self._sid_obtained is None:
+                return False
+            return (time.time() - self._sid_obtained) < (SESSION_VALIDITY - 60)
+
+    def _get_sid(self) -> Optional[str]:
+        """Devuelve el sid válido, autenticando si es necesario."""
+        if not self._sid_valid():
+            if not self._authenticate():
+                return None
+        with self._sid_lock:
+            return self._sid
+
+    def _logout(self) -> None:
+        """Cierra la sesión en Pi-hole al parar el monitor."""
+        with self._sid_lock:
+            sid = self._sid
+            self._sid = None
+        if not sid:
+            return
+        try:
+            req = urllib.request.Request(
+                f"http://{PIHOLE_HOST}:{PIHOLE_PORT}/api/auth",
+                headers={"sid": sid},
+                method="DELETE",
+            )
+            urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+            logger.debug("[PiholeMonitor] Sesión cerrada correctamente")
+        except Exception:
+            pass
+
+    # ── Fetch ─────────────────────────────────────────────────────────────────
+
+    def _fetch(self) -> None:
+        """Llama a la API v6 de Pi-hole y actualiza la caché."""
+        try:
+            sid = self._get_sid()
+            headers = {"sid": sid} if sid else {}
+
+            req = urllib.request.Request(
+                f"http://{PIHOLE_HOST}:{PIHOLE_PORT}/api/stats/summary",
+                headers=headers,
+                method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            # Estructura de respuesta v6:
+            # {"queries": {"total": X, "blocked": X, "percent_blocked": X, ...},
+            #  "clients": {"active": X, ...},
+            #  "gravity": {"domains_being_blocked": X}}
+            queries  = data.get("queries",  {})
+            clients  = data.get("clients",  {})
+            gravity  = data.get("gravity",  {})
+
+            stats = {
+                "status":          "enabled",  # si llegamos aquí, está activo
+                "queries_today":   int(queries.get("total",            0)),
+                "blocked_today":   int(queries.get("blocked",          0)),
+                "percent_blocked": float(queries.get("percent_blocked", 0.0)),
+                "domains_blocked": int(gravity.get("domains_being_blocked", 0)),
+                "unique_clients":  int(clients.get("active",           0)),
+                "reachable":       True,
+            }
+            with self._stats_lock:
+                self._stats = stats
+            logger.debug(
+                "[PiholeMonitor] OK — %d queries, %.1f%% bloqueado",
+                stats["queries_today"], stats["percent_blocked"]
+            )
+
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                # Sesión expirada — forzar reautenticación en el próximo ciclo
+                logger.warning("[PiholeMonitor] Sesión expirada (401) — renovando")
+                with self._sid_lock:
+                    self._sid = None
+            else:
+                logger.warning("[PiholeMonitor] HTTP %d en /api/stats/summary", e.code)
+            with self._stats_lock:
+                self._stats = {**_EMPTY_STATS, "reachable": False}
+
+        except Exception as e:
+            with self._stats_lock:
+                self._stats = {**_EMPTY_STATS, "reachable": False}
+            logger.warning("[PiholeMonitor] Sin conexión con Pi-hole: %s", e)
+
+    # ── API pública ───────────────────────────────────────────────────────────
+
+    def get_stats(self) -> Dict:
+        """Devuelve las estadísticas en caché. Sin petición HTTP."""
+        with self._stats_lock:
+            return dict(self._stats)
+
+    def is_reachable(self) -> bool:
+        with self._stats_lock:
+            return self._stats.get("reachable", False)
+
+    def is_enabled(self) -> bool:
+        with self._stats_lock:
+            return self._stats.get("status") == "enabled"
+
+    def get_offline_count(self) -> int:
+        """Para badge: 1 si Pi-hole no responde, 0 si ok."""
+        with self._stats_lock:
+            if not self._stats.get("reachable", False) and PIHOLE_HOST:
+                return 1
+        return 0
+````
 
 ## File: ui/widgets/graphs.py
-`````python
+````python
 """
 Widgets para gráficas y visualización
 """
@@ -474,15 +674,595 @@ def recolor_lines(canvas, lines: List, color: str) -> None:
     """
     for line in lines:
         canvas.itemconfig(line, fill=color)
-`````
+````
+
+## File: ui/windows/alert_history.py
+````python
+"""
+Ventana de historial de alertas disparadas por AlertService.
+Lee data/alert_history.json y muestra las entradas con colores por nivel.
+"""
+import customtkinter as ctk
+from datetime import datetime
+from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+from ui.styles import make_window_header, make_futuristic_button, StyleManager
+from ui.widgets import confirm_dialog
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+# Colores por nivel (misma paleta que LogViewer)
+LEVEL_COLORS = {
+    "warn": "#FFA500",
+    "crit": "#FF4444",
+}
+
+# Etiqueta legible por clave
+KEY_LABELS = {
+    "temp_warn":      "🌡️ Temperatura — aviso",
+    "temp_crit":      "🌡️ Temperatura — crítico",
+    "cpu_warn":       "🔥 CPU — aviso",
+    "cpu_crit":       "🔥 CPU — crítico",
+    "ram_warn":       "💾 RAM — aviso",
+    "ram_crit":       "💾 RAM — crítico",
+    "disk_warn":      "💿 Disco — aviso",
+    "disk_crit":      "💿 Disco — crítico",
+    "services_failed": "⚠️ Servicios caídos",
+}
+
+
+class AlertHistoryWindow(ctk.CTkToplevel):
+    """Ventana de historial de alertas."""
+
+    def __init__(self, parent, alert_service):
+        super().__init__(parent)
+        self.alert_service = alert_service
+
+        self.title("Historial de Alertas")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.after(150, self.focus_set)
+
+        self._create_ui()
+        self._load()
+        logger.info("[AlertHistoryWindow] Ventana abierta")
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+
+    def _create_ui(self):
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+
+        make_window_header(main, title="HISTORIAL DE ALERTAS", on_close=self.destroy)
+
+        # Área scrollable
+        scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
+        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
+
+        canvas = ctk.CTkCanvas(
+            scroll_container, bg=COLORS['bg_medium'], highlightthickness=0)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ctk.CTkScrollbar(
+            scroll_container, orientation="vertical",
+            command=canvas.yview, width=30)
+        scrollbar.pack(side="right", fill="y")
+        StyleManager.style_scrollbar_ctk(scrollbar)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        self._list_frame = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window(
+            (0, 0), window=self._list_frame, anchor="nw", width=DSI_WIDTH - 50)
+        self._list_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        # Barra inferior
+        bar = ctk.CTkFrame(main, fg_color="transparent")
+        bar.pack(fill="x", padx=5, pady=(0, 4))
+
+        self._count_label = ctk.CTkLabel(
+            bar, text="",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'])
+        self._count_label.pack(side="left", padx=8)
+
+        make_futuristic_button(
+            bar, text="↺ Actualizar", command=self._load,
+            width=11, height=5, font_size=14
+        ).pack(side="right", padx=4)
+
+        make_futuristic_button(
+            bar, text="🗑 Borrar todo", command=self._confirm_clear,
+            width=12, height=5, font_size=14
+        ).pack(side="right", padx=4)
+
+    # ── Carga ─────────────────────────────────────────────────────────────────
+
+    def _load(self):
+        """Lee el historial y redibuja la lista."""
+        for w in self._list_frame.winfo_children():
+            w.destroy()
+
+        history = self.alert_service.get_history()
+
+        if not history:
+            ctk.CTkLabel(
+                self._list_frame,
+                text="No hay alertas registradas.",
+                text_color=COLORS['text_dim'],
+                font=(FONT_FAMILY, FONT_SIZES['medium']),
+            ).pack(pady=40)
+            self._count_label.configure(text="0 alertas")
+            return
+
+        # Mostrar en orden inverso (más reciente primero)
+        for entry in reversed(history):
+            self._create_entry_card(entry)
+
+        total = len(history)
+        self._count_label.configure(text=f"{total} alerta{'s' if total != 1 else ''}")
+
+    def _create_entry_card(self, entry: dict):
+        """Crea una tarjeta para una entrada del historial."""
+        level  = entry.get("level", "warn")
+        key    = entry.get("key", "")
+        color  = LEVEL_COLORS.get(level, COLORS['text'])
+        label  = KEY_LABELS.get(key, key)
+        value  = entry.get("value", 0)
+        unit   = entry.get("unit", "")
+        ts_str = entry.get("ts", "")
+
+        card = ctk.CTkFrame(
+            self._list_frame,
+            fg_color=COLORS['bg_dark'],
+            corner_radius=6,
+        )
+        card.pack(fill="x", padx=6, pady=3)
+
+        # Franja de color a la izquierda
+        ctk.CTkFrame(card, fg_color=color, width=4, corner_radius=0).pack(
+            side="left", fill="y", padx=(0, 8))
+
+        # Contenido
+        content = ctk.CTkFrame(card, fg_color="transparent")
+        content.pack(side="left", fill="x", expand=True, pady=6)
+
+        # Fila superior: etiqueta + valor
+        top = ctk.CTkFrame(content, fg_color="transparent")
+        top.pack(fill="x")
+
+        ctk.CTkLabel(
+            top, text=label,
+            text_color=color,
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+            anchor="w",
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            top, text=f"{value}{unit}",
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+            anchor="e",
+        ).pack(side="right", padx=12)
+
+        # Fila inferior: timestamp
+        ctk.CTkLabel(
+            content, text=ts_str,
+            text_color=COLORS['text_dim'],
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            anchor="w",
+        ).pack(fill="x")
+
+    # ── Acciones ──────────────────────────────────────────────────────────────
+
+    def _confirm_clear(self):
+        confirm_dialog(
+            parent=self,
+            text="¿Borrar todo el historial de alertas?\n\nEsta acción no se puede deshacer.",
+            title="🗑 Borrar Historial",
+            on_confirm=self._clear,
+        )
+
+    def _clear(self):
+        self.alert_service.clear_history()
+        self._load()
+````
+
+## File: ui/windows/network_local.py
+````python
+"""
+Ventana de panel de red local.
+Muestra los dispositivos encontrados por arp-scan con IP, MAC, fabricante y hostname.
+"""
+import customtkinter as ctk
+from config.settings import (
+    COLORS, FONT_FAMILY, FONT_SIZES,
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+)
+from ui.styles import make_window_header, make_futuristic_button, StyleManager
+from core.network_scanner import NetworkScanner
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+# Refresco automático cada N segundos (0 = desactivado)
+AUTO_REFRESH_S = 60
+
+
+class NetworkLocalWindow(ctk.CTkToplevel):
+    """Panel de dispositivos en la red local."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._scanner     = NetworkScanner()
+        self._auto_job    = None
+        self._poll_job    = None
+
+        self.title("Panel de Red Local")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.after(150, self.focus_set)
+
+        self._create_ui()
+        # Lanzar primer escaneo automáticamente
+        self._start_scan()
+        logger.info("[NetworkLocalWindow] Ventana abierta")
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+
+    def _create_ui(self):
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+
+        self._header = make_window_header(
+            main,
+            title="RED LOCAL",
+            on_close=self._on_close,
+            status_text="Escaneando...",
+        )
+
+        # Área scrollable para la lista de dispositivos
+        scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
+        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
+
+        canvas = ctk.CTkCanvas(
+            scroll_container, bg=COLORS['bg_medium'], highlightthickness=0)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ctk.CTkScrollbar(
+            scroll_container, orientation="vertical",
+            command=canvas.yview, width=30)
+        scrollbar.pack(side="right", fill="y")
+        StyleManager.style_scrollbar_ctk(scrollbar)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        self._device_frame = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window(
+            (0, 0), window=self._device_frame,
+            anchor="nw", width=DSI_WIDTH - 50)
+        self._device_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        # Barra inferior
+        bar = ctk.CTkFrame(main, fg_color="transparent")
+        bar.pack(fill="x", padx=5, pady=(0, 4))
+
+        self._count_label = ctk.CTkLabel(
+            bar, text="",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'])
+        self._count_label.pack(side="left", padx=8)
+
+        self._scan_btn = make_futuristic_button(
+            bar, text="⟳  Escanear", command=self._start_scan,
+            width=12, height=5, font_size=14)
+        self._scan_btn.pack(side="right", padx=4)
+
+    # ── Escaneo ───────────────────────────────────────────────────────────────
+
+    def _start_scan(self):
+        """Lanza el escaneo y activa el polling de resultado."""
+        if self._scanner.get_status() == "scanning":
+            return
+        self._scan_btn.configure(state="disabled", text="Escaneando...")
+        self._header.status_label.configure(text="Escaneando red...")
+        self._scanner.scan()
+        self._poll_result()
+
+    def _poll_result(self):
+        """Comprueba cada 500ms si el escaneo terminó."""
+        status = self._scanner.get_status()
+        if status == "scanning":
+            self._poll_job = self.after(500, self._poll_result)
+            return
+        # Escaneo terminado
+        self._render()
+        # Programar refresco automático
+        if AUTO_REFRESH_S > 0:
+            self._auto_job = self.after(AUTO_REFRESH_S * 1000, self._start_scan)
+
+    def _render(self):
+        """Redibuja la lista con los dispositivos encontrados."""
+        status  = self._scanner.get_status()
+        devices = self._scanner.get_devices()
+
+        # Limpiar lista anterior
+        for w in self._device_frame.winfo_children():
+            w.destroy()
+
+        if status == "error":
+            error_msg = self._scanner.get_error()
+            ctk.CTkLabel(
+                self._device_frame,
+                text=f"⚠ Error en el escaneo:\n{error_msg}",
+                text_color=COLORS['danger'],
+                font=(FONT_FAMILY, FONT_SIZES['medium']),
+                wraplength=DSI_WIDTH - 80,
+                justify="left",
+            ).pack(pady=30, padx=20)
+            self._header.status_label.configure(text="Error")
+            self._count_label.configure(text="")
+
+        elif not devices:
+            ctk.CTkLabel(
+                self._device_frame,
+                text="No se encontraron dispositivos.",
+                text_color=COLORS['text_dim'],
+                font=(FONT_FAMILY, FONT_SIZES['medium']),
+            ).pack(pady=40)
+            self._header.status_label.configure(text="0 dispositivos")
+            self._count_label.configure(text="0 dispositivos")
+
+        else:
+            for device in devices:
+                self._create_device_row(device)
+            n = len(devices)
+            age = self._scanner.get_last_scan_age()
+            age_str = f" · hace {int(age)}s" if age is not None else ""
+            self._header.status_label.configure(text=f"{n} dispositivos{age_str}")
+            self._count_label.configure(
+                text=f"{n} dispositivo{'s' if n != 1 else ''} en la red")
+
+        self._scan_btn.configure(state="normal", text="⟳  Escanear")
+
+    def _create_device_row(self, device: dict):
+        """Fila de un dispositivo: IP | hostname | MAC | fabricante."""
+        row = ctk.CTkFrame(
+            self._device_frame,
+            fg_color=COLORS['bg_dark'],
+            corner_radius=6,
+        )
+        row.pack(fill="x", padx=6, pady=2)
+
+        # Columna izquierda: IP + hostname
+        left = ctk.CTkFrame(row, fg_color="transparent")
+        left.pack(side="left", fill="x", expand=True, padx=10, pady=6)
+
+        ctk.CTkLabel(
+            left,
+            text=device["ip"],
+            text_color=COLORS['primary'],
+            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+            anchor="w",
+        ).pack(fill="x")
+
+        if device["hostname"]:
+            ctk.CTkLabel(
+                left,
+                text=device["hostname"],
+                text_color=COLORS['text_dim'],
+                font=(FONT_FAMILY, FONT_SIZES['small']),
+                anchor="w",
+            ).pack(fill="x")
+
+        # Columna derecha: fabricante + MAC
+        right = ctk.CTkFrame(row, fg_color="transparent")
+        right.pack(side="right", padx=10, pady=6)
+
+        ctk.CTkLabel(
+            right,
+            text=device["vendor"],
+            text_color=COLORS['text'],
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            anchor="e",
+            wraplength=200,
+        ).pack(anchor="e")
+
+        ctk.CTkLabel(
+            right,
+            text=device["mac"],
+            text_color=COLORS['text_dim'],
+            font=("Courier New", 12),
+            anchor="e",
+        ).pack(anchor="e")
+
+    # ── Cierre ────────────────────────────────────────────────────────────────
+
+    def _on_close(self):
+        if self._auto_job:
+            self.after_cancel(self._auto_job)
+        if self._poll_job:
+            self.after_cancel(self._poll_job)
+        logger.info("[NetworkLocalWindow] Ventana cerrada")
+        self.destroy()
+````
+
+## File: ui/windows/pihole_window.py
+````python
+"""
+Ventana de estadísticas de Pi-hole.
+"""
+import customtkinter as ctk
+from config.settings import (
+    COLORS, FONT_FAMILY, FONT_SIZES,
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+)
+from ui.styles import make_window_header, make_futuristic_button
+from core.pihole_monitor import PiholeMonitor
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+UPDATE_MS = 5000   # refresco visual de la ventana
+
+
+class PiholeWindow(ctk.CTkToplevel):
+    """Ventana de estadísticas de Pi-hole."""
+
+    def __init__(self, parent, pihole_monitor: PiholeMonitor):
+        super().__init__(parent)
+        self.pihole = pihole_monitor
+        self._update_job = None
+
+        self.title("Pi-hole")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.after(150, self.focus_set)
+
+        self._create_ui()
+        self._schedule_update()
+        logger.info("[PiholeWindow] Ventana abierta")
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+
+    def _create_ui(self):
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+
+        self._header = make_window_header(
+            main, title="PI-HOLE",
+            on_close=self._on_close,
+            status_text="Cargando...",
+        )
+
+        # Grid 2×2 de tarjetas métricas
+        grid = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
+        grid.pack(fill="both", expand=True, padx=5, pady=5)
+        grid.grid_columnconfigure(0, weight=1, uniform="col")
+        grid.grid_columnconfigure(1, weight=1, uniform="col")
+
+        # Tarjetas: (título, clave_interna, unidad, color)
+        cards_config = [
+            ("QUERIES HOY",       "queries_today",   "",   COLORS['primary']),
+            ("BLOQUEADAS HOY",    "blocked_today",   "",   COLORS['danger']),
+            ("% BLOQUEADO",       "percent_blocked", "%",  COLORS['warning']),
+            ("DOMINIOS EN LISTA", "domains_blocked", "",   COLORS['success']),
+            ("CLIENTES ÚNICOS",   "unique_clients",  "",   COLORS['secondary']),
+            ("ESTADO",            "status",          "",   COLORS['primary']),
+        ]
+
+        self._value_labels = {}
+
+        for i, (title, key, unit, color) in enumerate(cards_config):
+            row, col = divmod(i, 2)
+            card = ctk.CTkFrame(grid, fg_color=COLORS['bg_dark'], corner_radius=8)
+            card.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+
+            ctk.CTkLabel(
+                card, text=title,
+                text_color=COLORS['text_dim'],
+                font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
+                anchor="w",
+            ).pack(anchor="w", padx=10, pady=(8, 2))
+
+            val_lbl = ctk.CTkLabel(
+                card, text="—",
+                text_color=color,
+                font=(FONT_FAMILY, FONT_SIZES['xlarge'], "bold"),
+                anchor="w",
+            )
+            val_lbl.pack(anchor="w", padx=10, pady=(0, 10))
+            self._value_labels[key] = (val_lbl, unit, color)
+
+        # Botón forzar refresco
+        bottom = ctk.CTkFrame(main, fg_color="transparent")
+        bottom.pack(fill="x", pady=6, padx=10)
+        make_futuristic_button(
+            bottom, text="⟳  Actualizar",
+            command=self._force_refresh,
+            width=13, height=5,
+        ).pack(side="left")
+
+    # ── Actualización ─────────────────────────────────────────────────────────
+
+    def _schedule_update(self):
+        self._update_job = self.after(100, self._render)
+
+    def _force_refresh(self):
+        """Pide al monitor que sondee de inmediato (en background)."""
+        import threading
+        threading.Thread(
+            target=self.pihole._fetch,
+            daemon=True, name="PiholeForceRefresh"
+        ).start()
+        self._header.status_label.configure(text="Actualizando...")
+        # Releer tras 2s para dar tiempo al fetch
+        self.after(2000, self._render)
+
+    def _render(self):
+        """Actualiza los valores en pantalla con la caché del monitor."""
+        if not self.winfo_exists():
+            return
+
+        stats = self.pihole.get_stats()
+
+        if not stats.get("reachable", False):
+            self._header.status_label.configure(text="⚠ Sin conexión")
+        else:
+            status_str = "✅ Activo" if stats.get("status") == "enabled" else "⏸ Pausado"
+            pct = stats.get("percent_blocked", 0.0)
+            self._header.status_label.configure(
+                text=f"{status_str}  ·  {pct:.1f}% bloqueado")
+
+        for key, (lbl, unit, color) in self._value_labels.items():
+            value = stats.get(key, "—")
+            if key == "status":
+                if not stats.get("reachable"):
+                    text       = "Sin conexión"
+                    text_color = COLORS['danger']
+                elif value == "enabled":
+                    text       = "✅ Activo"
+                    text_color = COLORS['success']
+                else:
+                    text       = "⏸ Pausado"
+                    text_color = COLORS['warning']
+                lbl.configure(text=text, text_color=text_color)
+            elif key == "percent_blocked":
+                lbl.configure(text=f"{value:.1f}{unit}")
+            else:
+                lbl.configure(
+                    text=f"{value:,}{unit}".replace(",", ".") if isinstance(value, int) else str(value)
+                )
+
+        self._update_job = self.after(UPDATE_MS, self._render)
+
+    # ── Cierre ────────────────────────────────────────────────────────────────
+
+    def _on_close(self):
+        if self._update_job:
+            self.after_cancel(self._update_job)
+        logger.info("[PiholeWindow] Ventana cerrada")
+        self.destroy()
+````
 
 ## File: ui/__init__.py
-`````python
+````python
 
-`````
+````
 
 ## File: .gitignore
-`````
+````
 # ============================================
 # System Dashboard - .gitignore
 # ============================================
@@ -895,10 +1675,10 @@ htmlcov/
 #   git add -f archivo.txt
 #
 # ============================================
-`````
+````
 
 ## File: COMPATIBILIDAD.md
-`````markdown
+````markdown
 # 🌐 Compatibilidad Multiplataforma - Resumen
 
 ## 🎯 ¿En qué sistemas funciona?
@@ -989,10 +1769,10 @@ lsblk
 ---
 
 **Conclusión:** El dashboard funciona en cualquier Linux con interfaz gráfica. Solo el control de ventiladores es específico de Raspberry Pi con GPIO.
-`````
+````
 
 ## File: create_desktop_launcher.sh
-`````bash
+````bash
 #!/bin/bash
 
 # Script para crear lanzador de escritorio
@@ -1040,10 +1820,10 @@ fi
 
 echo ""
 echo "¡Listo! 🎉"
-`````
+````
 
 ## File: INSTALL_GUIDE.md
-`````markdown
+````markdown
 # 🔧 Guía de Instalación Completa
 
 Guía detallada para instalar el Dashboard en cualquier sistema Linux.
@@ -1506,10 +2286,10 @@ python3 main.py
 ---
 
 **¡Instalación completa!** 🎉
-`````
+````
 
 ## File: install_system.sh
-`````bash
+````bash
 #!/bin/bash
 
 # Script de instalación DIRECTA en el sistema (sin venv)
@@ -1574,10 +2354,10 @@ echo ""
 echo "O crear un lanzador de escritorio (recomendado):"
 echo "  ./create_desktop_launcher.sh"
 echo ""
-`````
+````
 
 ## File: install.sh
-`````bash
+````bash
 #!/bin/bash
 
 # Script de instalación rápida para System Dashboard
@@ -1627,10 +2407,10 @@ echo "  - Asegúrate de tener lm-sensors instalado: sudo apt-get install lm-sens
 echo "  - Para speedtest: sudo apt-get install speedtest-cli"
 echo "  - Configura tus scripts en config/settings.py"
 echo ""
-`````
+````
 
 ## File: INTEGRATION_GUIDE.md
-`````markdown
+````markdown
 # 🔗 Guía de Integración con fase1.py
 
 Esta guía explica cómo integrar tu aplicación OLED (`fase1.py`) con el Dashboard para que ambos funcionen juntos.
@@ -2037,20 +2817,20 @@ Si tienes problemas con la integración:
 ---
 
 **¡Disfruta de tu sistema integrado!** 🎉
-`````
+````
 
 ## File: migratelogger.sh
-`````bash
+````bash
 # Script: migrate_to_logging.sh
 #!/bin/bash
 
 # Reemplazar prints por logging
 find . -name "*.py" -type f -exec sed -i 's/print(f"\[/logger.info("/g' {} \;
 find . -name "*.py" -type f -exec sed -i 's/print("Error/logger.error("/g' {} \;
-`````
+````
 
 ## File: REQUIREMENTS.md
-`````markdown
+````markdown
 # 📦 Guía Rápida: requirements.txt
 
 ## 🎯 ¿Qué es?
@@ -2156,10 +2936,10 @@ sudo dnf install lm-sensors usbutils udisks2
 ---
 
 **Tip:** En sistemas modernos (Ubuntu 23.04+), usa `--break-system-packages` para evitar errores de PEP 668.
-`````
+````
 
 ## File: setup.py
-`````python
+````python
 """
 Setup script para System Dashboard
 """
@@ -2205,10 +2985,10 @@ setup(
         "": ["*.md", "*.txt"],
     },
 )
-`````
+````
 
 ## File: config/__init__.py
-`````python
+````python
 """
 Paquete de configuración
 """
@@ -2253,10 +3033,285 @@ from .settings import (
     FONT_FAMILY,
     FONT_SIZES,
 )
-`````
+````
+
+## File: core/alert_service.py
+````python
+"""
+Servicio de alertas externas por Telegram.
+Sin dependencias nuevas — usa urllib de la stdlib.
+
+Lógica anti-spam: cada alerta debe mantenerse activa durante
+ALERT_SUSTAIN_S segundos antes de enviarse, y no se repite
+hasta que baje del umbral y vuelva a subir (edge-trigger).
+"""
+import threading
+import time
+import json
+import urllib.request
+import urllib.error
+from pathlib import Path
+from typing import Dict, Optional
+import os
+from dotenv import load_dotenv
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+# Tiempo que la condición debe mantenerse antes de enviar (segundos)
+ALERT_SUSTAIN_S = 60
+
+# Intervalo de comprobación (segundos)
+CHECK_INTERVAL  = 15
+
+# Umbrales (se pueden sobrescribir en settings.py si se prefiere)
+THRESHOLDS = {
+    'temp':  {'warn': 60, 'crit': 70},
+    'cpu':   {'warn': 85, 'crit': 95},
+    'ram':   {'warn': 85, 'crit': 95},
+    'disk':  {'warn': 85, 'crit': 95},
+}
+# Constante: máximo de entradas en el historial
+MAX_HISTORY_ENTRIES = 100
+# Archivo JSON para persistir el historial de alertas enviadas
+_HISTORY_FILE = Path(__file__).resolve().parent.parent / "data" / "alert_history.json"
+
+def _load_telegram_config() -> tuple:
+    """Lee TOKEN y CHAT_ID desde .env / os.environ."""
+    
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if env_path.exists():
+        try:
+            load_dotenv(env_path, override=False)
+        except ImportError:
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#') or '=' not in line:
+                        continue
+                    k, _, v = line.partition('=')
+                    k = k.strip()
+                    if k not in os.environ:
+                        os.environ[k] = v.strip().strip('"').strip("'")
+    token   = os.environ.get('TELEGRAM_TOKEN', '')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
+    return token, chat_id
+
+
+class AlertService:
+    """
+    Servicio background que monitoriza métricas y envía alertas a Telegram.
+
+    Instanciar en main.py y pasar system_monitor / service_monitor.
+    Llamar a start() y stop() igual que el resto de servicios.
+    """
+
+    def __init__(self, system_monitor, service_monitor):
+        self.system_monitor  = system_monitor
+        self.service_monitor = service_monitor
+
+        self._token, self._chat_id = _load_telegram_config()
+
+        if not self._token or not self._chat_id:
+            logger.warning(
+                "[AlertService] TELEGRAM_TOKEN o TELEGRAM_CHAT_ID no configurados — "
+                "alertas desactivadas"
+            )
+
+        # Estado interno para anti-spam
+        # key -> {'first_seen': timestamp, 'sent': bool}
+        self._state: Dict[str, dict] = {}
+        self._lock   = threading.Lock()
+
+        self._running  = False
+        self._stop_evt = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    # ── Ciclo de vida ─────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        if self._running:
+            return
+        self._running = True
+        self._stop_evt.clear()
+        self._thread = threading.Thread(
+            target=self._loop, daemon=True, name="AlertService"
+        )
+        self._thread.start()
+        logger.info("[AlertService] Servicio iniciado (cada %ds)", CHECK_INTERVAL)
+
+    def stop(self) -> None:
+        self._running = False
+        self._stop_evt.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=5)
+        logger.info("[AlertService] Servicio detenido")
+
+    # ── Bucle principal ───────────────────────────────────────────────────────
+
+    def _loop(self) -> None:
+        while self._running:
+            try:
+                self._check_metrics()
+                self._check_services()
+            except Exception as e:
+                logger.error("[AlertService] Error en _loop: %s", e)
+            self._stop_evt.wait(timeout=CHECK_INTERVAL)
+            if self._stop_evt.is_set():
+                break
+
+    def _check_metrics(self) -> None:
+        stats = self.system_monitor.get_current_stats()
+        checks = [
+            ('temp', stats.get('temp',       0), '°C', '🌡️ Temperatura'),
+            ('cpu',  stats.get('cpu',         0), '%',  '🔥 CPU'),
+            ('ram',  stats.get('ram',         0), '%',  '💾 RAM'),
+            ('disk', stats.get('disk_usage',  0), '%',  '💿 Disco'),
+        ]
+        for key, value, unit, label in checks:
+            thr = THRESHOLDS[key]
+            if value >= thr['crit']:
+                level, emoji = 'crit', '🔴'
+            elif value >= thr['warn']:
+                level, emoji = 'warn', '🟠'
+            else:
+                level = None
+
+            if level:
+                msg = (
+                    f"{emoji} *Dashboard — {label} alta*\n"
+                    f"Valor actual: *{value:.1f}{unit}*\n"
+                    f"Umbral {'crítico' if level=='crit' else 'de aviso'}: "
+                    f"{thr[level]}{unit}"
+                )
+                self._trigger(f"{key}_{level}", msg, value=value, unit=unit, level=level)
+            else:
+                for suffix in ('warn', 'crit'):
+                    self._reset(f"{key}_{suffix}")
+
+    def _check_services(self) -> None:
+        stats  = self.service_monitor.get_stats()
+        failed = stats.get('failed', 0)
+        key    = 'services_failed'
+        if failed > 0:
+            msg = (
+                f"⚠️ *Dashboard — Servicios caídos*\n"
+                f"Hay *{failed}* servicio{'s' if failed > 1 else ''} en estado FAILED.\n"
+                f"Abre Monitor Servicios para más detalles."
+            )
+            self._trigger(key, msg, value=float(failed), unit=" servicios", level="crit")
+        else:
+            self._reset(key)
+
+    # ── Lógica anti-spam (edge-trigger + sustain) ─────────────────────────────
+    def _trigger(self, key: str, message: str, value: float = 0.0,
+                unit: str = "", level: str = "") -> None:
+        """
+        Activa una alerta con retardo anti-spam.
+        Solo envía si la condición lleva ALERT_SUSTAIN_S segundos activa
+        y no se ha enviado ya para este 'flanco'.
+        """
+        now = time.time()
+        with self._lock:
+            entry = self._state.get(key)
+            if entry is None:
+                self._state[key] = {'first_seen': now, 'sent': False}
+                return
+            if entry['sent']:
+                return
+            if now - entry['first_seen'] >= ALERT_SUSTAIN_S:
+                entry['sent'] = True
+        # Enviar fuera del lock
+        if self._send(message):
+            self._save_to_history(key, message, value, unit, level)
+
+    def _reset(self, key: str) -> None:
+        """Resetea el estado de una alerta (condición resuelta)."""
+        with self._lock:
+            self._state.pop(key, None)
+            
+    def _save_to_history(self, key: str, message: str, value: float, unit: str, level: str) -> None:
+        """Guarda la alerta disparada en el historial JSON (máx. MAX_HISTORY_ENTRIES)."""
+        entry = {
+            "ts":      time.strftime("%Y-%m-%d %H:%M:%S"),
+            "key":     key,
+            "level":   level,       # 'warn' o 'crit'
+            "value":   round(value, 1),
+            "unit":    unit,
+            "message": message.replace("*", "").replace("\n", " "),  # limpiar markdown
+        }
+        try:
+            _HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            history = []
+            if _HISTORY_FILE.exists():
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    history = json.load(f)
+            history.append(entry)
+            # Mantener solo las últimas MAX_HISTORY_ENTRIES
+            history = history[-MAX_HISTORY_ENTRIES:]
+            with open(_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error("[AlertService] Error guardando historial: %s", e)
+
+    def get_history(self) -> list:
+        """Devuelve el historial completo (más reciente al final)."""
+        try:
+            if _HISTORY_FILE.exists():
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return []
+
+    def clear_history(self) -> None:
+        """Borra el historial de alertas."""
+        try:
+            if _HISTORY_FILE.exists():
+                _HISTORY_FILE.unlink()
+            logger.info("[AlertService] Historial de alertas borrado")
+        except Exception as e:
+            logger.error("[AlertService] Error borrando historial: %s", e)
+
+    # ── Envío a Telegram ──────────────────────────────────────────────────────
+
+    def _send(self, text: str) -> bool:
+        """Envía un mensaje Markdown a Telegram. Devuelve True si tiene éxito."""
+        if not self._token or not self._chat_id:
+            return False
+        url     = f"https://api.telegram.org/bot{self._token}/sendMessage"
+        payload = json.dumps({
+            "chat_id":    self._chat_id,
+            "text":       text,
+            "parse_mode": "Markdown",
+        }).encode()
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                result = json.loads(resp.read())
+                if result.get("ok"):
+                    logger.info("[AlertService] Mensaje enviado a Telegram")
+                    return True
+            logger.warning("[AlertService] Respuesta inesperada de Telegram: %s", result)
+            return False
+        except Exception as e:
+            logger.error("[AlertService] Error enviando a Telegram: %s", e)
+            return False
+
+    def send_test(self) -> bool:
+        """Envía un mensaje de prueba. Útil para verificar la configuración."""
+        return self._send(
+            "✅ *Dashboard — Test de alertas*\n"
+            "La conexión con Telegram funciona correctamente."
+        )
+````
 
 ## File: core/disk_monitor.py
-`````python
+````python
 """
 Monitor de disco
 """
@@ -2360,10 +3415,10 @@ class DiskMonitor:
             return COLORS['warning']
         else:
             return COLORS['primary']
-`````
+````
 
 ## File: core/fan_controller.py
-`````python
+````python
 """
 Controlador de ventiladores
 """
@@ -2520,10 +3575,10 @@ class FanController:
         
         self.file_manager.save_curve(curve)
         return curve
-`````
+````
 
 ## File: core/homebridge_monitor.py
-`````python
+````python
 """
 Monitor de Homebridge
 Integración con la API REST de homebridge-config-ui-x
@@ -2917,10 +3972,10 @@ class HomebridgeMonitor:
                              name="HB-PostTemp").start()
             return True
         return False
-`````
+````
 
 ## File: ui/widgets/__init__.py
-`````python
+````python
 """
 Paquete de widgets personalizados
 """
@@ -2929,10 +3984,10 @@ from .dialogs import custom_msgbox, confirm_dialog, terminal_dialog
 
 __all__ = ['GraphWidget', 'update_graph_lines', 'recolor_lines', 
            'custom_msgbox', 'confirm_dialog', 'terminal_dialog']
-`````
+````
 
 ## File: utils/logger.py
-`````python
+````python
 """
 Sistema de logging robusto para el dashboard
 Funciona correctamente tanto desde terminal como desde auto-start
@@ -3068,10 +4123,10 @@ def log_startup_info():
     
     if display == 'not set':
         logger.warning("DISPLAY no configurado - posible problema de GUI")
-`````
+````
 
 ## File: THEMES_GUIDE.md
-`````markdown
+````markdown
 # 🎨 Guía de Temas - System Dashboard
 
 El dashboard incluye **15 temas profesionales** pre-configurados y la capacidad de crear temas personalizados.
@@ -3506,10 +4561,10 @@ data/theme_config.json
 ---
 
 **¡Personaliza tu dashboard!** 🎨✨
-`````
+````
 
 ## File: config/themes.py
-`````python
+````python
 """
 Sistema de temas personalizados
 """
@@ -3918,10 +4973,10 @@ def load_selected_theme() -> str:
                 return DEFAULT_THEME
     except (FileNotFoundError, json.JSONDecodeError):
         return DEFAULT_THEME
-`````
+````
 
 ## File: core/cleanup_service.py
-`````python
+````python
 """
 Servicio de limpieza automática de archivos exportados y datos antiguos
 """
@@ -4202,10 +5257,10 @@ class CleanupService:
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""
         return self._running
-`````
+````
 
 ## File: core/service_monitor.py
-`````python
+````python
 """
 Monitor de servicios systemd
 """
@@ -4537,10 +5592,10 @@ class ServiceMonitor:
         elif state == "failed":
             return "danger"
         return "text_dim"
-`````
+````
 
 ## File: core/update_monitor.py
-`````python
+````python
 """
 Monitor de actualizaciones del sistema
 """
@@ -4619,10 +5674,10 @@ class UpdateMonitor:
         except Exception as e:
             logger.error(f"[UpdateMonitor] check_updates: error inesperado: {e}")
             return {"pending": 0, "status": "Error", "message": str(e)}
-`````
+````
 
 ## File: ui/windows/homebridge.py
-`````python
+````python
 """
 Ventana de control de dispositivos Homebridge
 Muestra enchufes e interruptores y permite encenderlos / apagarlos
@@ -4995,10 +6050,10 @@ class HomebridgeWindow(ctk.CTkToplevel):
             self.after_cancel(self._update_job)
         logger.info("[HomebridgeWindow] Ventana cerrada")
         self.destroy()
-`````
+````
 
 ## File: ui/windows/service.py
-`````python
+````python
 """
 Ventana de monitor de servicios systemd
 """
@@ -5521,10 +6576,10 @@ class ServiceWindow(ctk.CTkToplevel):
     def _resume_updates(self):
         """Reanuda actualizaciones"""
         self.update_paused = False
-`````
+````
 
 ## File: ui/windows/usb.py
-`````python
+````python
 """
 Ventana de monitoreo de dispositivos USB
 """
@@ -5827,10 +6882,10 @@ class USBWindow(ctk.CTkToplevel):
                 f"❌ Error al expulsar {device_name}:\n\n{message}",
                 "Error"
             )
-`````
+````
 
 ## File: utils/__init__.py
-`````python
+````python
 """
 Paquete de utilidades
 """
@@ -5839,10 +6894,10 @@ from .system_utils import SystemUtils
 from .logger import DashboardLogger
 
 __all__ = ['FileManager', 'SystemUtils', 'DashboardLogger']
-`````
+````
 
 ## File: utils/file_manager.py
-`````python
+````python
 """
 Gestión de archivos JSON para estado y configuración
 """
@@ -5973,10 +7028,10 @@ class FileManager:
         except OSError as e:
             logger.error(f"[FileManager] save_curve: error guardando curva: {e}")
             raise
-`````
+````
 
 ## File: core/process_monitor.py
-`````python
+````python
 """
 Monitor de procesos del sistema
 """
@@ -6214,10 +7269,10 @@ class ProcessMonitor:
             return "warning"
         else:
             return "success"
-`````
+````
 
 ## File: core/system_monitor.py
-`````python
+````python
 """
 Monitor del sistema
 """
@@ -6351,410 +7406,10 @@ class SystemMonitor:
         elif value >= warn:
             return COLORS['warning']
         return COLORS['primary']
-`````
-
-## File: ui/windows/log_viewer.py
-`````python
-"""
-Ventana de visualización del log del dashboard
-Permite filtrar por nivel, módulo, texto libre e intervalo de tiempo
-y exportar el resultado filtrado a un archivo .log
-"""
-import re
-import threading
-from datetime import datetime, timedelta
-from pathlib import Path
-
-import customtkinter as ctk
-
-from config.settings import (
-    COLORS, FONT_FAMILY, FONT_SIZES,
-    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR, EXPORTS_LOG_DIR
-)
-from ui.styles import make_window_header, make_futuristic_button, StyleManager
-from utils.logger import get_logger
-from core.cleanup_service import CleanupService
-
-logger = get_logger(__name__)
-
-LOG_FILE = DATA_DIR / "logs" / "dashboard.log"
-LOG_LEVELS = ["TODOS", "DEBUG", "INFO", "WARNING", "ERROR"]
-LEVEL_COLORS = {
-    "DEBUG":   "#888888",
-    "INFO":    "#00BFFF",
-    "WARNING": "#FFA500",
-    "ERROR":   "#FF4444",
-}
-
-_PH_SEARCH = "buscar..."
-_PH_DATE   = "YYYY-MM-DD"
-_PH_TIME   = "HH:MM"
-
-LOG_PATTERN = re.compile(
-    r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+Dashboard(?:\.(\S+?))?:\s+(.*)$'
-)
-
-
-class LogViewerWindow(ctk.CTkToplevel):
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Visor de Logs")
-        self.configure(fg_color=COLORS['bg_medium'])
-        self.overrideredirect(True)
-        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
-        self.resizable(False, False)
-        self.transient(parent)
-        self.lift()
-        self.after(150, self.focus_set)
-
-        self._all_lines = []
-        self._modules   = []
-        self._loading   = False
-
-        self._level_var  = ctk.StringVar(value="TODOS")
-        self._module_var = ctk.StringVar(value="TODOS")
-        self._search_var = ctk.StringVar(value=_PH_SEARCH)
-        self._quick_var  = ctk.StringVar(value="1h")
-        self._date_from  = ctk.StringVar(value=_PH_DATE)
-        self._time_from  = ctk.StringVar(value=_PH_TIME)
-        self._date_to    = ctk.StringVar(value=_PH_DATE)
-        self._time_to    = ctk.StringVar(value=_PH_TIME)
-
-        self._create_ui()
-        self._load_log()
-
-    # ── Placeholder helpers ──────────────────────────────────────────────────
-
-    def _entry_focus_in(self, entry, var, placeholder):
-        if var.get() == placeholder:
-            var.set("")
-            entry.configure(text_color=COLORS['text'])
-
-    def _entry_focus_out(self, entry, var, placeholder):
-        if var.get().strip() == "":
-            var.set(placeholder)
-            entry.configure(text_color=COLORS['text_dim'])
-
-    def _entry_value(self, var, placeholder):
-        v = var.get().strip()
-        return "" if v == placeholder else v
-
-    def _make_entry(self, parent, var, placeholder, width):
-        e = ctk.CTkEntry(
-            parent,
-            textvariable=var,
-            width=width,
-            height=28,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'],
-            border_color=COLORS['primary'],
-            text_color=COLORS['text_dim'],
-        )
-        e.bind("<FocusIn>",  lambda ev: self._entry_focus_in(e, var, placeholder))
-        e.bind("<FocusOut>", lambda ev: self._entry_focus_out(e, var, placeholder))
-        return e
-
-    # ── UI ───────────────────────────────────────────────────────────────────
-
-    def _create_ui(self):
-        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
-        main.pack(fill="both", expand=True, padx=5, pady=5)
-        make_window_header(main, title="VISOR DE LOGS", on_close=self.destroy)
-        self._create_filters(main)
-        ctk.CTkFrame(main, fg_color=COLORS['border'], height=1,
-                     corner_radius=0).pack(fill="x", padx=5, pady=(4, 0))
-        self._create_results(main)
-        self._create_bottom_bar(main)
-
-    def _create_filters(self, parent):
-        filters = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
-        filters.pack(fill="x", padx=5, pady=(4, 0))
-
-        # Fila 1: Nivel · Módulo · Búsqueda
-        row1 = ctk.CTkFrame(filters, fg_color="transparent")
-        row1.pack(fill="x", padx=8, pady=(6, 2))
-
-        ctk.CTkLabel(row1, text="Nivel:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        ctk.CTkOptionMenu(
-            row1, variable=self._level_var, values=LOG_LEVELS, width=100,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=lambda _: self._apply_filters()
-        ).pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row1, text="Módulo:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._module_menu = ctk.CTkOptionMenu(
-            row1, variable=self._module_var, values=["TODOS"], width=160,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=lambda _: self._apply_filters()
-        )
-        self._module_menu.pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row1, text="Buscar:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        search_entry = self._make_entry(row1, self._search_var, _PH_SEARCH, width=140)
-        search_entry.bind("<Return>",     lambda e: self._apply_filters())
-        search_entry.bind("<KeyRelease>", lambda e: self.after(400, self._apply_filters))
-        search_entry.pack(side="left")
-
-        # Fila 2: Intervalo rápido | Intervalo manual
-        row2 = ctk.CTkFrame(filters, fg_color="transparent")
-        row2.pack(fill="x", padx=8, pady=(2, 6))
-
-        ctk.CTkLabel(row2, text="Últimos:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        ctk.CTkOptionMenu(
-            row2, variable=self._quick_var,
-            values=["15min", "1h", "6h", "24h", "Todo"], width=80,
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
-            command=self._on_quick_interval
-        ).pack(side="left", padx=(0, 16))
-
-        ctk.CTkLabel(row2, text="│", text_color=COLORS['border'],
-                     font=(FONT_FAMILY, FONT_SIZES['medium'])).pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row2, text="Desde:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._date_from, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._time_from, _PH_TIME, width=60).pack(side="left", padx=(0, 12))
-
-        ctk.CTkLabel(row2, text="Hasta:", font=(FONT_FAMILY, FONT_SIZES['small']),
-                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._date_to, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
-        self._make_entry(row2, self._time_to, _PH_TIME, width=60).pack(side="left", padx=(0, 8))
-
-        make_futuristic_button(
-            row2, text="Aplicar", command=self._apply_filters,
-            width=8, height=4, font_size=13
-        ).pack(side="left")
-
-    def _create_results(self, parent):
-        result_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
-        result_frame.pack(fill="both", expand=True, padx=5, pady=4)
-
-        self._textbox = ctk.CTkTextbox(
-            result_frame,
-            fg_color=COLORS['bg_dark'],
-            text_color=COLORS['text'],
-            font=("Courier New", 12),
-            wrap="none",
-            state="disabled",
-        )
-        self._textbox.pack(fill="both", expand=True, padx=4, pady=4)
-
-        self._textbox._textbox.tag_config("DEBUG",   foreground=LEVEL_COLORS["DEBUG"])
-        self._textbox._textbox.tag_config("INFO",    foreground=LEVEL_COLORS["INFO"])
-        self._textbox._textbox.tag_config("WARNING", foreground=LEVEL_COLORS["WARNING"])
-        self._textbox._textbox.tag_config("ERROR",   foreground=LEVEL_COLORS["ERROR"])
-
-        try:
-            children = self._textbox._textbox.master.children
-            vsb = children.get('!ctkscrollbar')
-            hsb = children.get('!ctkscrollbar2')
-            if vsb:
-                StyleManager.style_scrollbar_ctk(vsb)
-                vsb.configure(width=22)
-            if hsb:
-                StyleManager.style_scrollbar_ctk(hsb)
-                hsb.configure(height=22)
-        except Exception:
-            pass
-
-    def _create_bottom_bar(self, parent):
-        bar = ctk.CTkFrame(parent, fg_color="transparent")
-        bar.pack(fill="x", padx=5, pady=(0, 4))
-
-        self._count_label = ctk.CTkLabel(
-            bar, text="0 entradas",
-            font=(FONT_FAMILY, FONT_SIZES['small']),
-            text_color=COLORS['text_dim']
-        )
-        self._count_label.pack(side="left", padx=8)
-
-        make_futuristic_button(
-            bar, text="↓ Exportar", command=self._export,
-            width=10, height=5, font_size=14
-        ).pack(side="right", padx=4)
-
-        make_futuristic_button(
-            bar, text="↺ Recargar", command=self._load_log,
-            width=10, height=5, font_size=14
-        ).pack(side="right", padx=4)
-
-    # ── Carga ────────────────────────────────────────────────────────────────
-
-    def _load_log(self):
-        if self._loading:
-            return
-        self._loading = True
-        self._set_text("Cargando log...", [])
-        threading.Thread(target=self._read_log_thread, daemon=True).start()
-
-    def _read_log_thread(self):
-        lines = []
-        try:
-            rotated = Path(str(LOG_FILE) + ".1")
-            if rotated.exists():
-                with open(rotated, "r", encoding="utf-8", errors="replace") as f:
-                    for raw in f:
-                        p = self._parse_line(raw.rstrip())
-                        if p:
-                            lines.append(p)
-            if LOG_FILE.exists():
-                with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
-                    for raw in f:
-                        p = self._parse_line(raw.rstrip())
-                        if p:
-                            lines.append(p)
-        except Exception as e:
-            logger.error(f"[LogViewerWindow] Error leyendo log: {e}")
-
-        self._all_lines = lines
-        self._loading = False
-        modules = sorted(set(l["module"] for l in lines))
-        self.after(0, lambda: self._update_modules(modules))
-        self.after(0, self._apply_filters)
-
-    def _parse_line(self, raw):
-        m = LOG_PATTERN.match(raw)
-        if not m:
-            return None
-        ts_str, level, module, message = m.groups()
-        if not module:
-            module = "general"
-        try:
-            ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            return None
-        return {"ts": ts, "ts_str": ts_str, "level": level,
-                "module": module, "message": message, "raw": raw}
-
-    def _update_modules(self, modules):
-        values = ["TODOS"] + modules
-        self._module_menu.configure(values=values)
-        if self._module_var.get() not in values:
-            self._module_var.set("TODOS")
-
-    # ── Filtrado ─────────────────────────────────────────────────────────────
-
-    def _on_quick_interval(self, value):
-        now = datetime.now()
-        deltas = {"15min": timedelta(minutes=15), "1h": timedelta(hours=1),
-                  "6h": timedelta(hours=6), "24h": timedelta(hours=24)}
-        if value == "Todo":
-            for var, ph in [(self._date_from, _PH_DATE), (self._time_from, _PH_TIME),
-                            (self._date_to,   _PH_DATE), (self._time_to,   _PH_TIME)]:
-                var.set(ph)
-        else:
-            since = now - deltas[value]
-            self._date_from.set(since.strftime("%Y-%m-%d"))
-            self._time_from.set(since.strftime("%H:%M"))
-            self._date_to.set(now.strftime("%Y-%m-%d"))
-            self._time_to.set(now.strftime("%H:%M"))
-        self._apply_filters()
-
-    def _apply_filters(self):
-        level  = self._level_var.get()
-        module = self._module_var.get()
-        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
-        dt_from = self._parse_datetime(
-            self._entry_value(self._date_from, _PH_DATE),
-            self._entry_value(self._time_from, _PH_TIME), False)
-        dt_to = self._parse_datetime(
-            self._entry_value(self._date_to, _PH_DATE),
-            self._entry_value(self._time_to, _PH_TIME), True)
-
-        result = []
-        for line in self._all_lines:
-            if level  != "TODOS" and line["level"]  != level:  continue
-            if module != "TODOS" and line["module"] != module: continue
-            if search and search not in line["raw"].lower():   continue
-            if dt_from and line["ts"] < dt_from:               continue
-            if dt_to   and line["ts"] > dt_to:                 continue
-            result.append(line)
-
-        self._set_text(None, result)
-        self._count_label.configure(text=f"{len(result)} entradas")
-
-    def _parse_datetime(self, date_str, time_str, is_end):
-        if not date_str:
-            return None
-        if not time_str:
-            time_str = "23:59" if is_end else "00:00"
-        try:
-            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-        except ValueError:
-            return None
-
-    # ── Renderizado ──────────────────────────────────────────────────────────
-
-    def _set_text(self, loading_msg, lines):
-        self._textbox.configure(state="normal")
-        self._textbox._textbox.delete("1.0", "end")
-        if loading_msg:
-            self._textbox._textbox.insert("end", loading_msg)
-        else:
-            for line in lines:
-                lvl = line["level"]
-                tag = lvl if lvl in LEVEL_COLORS else "INFO"
-                self._textbox._textbox.insert(
-                    "end",
-                    f"{line['ts_str']} [{lvl}] {line['module']}: {line['message']}\n",
-                    tag
-                )
-            self._textbox._textbox.see("end")
-        self._textbox.configure(state="disabled")
-
-    # ── Exportar ─────────────────────────────────────────────────────────────
-
-    def _export(self):
-        level  = self._level_var.get()
-        module = self._module_var.get()
-        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
-        dt_from = self._parse_datetime(
-            self._entry_value(self._date_from, _PH_DATE),
-            self._entry_value(self._time_from, _PH_TIME), False)
-        dt_to = self._parse_datetime(
-            self._entry_value(self._date_to, _PH_DATE),
-            self._entry_value(self._time_to, _PH_TIME), True)
-
-        result = []
-        for line in self._all_lines:
-            if level  != "TODOS" and line["level"]  != level:  continue
-            if module != "TODOS" and line["module"] != module: continue
-            if search and search not in line["raw"].lower():   continue
-            if dt_from and line["ts"] < dt_from:               continue
-            if dt_to   and line["ts"] > dt_to:                 continue
-            result.append(line["raw"])
-
-        from ui.widgets.dialogs import custom_msgbox
-        if not result:
-            custom_msgbox(self, "No hay entradas que exportar.", "Exportar")
-            return
-
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_path = EXPORTS_LOG_DIR / f"log_export_{ts}.log"
-        try:
-            with open(export_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(result))
-            custom_msgbox(self, f"Exportado en:\n{export_path}", "Exportar")
-            logger.info(f"[LogViewerWindow] Log exportado: {export_path}")
-            try:
-                CleanupService().clean_log_exports()
-            except Exception as e:
-                logger.warning(f"[LogViewerWindow] No se pudo limpiar exports: {e}")
-        except OSError as e:
-            custom_msgbox(self, f"Error al exportar:\n{e}", "Error")
-            logger.error(f"[LogViewerWindow] Error exportando: {e}")
-`````
+````
 
 ## File: ui/windows/monitor.py
-`````python
+````python
 """
 Ventana de monitoreo del sistema
 """
@@ -6883,10 +7538,10 @@ class MonitorWindow(ctk.CTkToplevel):
         self.widgets[f"{key}_label"].configure(text_color=color)
         g = self.graphs[key]
         g['widget'].update(history, g['max_val'], color)
-`````
+````
 
 ## File: ui/windows/process_window.py
-`````python
+````python
 """
 Ventana de monitor de procesos
 """
@@ -7316,10 +7971,10 @@ class ProcessWindow(ctk.CTkToplevel):
             on_confirm=do_kill,
             on_cancel=None
         )
-`````
+````
 
 ## File: ui/windows/theme_selector.py
-`````python
+````python
 """
 Ventana de selección de temas
 """
@@ -7553,10 +8208,10 @@ class ThemeSelector(ctk.CTkToplevel):
             on_confirm=do_restart,
             on_cancel=self.destroy
         )
-`````
+````
 
 ## File: ui/windows/update.py
-`````python
+````python
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR
 from ui.styles import make_futuristic_button
@@ -7687,10 +8342,10 @@ class UpdatesWindow(ctk.CTkToplevel):
             "CONSOLA DE ACTUALIZACIÓN",
             on_close=al_terminar_actualizacion
         )
-`````
+````
 
 ## File: utils/system_utils.py
-`````python
+````python
 """
 Utilidades para obtener información del sistema
 """
@@ -8121,10 +8776,10 @@ class SystemUtils:
             logger.warning("[SystemUtils] get_nvme_temp: sin permisos para leer sysfs")
         
         return 0.0
-`````
+````
 
 ## File: requirements.txt
-`````
+````
 # ============================================
 # System Dashboard - Python Dependencies
 # ============================================
@@ -8174,10 +8829,10 @@ python-dotenv>=1.0.0
 #   sudo apt-get install speedtest
 #
 # ============================================
-`````
+````
 
 ## File: core/data_logger.py
-`````python
+````python
 """
 Sistema de logging de datos históricos
 """
@@ -8333,10 +8988,10 @@ class DataLogger:
             log.warning(f"[DataLogger] BD supera {max_mb} MB. Limpiando...")
             self.clean_old_data(days=7)
             log.info(f"[DataLogger] Limpieza completada. Nuevo tamaño: {self.get_db_size_mb():.2f} MB")
-`````
+````
 
 ## File: core/fan_auto_service.py
-`````python
+````python
 """
 Servicio en segundo plano para modo AUTO de ventiladores
 """
@@ -8510,10 +9165,10 @@ class FanAutoService:
             'interval': self._update_interval,
             'thread_alive': self._thread.is_alive() if self._thread else False
         }
-`````
+````
 
 ## File: core/network_monitor.py
-`````python
+````python
 """
 Monitor de red
 """
@@ -8730,10 +9385,10 @@ class NetworkMonitor:
             return COLORS['warning']
         else:
             return COLORS['primary']
-`````
+````
 
 ## File: ui/widgets/dialogs.py
-`````python
+````python
 """
 Diálogos y ventanas modales personalizadas
 """
@@ -8952,10 +9607,10 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
 
     threading.Thread(target=run_command, daemon=True).start()
     popup.grab_set()
-`````
+````
 
 ## File: ui/windows/disk.py
-`````python
+````python
 """
 Ventana de monitoreo de disco
 """
@@ -9077,10 +9732,406 @@ class DiskWindow(ctk.CTkToplevel):
         self.widgets[f"{key}_label"].configure(text_color=color)
         g = self.graphs[key]
         g['widget'].update(history, g['max_val'], color)
-`````
+````
+
+## File: ui/windows/log_viewer.py
+````python
+"""
+Ventana de visualización del log del dashboard
+Permite filtrar por nivel, módulo, texto libre e intervalo de tiempo
+y exportar el resultado filtrado a un archivo .log
+"""
+import re
+import threading
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import customtkinter as ctk
+
+from config.settings import (
+    COLORS, FONT_FAMILY, FONT_SIZES,
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR, EXPORTS_LOG_DIR
+)
+from ui.styles import make_window_header, make_futuristic_button, StyleManager
+from utils.logger import get_logger
+from core.cleanup_service import CleanupService
+
+logger = get_logger(__name__)
+
+LOG_FILE = DATA_DIR / "logs" / "dashboard.log"
+LOG_LEVELS = ["TODOS", "DEBUG", "INFO", "WARNING", "ERROR"]
+LEVEL_COLORS = {
+    "DEBUG":   "#888888",
+    "INFO":    "#00BFFF",
+    "WARNING": "#FFA500",
+    "ERROR":   "#FF4444",
+}
+
+_PH_SEARCH = "buscar..."
+_PH_MODULE = "módulo..."
+_PH_DATE   = "YYYY-MM-DD"
+_PH_TIME   = "HH:MM"
+
+LOG_PATTERN = re.compile(
+    r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+Dashboard(?:\.(\S+?))?:\s+(.*)$'
+)
+
+
+class LogViewerWindow(ctk.CTkToplevel):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Visor de Logs")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.lift()
+        self.after(150, self.focus_set)
+
+        self._all_lines = []
+        self._modules   = []
+        self._loading   = False
+
+        self._level_var  = ctk.StringVar(value="TODOS")
+        self._module_var = ctk.StringVar(value=_PH_MODULE)
+        self._modules    = []  # lista completa de módulos disponibles
+        self._search_var = ctk.StringVar(value=_PH_SEARCH)
+        self._quick_var  = ctk.StringVar(value="1h")
+        self._date_from  = ctk.StringVar(value=_PH_DATE)
+        self._time_from  = ctk.StringVar(value=_PH_TIME)
+        self._date_to    = ctk.StringVar(value=_PH_DATE)
+        self._time_to    = ctk.StringVar(value=_PH_TIME)
+
+        self._create_ui()
+        self._load_log()
+
+    # ── Placeholder helpers ──────────────────────────────────────────────────
+
+    def _entry_focus_in(self, entry, var, placeholder):
+        if var.get() == placeholder:
+            var.set("")
+            entry.configure(text_color=COLORS['text'])
+
+    def _entry_focus_out(self, entry, var, placeholder):
+        if var.get().strip() == "":
+            var.set(placeholder)
+            entry.configure(text_color=COLORS['text_dim'])
+
+    def _entry_value(self, var, placeholder):
+        v = var.get().strip()
+        return "" if v == placeholder else v
+
+    def _make_entry(self, parent, var, placeholder, width):
+        e = ctk.CTkEntry(
+            parent,
+            textvariable=var,
+            width=width,
+            height=28,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'],
+            border_color=COLORS['primary'],
+            text_color=COLORS['text_dim'],
+        )
+        e.bind("<FocusIn>",  lambda ev: self._entry_focus_in(e, var, placeholder))
+        e.bind("<FocusOut>", lambda ev: self._entry_focus_out(e, var, placeholder))
+        return e
+
+    # ── UI ───────────────────────────────────────────────────────────────────
+
+    def _create_ui(self):
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+        make_window_header(main, title="VISOR DE LOGS", on_close=self.destroy)
+        self._create_filters(main)
+        ctk.CTkFrame(main, fg_color=COLORS['border'], height=1,
+                     corner_radius=0).pack(fill="x", padx=5, pady=(4, 0))
+        self._create_results(main)
+        self._create_bottom_bar(main)
+
+    def _create_filters(self, parent):
+        filters = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        filters.pack(fill="x", padx=5, pady=(4, 0))
+
+        # Fila 1: Nivel · Módulo · Búsqueda
+        row1 = ctk.CTkFrame(filters, fg_color="transparent")
+        row1.pack(fill="x", padx=8, pady=(6, 2))
+
+        ctk.CTkLabel(row1, text="Nivel:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        ctk.CTkOptionMenu(
+            row1, variable=self._level_var, values=LOG_LEVELS, width=100,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
+            command=lambda _: self._apply_filters()
+        ).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row1, text="Módulo:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        self._module_entry = self._make_entry(row1, self._module_var, _PH_MODULE, width=160)
+        self._module_entry.bind("<Return>",     lambda e: self._apply_filters())
+        self._module_entry.bind("<KeyRelease>", lambda e: self.after(300, self._apply_filters))
+        self._module_entry.pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row1, text="Buscar:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        search_entry = self._make_entry(row1, self._search_var, _PH_SEARCH, width=140)
+        search_entry.bind("<Return>",     lambda e: self._apply_filters())
+        search_entry.bind("<KeyRelease>", lambda e: self.after(400, self._apply_filters))
+        search_entry.pack(side="left")
+
+        # Fila 2: Intervalo rápido | Intervalo manual
+        row2 = ctk.CTkFrame(filters, fg_color="transparent")
+        row2.pack(fill="x", padx=8, pady=(2, 6))
+
+        ctk.CTkLabel(row2, text="Últimos:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        ctk.CTkOptionMenu(
+            row2, variable=self._quick_var,
+            values=["15min", "1h", "6h", "24h", "Todo"], width=80,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'], button_color=COLORS['primary'],
+            command=self._on_quick_interval
+        ).pack(side="left", padx=(0, 16))
+
+        ctk.CTkLabel(row2, text="│", text_color=COLORS['border'],
+                     font=(FONT_FAMILY, FONT_SIZES['medium'])).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row2, text="Desde:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._date_from, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._time_from, _PH_TIME, width=60).pack(side="left", padx=(0, 12))
+
+        ctk.CTkLabel(row2, text="Hasta:", font=(FONT_FAMILY, FONT_SIZES['small']),
+                     text_color=COLORS['text_dim']).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._date_to, _PH_DATE, width=90).pack(side="left", padx=(0, 4))
+        self._make_entry(row2, self._time_to, _PH_TIME, width=60).pack(side="left", padx=(0, 8))
+
+        make_futuristic_button(
+            row2, text="Aplicar", command=self._apply_filters,
+            width=8, height=4, font_size=13
+        ).pack(side="left")
+
+    def _create_results(self, parent):
+        result_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
+        result_frame.pack(fill="both", expand=True, padx=5, pady=4)
+
+        self._textbox = ctk.CTkTextbox(
+            result_frame,
+            fg_color=COLORS['bg_dark'],
+            text_color=COLORS['text'],
+            font=("Courier New", 12),
+            wrap="none",
+            state="disabled",
+        )
+        self._textbox.pack(fill="both", expand=True, padx=4, pady=4)
+
+        self._textbox._textbox.tag_config("DEBUG",   foreground=LEVEL_COLORS["DEBUG"])
+        self._textbox._textbox.tag_config("INFO",    foreground=LEVEL_COLORS["INFO"])
+        self._textbox._textbox.tag_config("WARNING", foreground=LEVEL_COLORS["WARNING"])
+        self._textbox._textbox.tag_config("ERROR",   foreground=LEVEL_COLORS["ERROR"])
+
+        try:
+            children = self._textbox._textbox.master.children
+            vsb = children.get('!ctkscrollbar')
+            hsb = children.get('!ctkscrollbar2')
+            if vsb:
+                StyleManager.style_scrollbar_ctk(vsb)
+                vsb.configure(width=22)
+            if hsb:
+                StyleManager.style_scrollbar_ctk(hsb)
+                hsb.configure(height=22)
+        except Exception:
+            pass
+
+    def _create_bottom_bar(self, parent):
+        bar = ctk.CTkFrame(parent, fg_color="transparent")
+        bar.pack(fill="x", padx=5, pady=(0, 4))
+
+        self._count_label = ctk.CTkLabel(
+            bar, text="0 entradas",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim']
+        )
+        self._count_label.pack(side="left", padx=8)
+
+        make_futuristic_button(
+            bar, text="↓ Exportar", command=self._export,
+            width=10, height=5, font_size=14
+        ).pack(side="right", padx=4)
+
+        make_futuristic_button(
+            bar, text="↺ Recargar", command=self._load_log,
+            width=10, height=5, font_size=14
+        ).pack(side="right", padx=4)
+
+    # ── Carga ────────────────────────────────────────────────────────────────
+
+    def _load_log(self):
+        if self._loading:
+            return
+        self._loading = True
+        self._set_text("Cargando log...", [])
+        threading.Thread(target=self._read_log_thread, daemon=True).start()
+
+    def _read_log_thread(self):
+        lines = []
+        try:
+            rotated = Path(str(LOG_FILE) + ".1")
+            if rotated.exists():
+                with open(rotated, "r", encoding="utf-8", errors="replace") as f:
+                    for raw in f:
+                        p = self._parse_line(raw.rstrip())
+                        if p:
+                            lines.append(p)
+            if LOG_FILE.exists():
+                with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
+                    for raw in f:
+                        p = self._parse_line(raw.rstrip())
+                        if p:
+                            lines.append(p)
+        except Exception as e:
+            logger.error(f"[LogViewerWindow] Error leyendo log: {e}")
+
+        self._all_lines = lines
+        self._loading = False
+        modules = sorted(set(l["module"] for l in lines))
+        self.after(0, lambda: self._update_modules(modules))
+        self.after(0, self._apply_filters)
+
+    def _parse_line(self, raw):
+        m = LOG_PATTERN.match(raw)
+        if not m:
+            return None
+        ts_str, level, module, message = m.groups()
+        if not module:
+            module = "general"
+        try:
+            ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+        return {"ts": ts, "ts_str": ts_str, "level": level,
+                "module": module, "message": message, "raw": raw}
+
+    def _update_modules(self, modules):
+        self._modules = modules  # guardar lista para filtrado parcial
+
+    # ── Filtrado ─────────────────────────────────────────────────────────────
+
+    def _on_quick_interval(self, value):
+        now = datetime.now()
+        deltas = {"15min": timedelta(minutes=15), "1h": timedelta(hours=1),
+                  "6h": timedelta(hours=6), "24h": timedelta(hours=24)}
+        if value == "Todo":
+            for var, ph in [(self._date_from, _PH_DATE), (self._time_from, _PH_TIME),
+                            (self._date_to,   _PH_DATE), (self._time_to,   _PH_TIME)]:
+                var.set(ph)
+        else:
+            since = now - deltas[value]
+            self._date_from.set(since.strftime("%Y-%m-%d"))
+            self._time_from.set(since.strftime("%H:%M"))
+            self._date_to.set(now.strftime("%Y-%m-%d"))
+            self._time_to.set(now.strftime("%H:%M"))
+        self._apply_filters()
+
+    def _apply_filters(self):
+        level  = self._level_var.get()
+        module = self._entry_value(self._module_var, _PH_MODULE).lower()
+        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
+        dt_from = self._parse_datetime(
+            self._entry_value(self._date_from, _PH_DATE),
+            self._entry_value(self._time_from, _PH_TIME), False)
+        dt_to = self._parse_datetime(
+            self._entry_value(self._date_to, _PH_DATE),
+            self._entry_value(self._time_to, _PH_TIME), True)
+
+        result = []
+        for line in self._all_lines:
+            if level  != "TODOS" and line["level"]  != level:  continue
+            if module and module not in line["module"].lower():   continue
+            if search and search not in line["raw"].lower():   continue
+            if dt_from and line["ts"] < dt_from:               continue
+            if dt_to   and line["ts"] > dt_to:                 continue
+            result.append(line)
+
+        self._set_text(None, result)
+        self._count_label.configure(text=f"{len(result)} entradas")
+
+    def _parse_datetime(self, date_str, time_str, is_end):
+        if not date_str:
+            return None
+        if not time_str:
+            time_str = "23:59" if is_end else "00:00"
+        try:
+            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            return None
+
+    # ── Renderizado ──────────────────────────────────────────────────────────
+
+    def _set_text(self, loading_msg, lines):
+        self._textbox.configure(state="normal")
+        self._textbox._textbox.delete("1.0", "end")
+        if loading_msg:
+            self._textbox._textbox.insert("end", loading_msg)
+        else:
+            for line in lines:
+                lvl = line["level"]
+                tag = lvl if lvl in LEVEL_COLORS else "INFO"
+                self._textbox._textbox.insert(
+                    "end",
+                    f"{line['ts_str']} [{lvl}] {line['module']}: {line['message']}\n",
+                    tag
+                )
+            self._textbox._textbox.see("end")
+        self._textbox.configure(state="disabled")
+
+    # ── Exportar ─────────────────────────────────────────────────────────────
+
+    def _export(self):
+        level  = self._level_var.get()
+        module = self._entry_value(self._module_var, _PH_MODULE).lower()
+        search = self._entry_value(self._search_var, _PH_SEARCH).lower()
+        dt_from = self._parse_datetime(
+            self._entry_value(self._date_from, _PH_DATE),
+            self._entry_value(self._time_from, _PH_TIME), False)
+        dt_to = self._parse_datetime(
+            self._entry_value(self._date_to, _PH_DATE),
+            self._entry_value(self._time_to, _PH_TIME), True)
+
+        result = []
+        for line in self._all_lines:
+            if level  != "TODOS" and line["level"]  != level:  continue
+            if module and module not in line["module"].lower():   continue
+            if search and search not in line["raw"].lower():   continue
+            if dt_from and line["ts"] < dt_from:               continue
+            if dt_to   and line["ts"] > dt_to:                 continue
+            result.append(line["raw"])
+
+        from ui.widgets.dialogs import custom_msgbox
+        if not result:
+            custom_msgbox(self, "No hay entradas que exportar.", "Exportar")
+            return
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        export_path = EXPORTS_LOG_DIR / f"log_export_{ts}.log"
+        try:
+            with open(export_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(result))
+            custom_msgbox(self, f"Exportado en:\n{export_path}", "Exportar")
+            logger.info(f"[LogViewerWindow] Log exportado: {export_path}")
+            try:
+                CleanupService().clean_log_exports()
+            except Exception as e:
+                logger.warning(f"[LogViewerWindow] No se pudo limpiar exports: {e}")
+        except OSError as e:
+            custom_msgbox(self, f"Error al exportar:\n{e}", "Error")
+            logger.error(f"[LogViewerWindow] Error exportando: {e}")
+````
 
 ## File: config/settings.py
-`````python
+````python
 """
 Configuración centralizada del sistema de monitoreo
 """
@@ -9193,10 +10244,10 @@ FONT_SIZES = {
     "xlarge": 24,
     "xxlarge": 30
 }
-`````
+````
 
 ## File: ui/windows/network.py
-`````python
+````python
 """
 Ventana de monitoreo de red
 """
@@ -9424,10 +10475,10 @@ class NetworkWindow(ctk.CTkToplevel):
             self._interface_update_counter = 0
 
         self.after(UPDATE_MS, self._update)
-`````
+````
 
 ## File: core/data_analyzer.py
-`````python
+````python
 """
 Análisis de datos históricos
 """
@@ -9686,10 +10737,10 @@ class DataAnalyzer:
             logger.error(f"[DataAnalyzer] _write_csv: error escribiendo {output_path}: {e}")
         except Exception as e:
             logger.error(f"[DataAnalyzer] _write_csv: error inesperado: {e}")
-`````
+````
 
 ## File: core/data_collection_service.py
-`````python
+````python
 """
 Servicio de recolección automática de datos
 """
@@ -9816,44 +10867,10 @@ class DataCollectionService:
     def force_collection(self):
         """Fuerza una recolección inmediata (útil para testing)"""
         self._collect_and_save()
-`````
-
-## File: ui/windows/__init__.py
-`````python
-"""
-Paquete de ventanas secundarias
-"""
-from .fan_control import FanControlWindow
-from .monitor import MonitorWindow
-from .network import NetworkWindow
-from .usb import USBWindow
-from .launchers import LaunchersWindow
-from .disk import DiskWindow
-from .process_window import ProcessWindow
-from .service import ServiceWindow
-from .update import UpdatesWindow
-from .history import HistoryWindow
-from .theme_selector import ThemeSelector
-from .homebridge import HomebridgeWindow
-
-__all__ = [
-    'FanControlWindow',
-    'MonitorWindow', 
-    'NetworkWindow',
-    'USBWindow',
-    'LaunchersWindow',
-    'DiskWindow',
-    'ProcessWindow',
-    'ServiceWindow',
-    'UpdatesWindow',
-    'HistoryWindow',
-    'ThemeSelector',
-    'HomebridgeWindow'
-]
-`````
+````
 
 ## File: ui/windows/launchers.py
-`````python
+````python
 """
 Ventana de lanzadores de scripts
 """
@@ -9988,10 +11005,10 @@ class LaunchersWindow(ctk.CTkToplevel):
             title="⚠️ Lanzador de Sistema",
             on_confirm=do_execute
         )
-`````
+````
 
 ## File: ui/styles.py
-`````python
+````python
 """
 Estilos y temas para la interfaz
 """
@@ -10366,249 +11383,10 @@ def make_homebridge_switch(
             sw.deselect()
 
     return sw
-`````
-
-## File: QUICKSTART.md
-`````markdown
-# 🚀 Inicio Rápido - Dashboard v3.0
-
----
-
-## ⚡ Instalación (2 Comandos)
-
-```bash
-git clone https://github.com/tu-usuario/system-dashboard.git
-cd system-dashboard
-chmod +x install_system.sh
-sudo ./install_system.sh
-python3 main.py
-```
-
-El script instala automáticamente las dependencias del sistema y Python, la CLI oficial de Ookla para speedtest, y pregunta si quieres configurar sensores de temperatura.
-
----
-
-## 🔁 Alternativa con Entorno Virtual
-
-Si prefieres aislar las dependencias:
-
-```bash
-chmod +x install.sh
-./install.sh
-source venv/bin/activate
-python3 main.py
-```
-
-> Recuerda activar el entorno (`source venv/bin/activate`) cada vez que quieras ejecutar el dashboard.
-
----
-
-## 📋 Requisitos Mínimos
-
-- ✅ Raspberry Pi 3/4/5
-- ✅ Raspberry Pi OS (cualquier versión)
-- ✅ Python 3.8+
-- ✅ Conexión a internet (para instalación)
-
----
-
-## 🎯 Menú Principal (15 botones)
-
-```
-┌───────────────────────────────────┐
-│  Control        │  Monitor         │
-│  Ventiladores   │  Placa           │
-├─────────────────┼──────────────────┤
-│  Monitor        │  Monitor         │
-│  Red            │  USB             │
-├─────────────────┼──────────────────┤
-│  Monitor        │  Lanzadores      │
-│  Disco          │                  │
-├─────────────────┼──────────────────┤
-│  Monitor        │  Monitor         │
-│  Procesos       │  Servicios       │
-├─────────────────┼──────────────────┤
-│  Histórico      │  Actualizaciones │
-│  Datos          │                  │
-├─────────────────┼──────────────────┤
-│  Homebridge     │  Visor de Logs   │
-├─────────────────┼──────────────────┤
-│  Cambiar Tema   │  Reiniciar       │
-├─────────────────┼──────────────────┤
-│  Salir          │                  │
-└─────────────────┴──────────────────┘
-```
-
----
-
-## 🖥️ Las 15 Ventanas
-
-**1. Monitor Placa** — CPU, RAM y temperatura en tiempo real (status en header)
-
-**2. Monitor Red** — Download/Upload en vivo, speedtest Ookla, lista de IPs (status en header)
-
-**3. Monitor USB** — Dispositivos conectados, expulsión segura
-
-**4. Monitor Disco** — Espacio, temperatura NVMe, velocidad I/O (status en header)
-
-**5. Monitor Procesos** — Top 20 procesos, búsqueda, matar procesos
-
-**6. Monitor Servicios** — Start/Stop/Restart systemd, ver logs
-
-**7. Histórico Datos** — 8 gráficas CPU/RAM/Temp/Red/Disco/PWM en 24h, 7d, 30d, exportar CSV
-
-**8. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
-
-**9. Lanzadores** — Scripts personalizados con terminal en vivo
-
-**10. Actualizaciones** — Estado de paquetes, instalar con terminal integrada
-
-**11. Homebridge** — Control de accesorios HomeKit con **switches táctiles** (90×46px) por dispositivo
-
-**12. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo de tiempo; exportación a `data/exports/logs/`
-
-**13. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
-
-**14. Reiniciar** — Reinicia el dashboard aplicando cambios de código
-
-**15. Salir** — Salir de la app o apagar el sistema
-
-> **Todas las ventanas** incluyen header unificado con título, status en tiempo real y botón ✕ táctil (52×42px) optimizado para pantalla DSI.
-
-> **Exports organizados** en `data/exports/{csv,logs,screenshots}` — carpetas creadas automáticamente, máx. 10 archivos por tipo.
-
----
-
-## 🔧 Configuración Básica
-
-### Ajustar posición en pantalla DSI (`config/settings.py`):
-```python
-DSI_X = 0     # Posición horizontal
-DSI_Y = 0     # Posición vertical
-```
-
-### Añadir scripts en Lanzadores:
-```python
-LAUNCHERS = [
-    {"label": "Mi Script", "script": str(SCRIPTS_DIR / "mi_script.sh")},
-]
-```
-
----
-
-## 🏠 Configurar Homebridge
-
-Crea el archivo `.env` en la raíz del proyecto (cópialo desde `.env.example`):
-
-```env
-HOMEBRIDGE_HOST=192.168.1.X    # IP de la Pi con Homebridge
-HOMEBRIDGE_PORT=8581
-HOMEBRIDGE_USER=admin
-HOMEBRIDGE_PASS=tu_contraseña
-```
-
-> **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`). Sin él, la API no permite acceder a los accesorios.
-
-La ventana Homebridge muestra los accesorios en grid de 2 columnas. Cada tarjeta incluye un **switch táctil (90×46px)** con el nombre del dispositivo como etiqueta. Desliza o pulsa el switch para encender/apagar con el dedo. Si un dispositivo tiene `StatusFault=1` aparece ⚠ FALLO en rojo y el switch queda bloqueado.
-
----
-
-## 📋 Ver Logs del Sistema
-
-```bash
-# En tiempo real
-tail -f data/logs/dashboard.log
-
-# Solo errores
-grep ERROR data/logs/dashboard.log
-```
-
----
-
-## ❓ Problemas Comunes
-
-| Problema | Solución |
-|----------|----------|
-| No arranca | `pip3 install --break-system-packages -r requirements.txt` |
-| Temperatura 0 | `sudo sensors-detect --auto` |
-| NVMe temp 0 | `sudo apt install smartmontools` |
-| Speedtest falla | Instalar CLI Ookla: `sudo apt install speedtest` |
-| USB no expulsa | `sudo apt install udisks2` |
-| Homebridge no conecta | Revisar `.env` y activar Insecure Mode en Homebridge |
-| Badge hb_offline siempre rojo | Comprobar conectividad entre Pis y `HOMEBRIDGE_HOST` |
-| Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
-| No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
-| Ver qué falla | `grep ERROR data/logs/dashboard.log` |
-
----
-
-## 🆕 Novedades v3.0
-
-✅ **Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación incluida  
-✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente  
-✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo cada 24h  
-✅ **Fix entries** — Eliminado `grab_set()` en FanControl que bloqueaba el teclado  
-
-### v2.9 (referencia)
-✅ **Switches táctiles Homebridge** — CTkSwitch de 90×46px, optimizado para el dedo en DSI  
-✅ **Sin bloqueos en UI** — SystemMonitor y ServiceMonitor con caché en background thread  
-✅ **ServiceMonitor optimizado** — is-enabled en llamada batch, sondeo cada 10s  
-✅ **Logging completo** — Todos los servicios registran inicio y parada  
-
-### v2.8 (referencia)
-✅ **Integración Homebridge** — Ventana de control de accesorios HomeKit (enchufes e interruptores)  
-✅ **HomebridgeMonitor** — Sondeo ligero en background cada 30s, JWT con renovación automática  
-✅ **3 badges Homebridge** — offline 🔴, enchufes encendidos 🟠, dispositivos con fallo 🔴  
-✅ **Toggle táctil** — Activa/desactiva cada dispositivo directamente desde la pantalla DSI  
-✅ **Configuración `.env`** — Credenciales separadas del código fuente  
-
----
-
-## 📚 Más Información
-
-**[README.md](README.md)** — Documentación completa  
-**[INSTALL_GUIDE.md](INSTALL_GUIDE.md)** — Instalación detallada  
-**[INDEX.md](INDEX.md)** — Índice de toda la documentación
-
----
-
-**Dashboard v3.0** 🚀🏠✨
-`````
-
-## File: core/__init__.py
-`````python
-"""
-Paquete core con lógica de negocio
-"""
-from .fan_controller import FanController
-from .system_monitor import SystemMonitor
-from .network_monitor import NetworkMonitor
-from .fan_auto_service import FanAutoService
-from .disk_monitor import DiskMonitor
-from .process_monitor import ProcessMonitor
-from .service_monitor import ServiceMonitor
-from .update_monitor import UpdateMonitor
-from .cleanup_service import CleanupService
-from .homebridge_monitor import HomebridgeMonitor  
-from .alert_service import AlertService        
-
-__all__ = [
-    'FanController',
-    'SystemMonitor',
-    'NetworkMonitor',
-    'FanAutoService',
-    'DiskMonitor',
-    'ProcessMonitor',
-    'ServiceMonitor',
-    'UpdateMonitor',
-    'CleanupService',
-    'HomebridgeMonitor',                                 
-    'AlertService',
-]
-`````
+````
 
 ## File: ui/windows/fan_control.py
-`````python
+````python
 """
 Ventana de control de ventiladores
 """
@@ -11037,11 +11815,281 @@ class FanControlWindow(ctk.CTkToplevel):
             self.pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
         
         self.after(2000, self._update_pwm_display)
-`````
+````
+
+## File: QUICKSTART.md
+````markdown
+# 🚀 Inicio Rápido - Dashboard v3.1
+
+---
+
+## ⚡ Instalación (2 Comandos)
+
+```bash
+git clone https://github.com/tu-usuario/system-dashboard.git
+cd system-dashboard
+chmod +x install_system.sh
+sudo ./install_system.sh
+python3 main.py
+```
+
+El script instala automáticamente las dependencias del sistema y Python, la CLI oficial de Ookla para speedtest, y pregunta si quieres configurar sensores de temperatura.
+
+---
+
+## 🔁 Alternativa con Entorno Virtual
+
+Si prefieres aislar las dependencias:
+
+```bash
+chmod +x install.sh
+./install.sh
+source venv/bin/activate
+python3 main.py
+```
+
+> Recuerda activar el entorno (`source venv/bin/activate`) cada vez que quieras ejecutar el dashboard.
+
+---
+
+## 📋 Requisitos Mínimos
+
+- ✅ Raspberry Pi 3/4/5
+- ✅ Raspberry Pi OS (cualquier versión)
+- ✅ Python 3.8+
+- ✅ Conexión a internet (para instalación)
+
+---
+
+## 🎯 Menú Principal (15 botones)
+
+```
+┌───────────────────────────────────┐
+│  Control        │  Monitor         │
+│  Ventiladores   │  Placa           │
+├─────────────────┼──────────────────┤
+│  Monitor        │  Monitor         │
+│  Red            │  USB             │
+├─────────────────┼──────────────────┤
+│  Monitor        │  Lanzadores      │
+│  Disco          │                  │
+├─────────────────┼──────────────────┤
+│  Monitor        │  Monitor         │
+│  Procesos       │  Servicios       │
+├─────────────────┼──────────────────┤
+│  Histórico      │  Actualizaciones │
+│  Datos          │                  │
+├─────────────────┼──────────────────┤
+│  Homebridge     │  Visor de Logs   │
+├─────────────────┼──────────────────┤
+│  Cambiar Tema   │  Reiniciar       │
+├─────────────────┼──────────────────┤
+│  Salir          │                  │
+└─────────────────┴──────────────────┘
+```
+
+---
+
+## 🖥️ Las 15 Ventanas
+
+**1. Monitor Placa** — CPU, RAM y temperatura en tiempo real (status en header)
+
+**2. Monitor Red** — Download/Upload en vivo, speedtest Ookla, lista de IPs (status en header)
+
+**3. Monitor USB** — Dispositivos conectados, expulsión segura
+
+**4. Monitor Disco** — Espacio, temperatura NVMe, velocidad I/O (status en header)
+
+**5. Monitor Procesos** — Top 20 procesos, búsqueda, matar procesos
+
+**6. Monitor Servicios** — Start/Stop/Restart systemd, ver logs
+
+**7. Histórico Datos** — 8 gráficas CPU/RAM/Temp/Red/Disco/PWM en 24h, 7d, 30d, exportar CSV
+
+**8. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
+
+**9. Lanzadores** — Scripts personalizados con terminal en vivo
+
+**10. Actualizaciones** — Estado de paquetes, instalar con terminal integrada
+
+**11. Homebridge** — Control de **5 tipos de dispositivos HomeKit**: switches/enchufes, luces con brillo, termostatos, sensores temperatura/humedad, persianas
+
+**12. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo de tiempo; exportación a `data/exports/logs/`
+
+**13. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
+
+**14. Reiniciar** — Reinicia el dashboard aplicando cambios de código
+
+**15. Salir** — Salir de la app o apagar el sistema
+
+> **Todas las ventanas** incluyen header unificado con título, status en tiempo real y botón ✕ táctil (52×42px) optimizado para pantalla DSI.
+
+> **Exports organizados** en `data/exports/{csv,logs,screenshots}` — carpetas creadas automáticamente, máx. 10 archivos por tipo.
+
+---
+
+## 🔧 Configuración Básica
+
+### Ajustar posición en pantalla DSI (`config/settings.py`):
+```python
+DSI_X = 0     # Posición horizontal
+DSI_Y = 0     # Posición vertical
+```
+
+### Añadir scripts en Lanzadores:
+```python
+LAUNCHERS = [
+    {"label": "Mi Script", "script": str(SCRIPTS_DIR / "mi_script.sh")},
+]
+```
+
+---
+
+## 🏠 Configurar Homebridge
+
+Crea el archivo `.env` en la raíz del proyecto (cópialo desde `.env.example`):
+
+```env
+HOMEBRIDGE_HOST=192.168.1.X    # IP de la Pi con Homebridge
+HOMEBRIDGE_PORT=8581
+HOMEBRIDGE_USER=admin
+HOMEBRIDGE_PASS=tu_contraseña
+```
+
+> **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`). Sin él, la API no permite acceder a los accesorios.
+
+La ventana Homebridge muestra los accesorios en grid de 2 columnas con tarjetas adaptativas según el tipo:
+
+- **Switch / Enchufe / Luz básica**: CTkSwitch táctil (90×46px)
+- **Luz regulable**: switch ON/OFF con control de brillo
+- **Termostato**: temperatura actual + botones +/− 0.5°C para temperatura objetivo
+- **Sensor**: temperatura y/o humedad en modo solo lectura
+- **Persiana / Estor**: posición actual (%) con barra visual
+
+Si un dispositivo tiene `StatusFault=1` aparece ⚠ FALLO en rojo y el switch queda bloqueado.
+
+---
+
+## 📲 Configurar Alertas Telegram
+
+Añade al mismo archivo `.env`:
+
+```env
+TELEGRAM_TOKEN=123456789:ABCdefGHI...   # Token del bot (@BotFather)
+TELEGRAM_CHAT_ID=987654321              # ID del chat o canal destino
+```
+
+Las alertas se envían cuando temperatura, CPU, RAM o disco superan los umbrales durante 60 segundos sostenidos (anti-spam). También avisa si hay servicios en estado FAILED.
+
+> Si no configuras estas variables, el dashboard funciona igual — las alertas simplemente no se envían.
+
+---
+
+## 📋 Ver Logs del Sistema
+
+```bash
+# En tiempo real
+tail -f data/logs/dashboard.log
+
+# Solo errores
+grep ERROR data/logs/dashboard.log
+```
+
+---
+
+## ❓ Problemas Comunes
+
+| Problema | Solución |
+|----------|----------|
+| No arranca | `pip3 install --break-system-packages -r requirements.txt` |
+| Temperatura 0 | `sudo sensors-detect --auto` |
+| NVMe temp 0 | `sudo apt install smartmontools` |
+| Speedtest falla | Instalar CLI Ookla: `sudo apt install speedtest` |
+| USB no expulsa | `sudo apt install udisks2` |
+| Homebridge no conecta | Revisar `.env` y activar Insecure Mode en Homebridge |
+| Badge hb_offline siempre rojo | Comprobar conectividad entre Pis y `HOMEBRIDGE_HOST` |
+| Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
+| No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
+| Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env` |
+| Ver qué falla | `grep ERROR data/logs/dashboard.log` |
+
+---
+
+## 🆕 Novedades v3.1
+
+✅ **Alertas Telegram** — `AlertService` con anti-spam (edge-trigger + sustain 60s), monitoriza temp/CPU/RAM/disco y servicios  
+✅ **Homebridge extendido** — 5 tipos de dispositivo: switch, luz regulable, termostato, sensor, persiana  
+✅ **UI diálogo salir** — radiobuttons táctiles 30×30px, botones ajustados, layout corregido  
+
+### v3.0 (referencia)
+✅ **Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación incluida  
+✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente  
+✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo cada 24h  
+✅ **Fix entries** — Eliminado `grab_set()` en FanControl que bloqueaba el teclado  
+
+### v2.9 (referencia)
+✅ **Switches táctiles Homebridge** — CTkSwitch de 90×46px, optimizado para el dedo en DSI  
+✅ **Sin bloqueos en UI** — SystemMonitor y ServiceMonitor con caché en background thread  
+✅ **ServiceMonitor optimizado** — is-enabled en llamada batch, sondeo cada 10s  
+✅ **Logging completo** — Todos los servicios registran inicio y parada  
+
+---
+
+## 📚 Más Información
+
+**[README.md](README.md)** — Documentación completa  
+**[INSTALL_GUIDE.md](INSTALL_GUIDE.md)** — Instalación detallada  
+**[INDEX.md](INDEX.md)** — Índice de toda la documentación
+
+---
+
+**Dashboard v3.1** 🚀🏠📲✨
+````
+
+## File: ui/windows/__init__.py
+````python
+"""
+Paquete de ventanas secundarias
+"""
+from .fan_control import FanControlWindow
+from .monitor import MonitorWindow
+from .network import NetworkWindow
+from .usb import USBWindow
+from .launchers import LaunchersWindow
+from .disk import DiskWindow
+from .process_window import ProcessWindow
+from .service import ServiceWindow
+from .update import UpdatesWindow
+from .history import HistoryWindow
+from .theme_selector import ThemeSelector
+from .homebridge import HomebridgeWindow
+from .network_local import NetworkLocalWindow
+from .pihole_window import PiholeWindow
+from .alert_history import AlertHistoryWindow
+
+__all__ = [
+    'FanControlWindow',
+    'MonitorWindow', 
+    'NetworkWindow',
+    'USBWindow',
+    'LaunchersWindow',
+    'DiskWindow',
+    'ProcessWindow',
+    'ServiceWindow',
+    'UpdatesWindow',
+    'HistoryWindow',
+    'ThemeSelector',
+    'HomebridgeWindow',
+    'NetworkLocalWindow',
+    'PiholeWindow',
+    'AlertHistoryWindow',
+    
+]
+````
 
 ## File: INDEX.md
-`````markdown
-# 📚 Índice de Documentación - System Dashboard v3.0
+````markdown
+# 📚 Índice de Documentación - System Dashboard v3.1
 
 Guía completa de toda la documentación del proyecto actualizada.
 
@@ -11051,7 +12099,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ### **Para Empezar:**
 1. **[README.md](README.md)** ⭐  
-   Documentación completa del proyecto v3.0. **Empieza aquí.**
+   Documentación completa del proyecto v3.1. **Empieza aquí.**
 
 2. **[QUICKSTART.md](QUICKSTART.md)** ⚡  
    Instalación y ejecución en 5 minutos.
@@ -11125,16 +12173,33 @@ Guía completa de toda la documentación del proyecto actualizada.
 - Activar Insecure Mode en Homebridge
 - Verificar conectividad entre Pis
 
+**5 tipos de dispositivo soportados**:
+- `switch` — enchufe / interruptor (CTkSwitch táctil 90×46px)
+- `light` — luz regulable (ON/OFF + brillo)
+- `thermostat` — termostato (temp actual + botones +/− objetivo)
+- `sensor` — sensor temperatura/humedad (solo lectura)
+- `blind` — persiana / estor (posición %, control en HomeKit)
+
 **Arquitectura**:
-- `core/homebridge_monitor.py` — Sondeo 30s, JWT, caché en memoria
+- `core/homebridge_monitor.py` — Sondeo 30s, JWT, caché en memoria, 5 tipos, `set_brightness()`, `set_target_temp()`
 - `core/system_monitor.py` — Caché en background thread (cada 2s)
 - `core/service_monitor.py` — Caché en background thread (cada 10s), is-enabled batch
-- `ui/windows/homebridge.py` — Ventana con switches CTkSwitch (90×46px)
-- `ui/windows/log_viewer.py` — Visor de logs con filtros y exportación
-- `ui/styles.py` — `make_homebridge_switch()` añadida
+- `ui/windows/homebridge.py` — Tarjetas adaptativas por tipo de dispositivo
+- `ui/styles.py` — `make_homebridge_switch()` para switch/light
 - Badges `hb_offline`, `hb_on`, `hb_fault` en `ui/main_window.py`
-- `config/settings.py` — `EXPORTS_DIR`, `EXPORTS_CSV_DIR`, `EXPORTS_LOG_DIR`, `EXPORTS_SCR_DIR`
-- `core/cleanup_service.py` — gestiona también `log_export_*.log` (máx. 10)
+
+---
+
+### 📲 **Alertas Telegram**
+
+**Configuración rápida** — Ver sección en [QUICKSTART.md](QUICKSTART.md) y [README.md](README.md):
+- Añadir `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` al `.env`
+- Verificar con `alert_service.send_test()`
+
+**Arquitectura**:
+- `core/alert_service.py` — 8º servicio background, urllib stdlib, anti-spam edge-trigger + sustain 60s
+- Métricas: temperatura, CPU, RAM, disco (warn + crit) y servicios fallidos
+- Sin dependencias nuevas — usa `urllib` de la stdlib de Python
 
 ---
 
@@ -11161,10 +12226,10 @@ Guía completa de toda la documentación del proyecto actualizada.
 ### 💡 **Ideas y Expansión**
 
 **[IDEAS_EXPANSION.md](IDEAS_EXPANSION.md)**  
-- ✅ Funcionalidades implementadas (Procesos, Servicios, Histórico, Badges, Header, Homebridge)
-- 🔄 En evaluación (Docker, Homebridge extendido, Alertas)
-- 💭 Ideas futuras (Automatización, API REST)
-- Roadmap v3.0
+- ✅ Funcionalidades implementadas (hasta v3.1 inclusive)
+- 🔄 En evaluación (Docker, Automatización)
+- 💭 Ideas futuras (API REST, Red avanzada, Backup)
+- Roadmap v3.1 y v3.2
 
 ---
 
@@ -11172,7 +12237,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ### **Configuración:**
 - `requirements.txt` - Dependencias Python
-- `.env` - Credenciales Homebridge (NO en git)
+- `.env` - Credenciales Homebridge + Telegram (NO en git)
 - `.env.example` - Plantilla de configuración
 - `install.sh` - Script de instalación automática
 - `config/settings.py` - Configuración global
@@ -11188,11 +12253,11 @@ Guía completa de toda la documentación del proyecto actualizada.
 
 ---
 
-## 🗂️ Estructura de Documentos v2.9
+## 🗂️ Estructura de Documentos v3.1
 
 ```
 📚 Documentación/
-├── README.md                    ⭐ Documento principal v3.0
+├── README.md                    ⭐ Documento principal v3.1
 ├── QUICKSTART.md                ⚡ Inicio rápido
 ├── INDEX.md                     📑 Este archivo
 ├── INSTALL_GUIDE.md             🔧 Instalación
@@ -11222,6 +12287,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 3. SERVICE_MONITOR_GUIDE.md - Control de servicios
 4. HISTORICO_DATOS_GUIDE.md - Análisis de datos
 5. QUICKSTART.md sección Homebridge - Control de accesorios HomeKit
+6. QUICKSTART.md sección Telegram - Alertas externas
 
 ### **Desarrollador:**
 1. ARCHITECTURE.md - Estructura del proyecto
@@ -11243,6 +12309,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 - **Configurar ventiladores** → FAN_CONTROL_GUIDE.md
 - **Integrar con OLED** → INTEGRATION_GUIDE.md
 - **Configurar Homebridge** → QUICKSTART.md sección Homebridge
+- **Configurar alertas Telegram** → QUICKSTART.md sección Telegram / README.md
 - **Ver logs del dashboard** → Botón "Visor de Logs" en el menú principal
 - **Añadir nueva ventana con header** → `ui/styles.py` → `make_window_header()`
 - **Añadir funciones** → ARCHITECTURE.md + IDEAS_EXPANSION.md
@@ -11255,29 +12322,30 @@ Guía completa de toda la documentación del proyecto actualizada.
 - **Base de datos crece** → HISTORICO_DATOS_GUIDE.md
 - **Servicios no se gestionan** → SERVICE_MONITOR_GUIDE.md
 - **Homebridge no conecta** → QUICKSTART.md sección Homebridge / README.md Troubleshooting
+- **Alertas Telegram no llegan** → README.md sección Telegram / verificar `.env`
 - **Otro problema** → README.md sección "Troubleshooting"
 
 ---
 
-## 📊 Estadísticas del Proyecto v3.0
+## 📊 Estadísticas del Proyecto v3.1
 
-- **Archivos Python**: 44
+- **Archivos Python**: 45
 - **Ventanas**: 15 ventanas funcionales
 - **Temas**: 15 temas pre-configurados
 - **Documentos**: 12 guías
-- **Servicios background**: 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main)
+- **Servicios background**: 8 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + main)
 - **Badges en menú**: 9
 - **Exports organizados**: 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo
+- **Tipos Homebridge**: 5 (switch, light, thermostat, sensor, blind)
 
 ---
 
-## 🆕 Novedades en v3.0
+## 🆕 Novedades en v3.1
 
 ### **Funcionalidades Nuevas:**
-- ✅ **Visor de Logs** — Ventana con filtros por nivel, módulo, texto e intervalo de fechas/horas
-- ✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente al arrancar
-- ✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo en ciclo de 24h
-- ✅ **Fix entries** — Eliminado `grab_set()` en FanControlWindow que bloqueaba el teclado
+- ✅ **Alertas Telegram** — `AlertService` con anti-spam (edge-trigger + sustain 60s), monitoriza temp/CPU/RAM/disco y servicios fallidos, sin dependencias nuevas
+- ✅ **Homebridge extendido** — 5 tipos de dispositivo: switch, luz regulable, termostato, sensor temperatura/humedad, persiana/estor
+- ✅ **UI diálogo salir** — radiobuttons táctiles 30×30px, botones ajustados, layout corregido
 
 ---
 
@@ -11292,7 +12360,8 @@ Guía completa de toda la documentación del proyecto actualizada.
 | **v2.7** | 12 | + Header unificado, Speedtest Ookla |
 | **v2.8** | 12 | + Homebridge, 9 badges |
 | **v2.9** | 14 | + Switches táctiles, caché background |
-| **v3.0** | 15 | + Visor Logs, exports organizados, fix entries ⭐ |
+| **v3.0** | 15 | + Visor Logs, exports organizados, fix entries |
+| **v3.1** | 15 | + Alertas Telegram, Homebridge extendido ⭐ |
 
 ---
 
@@ -11319,6 +12388,7 @@ Guía completa de toda la documentación del proyecto actualizada.
 | **Servicios** | [SERVICE_MONITOR_GUIDE.md](SERVICE_MONITOR_GUIDE.md) |
 | **Histórico** | [HISTORICO_DATOS_GUIDE.md](HISTORICO_DATOS_GUIDE.md) |
 | **Homebridge** | [QUICKSTART.md#homebridge](QUICKSTART.md#-configurar-homebridge) |
+| **Telegram** | [QUICKSTART.md#telegram](QUICKSTART.md#-configurar-alertas-telegram) |
 | **Troubleshooting** | [README.md#troubleshooting](README.md#troubleshooting) |
 | **Ideas Futuras** | [IDEAS_EXPANSION.md](IDEAS_EXPANSION.md) |
 
@@ -11341,7 +12411,10 @@ from .process_monitor import ProcessMonitor
 from .service_monitor import ServiceMonitor
 from .update_monitor import UpdateMonitor
 from .cleanup_service import CleanupService
-from .homebridge_monitor import HomebridgeMonitor          
+from .homebridge_monitor import HomebridgeMonitor  
+from .alert_service import AlertService
+from .network_scanner import NetworkScanner
+from .pihole_monitor import PiholeMonitor        
 
 __all__ = [
     'FanController',
@@ -11354,445 +12427,15 @@ __all__ = [
     'UpdateMonitor',
     'CleanupService',
     'HomebridgeMonitor',                                 
+    'AlertService',
+    'NetworkScanner',
+    'PiholeMonitor',
 ]
 ````
 
-## File: ui/windows/fan_control.py
-````python
-"""
-Ventana de control de ventiladores
-"""
-import tkinter as tk
-import customtkinter as ctk
-from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, 
-                             DSI_HEIGHT, DSI_X, DSI_Y)
-from ui.styles import make_futuristic_button, StyleManager, make_window_header
-from ui.widgets import custom_msgbox
-from core.fan_controller import FanController
-from core.system_monitor import SystemMonitor
-from utils.file_manager import FileManager
-
-
-class FanControlWindow(ctk.CTkToplevel):
-    """Ventana de control de ventiladores y curvas PWM"""
-    
-    def __init__(self, parent, fan_controller: FanController, 
-                 system_monitor: SystemMonitor):
-        super().__init__(parent)
-        
-        # Referencias
-        self.fan_controller = fan_controller
-        self.system_monitor = system_monitor
-        self.file_manager = FileManager()
-        
-        # Variables de estado
-        self.mode_var = tk.StringVar()
-        self.manual_pwm_var = tk.IntVar(value=128)
-        self.curve_vars = []
-
-        # Variables para entries de nuevo punto (con placeholder)
-        self._PLACEHOLDER_TEMP = "0-100"
-        self._PLACEHOLDER_PWM  = "0-255"
-        self.new_temp_var = tk.StringVar(value=self._PLACEHOLDER_TEMP)
-        self.new_pwm_var  = tk.StringVar(value=self._PLACEHOLDER_PWM)
-        
-        # Cargar estado inicial
-        self._load_initial_state()
-        
-        # Configurar ventana
-        self.title("Control de Ventiladores")
-        self.configure(fg_color=COLORS['bg_medium'])
-        self.overrideredirect(True)
-        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
-        self.resizable(False, False)
-        self.focus_force()
-        self.lift()
-        self.after(100, lambda: self.grab_set())
-        
-        # Crear interfaz
-        self._create_ui()
-        
-        # Iniciar bucle de actualización del slider/valor
-        self._update_pwm_display()
-    
-    def _load_initial_state(self):
-        """Carga el estado inicial desde archivo"""
-        state = self.file_manager.load_state()
-        self.mode_var.set(state.get("mode", "auto"))
-        
-        target = state.get("target_pwm")
-        if target is not None:
-            self.manual_pwm_var.set(target)
-    
-    def _create_ui(self):
-        """Crea la interfaz de usuario"""
-        # Frame principal
-        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
-        main.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # ── Header unificado ──────────────────────────────────────────────────
-        self._header = make_window_header(
-            main,
-            title="CONTROL DE VENTILADORES",
-            on_close=self.destroy,
-        )
-        
-        # Área de scroll
-        scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
-        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Canvas y scrollbar
-        canvas = ctk.CTkCanvas(
-            scroll_container, 
-            bg=COLORS['bg_medium'], 
-            highlightthickness=0
-        )
-        canvas.pack(side="left", fill="both", expand=True)
-        
-        scrollbar = ctk.CTkScrollbar(
-            scroll_container,
-            orientation="vertical",
-            command=canvas.yview,
-            width=30
-        )
-        scrollbar.pack(side="right", fill="y")
-        StyleManager.style_scrollbar_ctk(scrollbar)
-        
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Frame interno
-        inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH-50)
-        inner.bind("<Configure>", 
-                  lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        
-        # Secciones
-        self._create_mode_section(inner)
-        self._create_manual_pwm_section(inner)
-        self._create_curve_section(inner)
-        self._create_bottom_buttons(main)
-    
-    def _create_mode_section(self, parent):
-        """Crea la sección de selección de modo"""
-        mode_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
-        mode_frame.pack(fill="x", pady=5, padx=10)
-        
-        ctk.CTkLabel(
-            mode_frame,
-            text="MODO DE OPERACIÓN",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
-        ).pack(anchor="w", pady=(0, 5))
-        
-        modes_container = ctk.CTkFrame(mode_frame, fg_color=COLORS['bg_medium'])
-        modes_container.pack(fill="x", pady=5)
-        
-        modes = [
-            ("Auto", "auto"),
-            ("Silent", "silent"),
-            ("Normal", "normal"),
-            ("Performance", "performance"),
-            ("Manual", "manual")
-        ]
-        
-        for text, value in modes:
-            rb = ctk.CTkRadioButton(
-                modes_container,
-                text=text,
-                variable=self.mode_var,
-                value=value,
-                command=lambda v=value: self._on_mode_change(v),
-                text_color=COLORS['text'],
-                font=(FONT_FAMILY, FONT_SIZES['small'])
-            )
-            rb.pack(side="left", padx=8)
-            StyleManager.style_radiobutton_ctk(rb)
-    
-    def _create_manual_pwm_section(self, parent):
-        """Crea la sección de PWM manual"""
-        manual_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
-        manual_frame.pack(fill="x", pady=5, padx=10)
-        
-        ctk.CTkLabel(
-            manual_frame,
-            text="PWM MANUAL (0-255)",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
-        ).pack(anchor="w", pady=(0, 5))
-        
-        self.pwm_value_label = ctk.CTkLabel(
-            manual_frame,
-            text=f"Valor: {self.manual_pwm_var.get()} ({int(self.manual_pwm_var.get()/255*100)}%)",
-            text_color=COLORS['text'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'])
-        )
-        self.pwm_value_label.pack(anchor="w", pady=(0, 10))
-        
-        slider = ctk.CTkSlider(
-            manual_frame,
-            from_=0,
-            to=255,
-            variable=self.manual_pwm_var,
-            command=self._on_pwm_change,
-            width=DSI_WIDTH - 100
-        )
-        slider.pack(fill="x", pady=5)
-        StyleManager.style_slider_ctk(slider)
-    
-    def _create_curve_section(self, parent):
-        """Crea la sección de curva temperatura-PWM"""
-        curve_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
-        curve_frame.pack(fill="x", pady=5, padx=10)
-
-        ctk.CTkLabel(
-            curve_frame,
-            text="CURVA TEMPERATURA-PWM",
-            text_color=COLORS['primary'],
-            font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
-        ).pack(anchor="w", pady=(0, 5))
-        
-        # Lista de puntos actuales
-        self.points_frame = ctk.CTkFrame(curve_frame, fg_color=COLORS['bg_dark'])
-        self.points_frame.pack(fill="x", pady=5, padx=5)
-        self._refresh_curve_points()
-        
-        # Sección añadir punto con ENTRIES
-        add_section = ctk.CTkFrame(curve_frame, fg_color=COLORS['bg_dark'])
-        add_section.pack(fill="x", pady=5, padx=5)
-
-        ctk.CTkLabel(
-            add_section,
-            text="AÑADIR NUEVO PUNTO",
-            text_color=COLORS['success'],
-            font=(FONT_FAMILY, FONT_SIZES['small'], "bold")
-        ).pack(anchor="w", padx=5, pady=5)
-
-        # Fila con los dos entries en línea
-        entries_row = ctk.CTkFrame(add_section, fg_color=COLORS['bg_dark'])
-        entries_row.pack(fill="x", padx=5, pady=5)
-
-        # — Temperatura —
-        temp_col = ctk.CTkFrame(entries_row, fg_color=COLORS['bg_dark'])
-        temp_col.pack(side="top", padx=(0, 20))
-
-        ctk.CTkLabel(
-            temp_col,
-            text="Temperatura (°C)",
-            text_color=COLORS['text'],
-            font=(FONT_FAMILY, FONT_SIZES['small'])
-        ).pack(anchor="n")
-
-        self._entry_temp = ctk.CTkEntry(
-            temp_col,
-            textvariable=self.new_temp_var,
-            width=120,
-            height=36,
-            font=(FONT_FAMILY, FONT_SIZES['medium']),
-            text_color=COLORS['text_dim'],      # color placeholder
-            fg_color=COLORS['bg_medium'],
-            border_color=COLORS['primary']
-        )
-        self._entry_temp.pack(pady=4)
-        self._entry_temp.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._entry_temp, self.new_temp_var, self._PLACEHOLDER_TEMP))
-        self._entry_temp.bind("<FocusOut>", lambda e: self._entry_focus_out(self._entry_temp, self.new_temp_var, self._PLACEHOLDER_TEMP))
-
-        # — PWM —
-        pwm_col = ctk.CTkFrame(entries_row, fg_color=COLORS['bg_dark'])
-        pwm_col.pack(side="top", padx=(0, 20))
-
-        ctk.CTkLabel(
-            pwm_col,
-            text="PWM (0-255)",
-            text_color=COLORS['text'],
-            font=(FONT_FAMILY, FONT_SIZES['small'])
-        ).pack(anchor="n")
-
-        self._entry_pwm = ctk.CTkEntry(
-            pwm_col,
-            textvariable=self.new_pwm_var,
-            width=120,
-            height=36,
-            font=(FONT_FAMILY, FONT_SIZES['medium']),
-            text_color=COLORS['text_dim'],      # color placeholder
-            fg_color=COLORS['bg_medium'],
-            border_color=COLORS['primary']
-        )
-        self._entry_pwm.pack(pady=4)
-        self._entry_pwm.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._entry_pwm, self.new_pwm_var, self._PLACEHOLDER_PWM))
-        self._entry_pwm.bind("<FocusOut>", lambda e: self._entry_focus_out(self._entry_pwm, self.new_pwm_var, self._PLACEHOLDER_PWM))
-
-        # Botón añadir
-        make_futuristic_button(
-            add_section,
-            text="✓ Añadir Punto a la Curva",
-            command=self._add_curve_point_from_entries,
-            width=25,
-            height=6,
-            font_size=16
-        ).pack(pady=10)
-
-    # ── Helpers de placeholder ──────────────────────────────────────────────
-
-    def _entry_focus_in(self, entry: ctk.CTkEntry, var: tk.StringVar, placeholder: str):
-        """Borra el placeholder al enfocar y cambia color a texto normal"""
-        if var.get() == placeholder:
-            var.set("")
-            entry.configure(text_color=COLORS['text'])
-
-    def _entry_focus_out(self, entry: ctk.CTkEntry, var: tk.StringVar, placeholder: str):
-        """Restaura el placeholder si el campo queda vacío"""
-        if var.get().strip() == "":
-            var.set(placeholder)
-            entry.configure(text_color=COLORS['text_dim'])
-
-    # ── Lógica de añadir punto ──────────────────────────────────────────────
-
-    def _add_curve_point_from_entries(self):
-        """Valida los entries y añade el punto a la curva"""
-        temp_raw = self.new_temp_var.get().strip()
-        pwm_raw  = self.new_pwm_var.get().strip()
-
-        # Validar que no son placeholders ni vacíos
-        if temp_raw in ("", self._PLACEHOLDER_TEMP) or pwm_raw in ("", self._PLACEHOLDER_PWM):
-            custom_msgbox(self, "Introduce un valor en ambos campos.", "Error")
-            return
-
-        try:
-            temp = int(temp_raw)
-            pwm  = int(pwm_raw)
-        except ValueError:
-            custom_msgbox(self, "Los valores deben ser números enteros.", "Error")
-            return
-
-        if not (0 <= temp <= 100):
-            custom_msgbox(self, "La temperatura debe estar entre 0 y 100 °C.", "Error")
-            return
-        if not (0 <= pwm <= 255):
-            custom_msgbox(self, "El PWM debe estar entre 0 y 255.", "Error")
-            return
-
-        # Añadir punto
-        self.fan_controller.add_curve_point(temp, pwm)
-
-        # Resetear entries a placeholder
-        self.new_temp_var.set(self._PLACEHOLDER_TEMP)
-        self.new_pwm_var.set(self._PLACEHOLDER_PWM)
-        self._entry_temp.configure(text_color=COLORS['text_dim'])
-        self._entry_pwm.configure(text_color=COLORS['text_dim'])
-
-        # Refrescar lista y confirmar
-        self._refresh_curve_points()
-        custom_msgbox(self, f"✓ Punto añadido:\n{temp}°C → PWM {pwm}", "Éxito")
-
-    # ── Curva ───────────────────────────────────────────────────────────────
-
-    def _refresh_curve_points(self):
-        """Refresca la lista de puntos de la curva"""
-        for widget in self.points_frame.winfo_children():
-            widget.destroy()
-        
-        curve = self.file_manager.load_curve()
-        
-        if not curve:
-            ctk.CTkLabel(
-                self.points_frame,
-                text="No hay puntos en la curva",
-                text_color=COLORS['warning'],
-                font=(FONT_FAMILY, FONT_SIZES['small'])
-            ).pack(pady=10)
-            return
-        
-        for point in curve:
-            temp = point['temp']
-            pwm  = point['pwm']
-            
-            point_frame = ctk.CTkFrame(self.points_frame, fg_color=COLORS['bg_medium'])
-            point_frame.pack(fill="x", pady=2, padx=5)
-            
-            ctk.CTkLabel(
-                point_frame,
-                text=f"{temp}°C → PWM {pwm}",
-                text_color=COLORS['text'],
-                font=(FONT_FAMILY, FONT_SIZES['small'])
-            ).pack(side="left", padx=10)
-            
-            make_futuristic_button(
-                point_frame,
-                text="Eliminar",
-                command=lambda t=temp: self._remove_curve_point(t),
-                width=10,
-                height=3,
-                font_size=12
-            ).pack(side="right", padx=5)
-
-    def _remove_curve_point(self, temp: int):
-        """Elimina un punto de la curva"""
-        self.fan_controller.remove_curve_point(temp)
-        self._refresh_curve_points()
-
-    # ── Botones inferiores ──────────────────────────────────────────────────
-
-    def _create_bottom_buttons(self, parent):
-        """Crea los botones inferiores"""
-        bottom = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
-        bottom.pack(fill="x", pady=10, padx=10)
-        
-
-        
-        make_futuristic_button(
-            bottom,
-            text="Refrescar Curva",
-            command=self._refresh_curve_points,
-            width=15,
-            height=6
-        ).pack(side="left", padx=5)
-
-    # ── Callbacks modo / PWM ────────────────────────────────────────────────
-
-    def _on_mode_change(self, mode: str):
-        """Callback cuando cambia el modo"""
-        temp = self.system_monitor.get_current_stats()['temp']
-        target_pwm = self.fan_controller.get_pwm_for_mode(
-            mode=mode,
-            temp=temp,
-            manual_pwm=self.manual_pwm_var.get()
-        )
-        percent = int(target_pwm / 255 * 100)
-        self.manual_pwm_var.set(target_pwm)
-        self.pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
-        self.file_manager.write_state({"mode": mode, "target_pwm": target_pwm})
-    
-    def _on_pwm_change(self, value):
-        """Callback cuando cambia el PWM manual"""
-        pwm = int(float(value))
-        percent = int(pwm / 255 * 100)
-        self.pwm_value_label.configure(text=f"Valor: {pwm} ({percent}%)")
-        if self.mode_var.get() == "manual":
-            self.file_manager.write_state({"mode": "manual", "target_pwm": pwm})
-    
-    def _update_pwm_display(self):
-        """Actualiza el slider y valor para reflejar el PWM activo"""
-        if not self.winfo_exists():
-            return
-        
-        mode = self.mode_var.get()
-        if mode != "manual":
-            temp = self.system_monitor.get_current_stats()['temp']
-            target_pwm = self.fan_controller.get_pwm_for_mode(
-                mode=mode,
-                temp=temp,
-                manual_pwm=self.manual_pwm_var.get()
-            )
-            percent = int(target_pwm / 255 * 100)
-            self.manual_pwm_var.set(target_pwm)
-            self.pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
-        
-        self.after(2000, self._update_pwm_display)
-`````
-
 ## File: IDEAS_EXPANSION.md
-`````markdown
-# 💡 Ideas de Expansión - Dashboard v3.0
+````markdown
+# 💡 Ideas de Expansión - Dashboard v3.1
 
 ---
 
@@ -11934,16 +12577,10 @@ class FanControlWindow(ctk.CTkToplevel):
 - ✅ Ventana `HomebridgeWindow` con grid de 2 columnas estilo Lanzadores
 - ✅ Indicador ● color por dispositivo (on/off), ⚠ rojo si `StatusFault=1`
 - ✅ Soporte para accesorios con característica HomeKit `On` (enchufes e interruptores)
-- ✅ 3 badges en el botón "Homebridge" del menú:
-  - `hb_offline` 🔴 — Homebridge sin conexión
-  - `hb_on` 🟠 — N enchufes encendidos
-  - `hb_fault` 🔴 — N dispositivos con StatusFault=1
+- ✅ 3 badges en el botón "Homebridge" del menú
 - ✅ `_reachable = None` al arrancar → badges no aparecen hasta primera consulta real
 - ✅ Configuración por `.env` — credenciales fuera del código
 - ✅ Dependencia `python-dotenv>=1.0.0` con fallback manual si no está instalada
-
----
-
 
 ---
 
@@ -11966,6 +12603,8 @@ class FanControlWindow(ctk.CTkToplevel):
 - ✅ Estado disabled en rojo para dispositivos con fallo (no interactivo)
 - ✅ Colores del tema activo: success (ON), bg_light (OFF), danger (fallo)
 - ✅ Nombre del dispositivo integrado como etiqueta del switch
+
+---
 
 ### ~~**15. Visor de Logs**~~ ✅ Implementado en v3.0
 **Implementado en v3.0**
@@ -11994,52 +12633,85 @@ class FanControlWindow(ctk.CTkToplevel):
 
 ---
 
-## 🔄 En Evaluación
-
-### **Monitor de Contenedores Docker**
-**Prioridad**: Alta si usas Docker en la Pi  
-**Complejidad**: Media
-
-- Start/Stop/Restart contenedores
-- Ver logs en tiempo real
-- Estadísticas de uso por contenedor (CPU, RAM)
-- Ver puertos expuestos
-- Similar a `docker ps` y `docker stats` pero visual
-
----
-
-### **Soporte Homebridge extendido**
-**Prioridad**: Media  
-**Complejidad**: Baja-Media
-
-- Termostatos (característica `CurrentTemperature`, `TargetTemperature`)
-- Sensores de temperatura/humedad (solo lectura)
-- Persianas y estores (característica `CurrentPosition`)
-- Luces con brillo (`Brightness`)
+### ~~**18. Alertas Externas por Telegram**~~ ✅ Implementado en v3.1
+**Implementado en v3.1**
+- ✅ `AlertService` en `core/` — singleton, daemon thread, comprobación cada 15s
+- ✅ Sin dependencias nuevas — usa `urllib` de la stdlib
+- ✅ Métricas monitorizadas: temperatura, CPU, RAM, disco (umbrales warn + crit independientes) y servicios fallidos
+- ✅ Anti-spam: edge-trigger + sustain de 60s (condición debe mantenerse antes de enviar)
+- ✅ Reseteo automático cuando la condición baja del umbral (permite nuevo flanco)
+- ✅ `send_test()` para verificar configuración sin esperar una alerta real
+- ✅ Configurable por `.env`: `TELEGRAM_TOKEN` + `TELEGRAM_CHAT_ID`
+- ✅ Si las variables no están configuradas, el servicio arranca pero no envía (warning en log)
+- ✅ Integrado en `main.py` con `start()`/`stop()` y `atexit` igual que el resto de servicios
 
 ---
 
-### **Alertas Externas**
-**Prioridad**: Baja  
-**Complejidad**: Media
-
-- Notificaciones por Telegram o webhook
-- Alertas por temperatura alta sostenida, CPU, disco lleno, servicios caídos
-- Configurable por umbral y duración
+### ~~**19. Homebridge Extendido**~~ ✅ Implementado en v3.1
+**Implementado en v3.1**
+- ✅ `HomebridgeMonitor` reconoce ahora 5 tipos de dispositivo:
+  - `switch` — característica `On` (enchufe / interruptor)
+  - `light` — `On` + `Brightness` (luz regulable)
+  - `thermostat` — `CurrentTemperature` + `TargetTemperature`
+  - `sensor` — `CurrentTemperature` y/o `CurrentRelativeHumidity` (solo lectura)
+  - `blind` — `CurrentPosition` (persiana / estor)
+- ✅ `set_brightness(unique_id, brightness)` — control de brillo 0–100%
+- ✅ `set_target_temp(unique_id, temp)` — control de temperatura objetivo en termostatos
+- ✅ Tarjetas adaptativas en `HomebridgeWindow._create_device_card()` según `acc["type"]`
+- ✅ Termostato: temperatura actual + botones +/− 0.5°C con closure mutable
+- ✅ Sensor: lectura de temp y/o humedad con íconos 🌡 💧
+- ✅ Persiana: barra `CTkProgressBar` mostrando posición actual (control en HomeKit)
 
 ---
 
-### **Monitor de GPU**
-**Prioridad**: Muy baja (Raspberry Pi sin GPU dedicada)  
-**Complejidad**: Media
+### ~~**20. UI Diálogo Salir**~~ ✅ Implementado en v3.1
+**Implementado en v3.1**
+- ✅ Radiobuttons táctiles 30×30px en el diálogo de salir (`radiobutton_width=30, radiobutton_height=30`)
+- ✅ Botones ajustados a referencia estándar: Continuar `width=15, height=8`, Cancelar `width=20, height=10`
+- ✅ `buttons_frame` con `side="bottom"` para evitar hueco inferior en el layout
+
+---
+
+## 🔄 Planificado v3.2
+
+### ~~**Historial de Alertas**~~ — Guía disponible: `GUIA_HISTORIAL_ALERTAS.md`
+**Complejidad**: 🟢 Baja — 2-3h  
+**Archivos**: `core/alert_service.py` (modificar), `ui/windows/alert_history.py` (nuevo)
+
+- Persistencia en `data/alert_history.json` (máx. 100 entradas)
+- Ventana nueva "Historial Alertas" con tarjetas por alerta: timestamp, métrica, nivel, valor
+- Colores por nivel: naranja (warn), rojo (crit)
+- Botón "Borrar todo" con confirmación
+- Solo guarda alertas enviadas con éxito a Telegram (o siempre si se prefiere)
+
+---
+
+### ~~**Panel de Red Local (arp-scan)**~~ — Guía disponible: `GUIA_PANEL_RED_PIHOLE.md`
+**Complejidad**: 🟡 Media — 3h  
+**Archivos**: `core/network_scanner.py` (nuevo), `ui/windows/network_local.py` (nuevo)
+
+- Escaneo con `sudo arp-scan --localnet` en thread background
+- Lista de dispositivos: IP, MAC, fabricante, hostname resuelto
+- Refresco manual + automático cada 60s
+- Prerequisito: añadir `arp-scan` a sudoers para ejecución sin contraseña
+
+---
+
+### ~~**Pi-hole Stats**~~ — Guía disponible: `GUIA_PANEL_RED_PIHOLE.md`
+**Complejidad**: 🟡 Media — 2-3h  
+**Archivos**: `core/pihole_monitor.py` (nuevo), `ui/windows/pihole_window.py` (nuevo)
+
+- `PiholeMonitor` — 9º servicio background, sondeo cada 60s, API Pi-hole v5
+- Métricas: queries hoy, bloqueadas, % bloqueado, dominios en lista, clientes únicos, estado
+- Configurable por `.env`: `PIHOLE_HOST`, `PIHOLE_PORT`, `PIHOLE_TOKEN`
+- Badge `pihole_offline` en el menú si Pi-hole no responde
+- Nota: requiere Pi-hole v5 (api.php); v6 tiene API diferente
 
 ---
 
 ## 🚀 Ideas Futuras (Backlog)
 
-**Automatización**: cron visual, profiles de ventiladores por hora, auto-reinicio de servicios caídos
-
-**Red avanzada**: monitor de dispositivos en red (nmap), Pi-hole stats, VPN panel
+**Automatización**: cron visual, perfiles de ventiladores por hora, auto-reinicio servicios caídos
 
 **Backup**: programar backups, estado con progreso, sincronización cloud
 
@@ -12062,7 +12734,6 @@ class FanControlWindow(ctk.CTkToplevel):
 - ✅ Badges de notificación visual en menú principal (6 badges, 5 botones)
 - ✅ CleanupService — limpieza automática background de CSV, PNG y BD
 - ✅ Fan control: entries con placeholder en lugar de sliders
-- ✅ Inyección de dependencias profesional (CleanupService → HistoryWindow)
 
 ### **v2.7** ✅ — 2026-02-23
 - ✅ Header unificado `make_window_header()` en todas las ventanas
@@ -12075,7 +12746,6 @@ class FanControlWindow(ctk.CTkToplevel):
 - ✅ HomebridgeMonitor con JWT, sondeo 30s, caché en memoria
 - ✅ HomebridgeWindow con toggle táctil en grid 2 columnas
 - ✅ 3 badges Homebridge en menú principal
-- ✅ Configuración por .env (credenciales seguras)
 
 ### **v2.9** ✅ — 2026-02-24
 - ✅ SystemMonitor y ServiceMonitor con caché en background thread
@@ -12084,17 +12754,25 @@ class FanControlWindow(ctk.CTkToplevel):
 - ✅ make_homebridge_switch() en ui/styles.py
 - ✅ Logging completo en todos los servicios background (FanAutoService incluido)
 
-### **v3.0** ✅ ACTUAL — 2026-02-26
+### **v3.0** ✅ — 2026-02-26
 - ✅ Visor de Logs con filtros avanzados y exportación
 - ✅ Exports organizados en data/exports/{csv,logs,screenshots}
 - ✅ Limpieza automática al exportar (CSV, PNG, logs)
 - ✅ Fix grab_set en FanControlWindow — entries funcionan en todas las ventanas
 
-### **v3.1** (Futuro)
-- [ ] Alertas externas (Telegram/webhook)
+### **v3.1** ✅ ACTUAL — 2026-02-26
+- ✅ Alertas externas por Telegram (AlertService, anti-spam, 5 métricas)
+- ✅ Homebridge extendido (5 tipos: switch, light, thermostat, sensor, blind)
+- ✅ UI diálogo salir mejorada (radiobuttons 30×30, botones ajustados)
+
+### **v3.2** (Próxima)
+- [ ] Historial de alertas (ventana + persistencia JSON)
+- [ ] Panel de red local (arp-scan, lista dispositivos)
+- [ ] Pi-hole stats (monitor background, ventana métricas, badge)
+
+### **v3.3** (Futuro)
+- [ ] Automatización (cron visual, perfiles ventiladores, auto-reinicio)
 - [ ] API REST básica
-- [ ] Monitor Docker (si aplica)
-- [ ] Soporte Homebridge extendido (termostatos, sensores, persianas)
 
 ---
 
@@ -12109,21 +12787,23 @@ class FanControlWindow(ctk.CTkToplevel):
 | Logging y observabilidad | ✅ 100% |
 | Notificaciones visuales internas | ✅ 100% |
 | UI unificada y táctil | ✅ 100% |
-| Integración Homebridge (enchufes/interruptores) | ✅ 100% |
+| Integración Homebridge (5 tipos) | ✅ 100% |
 | Visor de logs con filtros y exportación | ✅ 100% |
 | Exports organizados y limpieza automática | ✅ 100% |
-| Homebridge extendido (termostatos, sensores) | ⏳ 0% |
-| Alertas externas | ⏳ 0% |
-| Docker | ⏳ 0% |
+| Alertas externas Telegram | ✅ 100% |
+| Historial de alertas | 📋 Guía lista |
+| Panel de red local (arp-scan) | 📋 Guía lista |
+| Pi-hole stats | 📋 Guía lista |
 | Automatización | ⏳ 0% |
+| API REST | ⏳ 0% |
 
 ---
 
-**Versión actual**: v3.0 — **Última actualización**: 2026-02-26
-`````
+**Versión actual**: v3.1 — **Próxima**: v3.2 — **Última actualización**: 2026-02-26
+````
 
 ## File: ui/windows/history.py
-`````python
+````python
 """
 Ventana de histórico de datos
 """
@@ -12662,18 +13342,18 @@ class HistoryWindow(ctk.CTkToplevel):
 
     def _on_motion(self, event):
         pass
-`````
+````
 
 ## File: README.md
-`````markdown
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.0
+````markdown
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.1
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge y logging completo.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge y alertas externas por Telegram.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-3.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.1-orange.svg)]()
 
 ---
 
@@ -12704,15 +13384,30 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Speedtest integrado**: CLI oficial de Ookla (JSON nativo, resultados en MB/s reales)
 - **Status en header**: interfaz activa + velocidades actuales
 
-### 🏠 **Integración Homebridge**
-- **Control de accesorios HomeKit**: Enchufes e interruptores desde el dashboard
+### 🏠 **Integración Homebridge Extendida**
+- **5 tipos de dispositivo**: switch/enchufe, luz regulable (brillo), termostato, sensor temperatura/humedad, persiana/estor
 - **CTkSwitch táctil** (90×46px): Toggle grande optimizado para uso con el dedo en pantalla DSI
+- **Tarjetas adaptativas**: Cada tipo muestra su propia interfaz de control
+  - **Luces**: switch ON/OFF igual que enchufes
+  - **Termostatos**: temperatura actual + botones +/− 0.5°C para temperatura objetivo
+  - **Sensores**: temperatura y/o humedad en modo solo lectura
+  - **Persianas**: posición actual (%) con barra visual (control desde HomeKit)
 - **Indicador visual**: switch verde ON / gris OFF, ⚠ rojo bloqueado si `StatusFault=1`
 - **Sondeo ligero en background**: Cada 30 segundos sin bloquear la UI
 - **Autenticación JWT** con renovación automática en 401
-- **3 badges en el menú**: offline (🔴), enchufes encendidos (🟠), dispositivos con fallo (🔴)
+- **3 badges en el menú**: offline (🔴), dispositivos encendidos (🟠), dispositivos con fallo (🔴)
 - **Configuración por `.env`**: IP, puerto, usuario y contraseña de Homebridge
 - Requiere **Insecure Mode** activado en Homebridge para acceder a accesorios
+
+### 📲 **Alertas Externas por Telegram**
+- **Sin dependencias nuevas**: usa `urllib` de la stdlib de Python
+- **Métricas monitorizadas**: temperatura, CPU, RAM, disco y servicios fallidos
+- **Umbrales configurables**: warn y crit independientes por métrica
+- **Anti-spam inteligente**: edge-trigger + sustain de 60s (condición debe mantenerse antes de enviar)
+- **Reseteo automático**: cuando la condición baja del umbral, permite una nueva alerta en el siguiente flanco
+- **Configurable por `.env`**: `TELEGRAM_TOKEN` + `TELEGRAM_CHAT_ID`
+- **Mensaje de prueba**: `alert_service.send_test()` para verificar la configuración
+- **8º servicio background**: integrado en `main.py` con `start()`/`stop()` igual que el resto
 
 ### ⚙️ **Monitor de Procesos**
 - **Lista en tiempo real**: Top 20 procesos con CPU/RAM
@@ -12765,7 +13460,7 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### /󰿅 **Reinicio y Apagado**
 - **Botón Reiniciar**: Reinicia el dashboard aplicando cambios de código
-- **Botón Salir**: Salir de la app o apagar el sistema
+- **Botón Salir**: Salir de la app o apagar el sistema con radiobuttons táctiles (30×30px)
 - **Terminal de apagado**: Visualiza `apagado.sh` en tiempo real
 - **Con confirmación**: Evita acciones accidentales
 
@@ -12784,7 +13479,7 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Servicios fallidos**: rojo con contador (Monitor Servicios)
 - **Actualizaciones pendientes**: naranja con contador (Actualizaciones)
 - **Homebridge offline**: rojo si sin conexión
-- **Enchufes encendidos**: naranja con contador de dispositivos ON
+- **Dispositivos encendidos**: naranja con contador
 - **Dispositivos con fallo**: rojo si `StatusFault=1`
 
 ### 🧹 **Limpieza Automática**
@@ -12883,7 +13578,36 @@ HOMEBRIDGE_PASS=tu_contraseña
 
 El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
 
-La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarjeta incluye un **switch grande (90×46px)** con el nombre del dispositivo como etiqueta, optimizado para activar/desactivar con el dedo. Si un dispositivo tiene `StatusFault=1` el switch aparece bloqueado con un aviso ⚠ FALLO en rojo.
+La ventana Homebridge muestra los accesorios en un grid de 2 columnas con tarjetas adaptativas según el tipo de dispositivo.
+
+---
+
+## 📲 Configuración de Alertas Telegram
+
+Añade al archivo `.env` existente:
+
+```env
+TELEGRAM_TOKEN=123456789:ABCdefGHI...   # Token del bot (@BotFather)
+TELEGRAM_CHAT_ID=987654321              # ID del chat o canal destino
+```
+
+> Si `TELEGRAM_TOKEN` o `TELEGRAM_CHAT_ID` no están configurados, `AlertService` arranca igualmente pero registra un warning y no envía nada.
+
+Para verificar la configuración desde Python:
+
+```python
+alert_service.send_test()
+```
+
+### Umbrales por defecto
+
+| Métrica  | Aviso (🟠) | Crítico (🔴) |
+|----------|-----------|------------|
+| Temperatura | 60°C | 70°C |
+| CPU | 85% | 95% |
+| RAM | 85% | 95% |
+| Disco | 85% | 95% |
+| Servicios | — | cualquier FAILED |
 
 ---
 
@@ -12926,7 +13650,7 @@ La ventana Homebridge muestra los accesorios en un grid de 2 columnas. Cada tarj
 8. **Monitor Servicios** - Control de servicios systemd
 9. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
 10. **Actualizaciones** - Gestión de paquetes del sistema
-11. **Homebridge** - Control de accesorios HomeKit con switches táctiles
+11. **Homebridge** - Control de 5 tipos de dispositivos HomeKit
 12. **Visor de Logs** - Visualización y exportación del log del dashboard
 13. **Cambiar Tema** - Selecciona entre 15 temas
 14. **Reiniciar** - Reinicia el dashboard
@@ -12972,7 +13696,8 @@ system_dashboard/
 │   ├── process_monitor.py          # Gestión de procesos
 │   ├── service_monitor.py          # Servicios systemd — caché 10s, batch is-enabled
 │   ├── update_monitor.py           # Actualizaciones con caché 12h
-│   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s)
+│   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s, 5 tipos)
+│   ├── alert_service.py            # Alertas Telegram (urllib, anti-spam, 5 métricas)
 │   ├── data_logger.py              # SQLite logging
 │   ├── data_analyzer.py            # Análisis histórico
 │   ├── data_collection_service.py  # Recolección automática (singleton)
@@ -12990,7 +13715,7 @@ system_dashboard/
 │       ├── process_window.py, service.py, history.py
 │       ├── update.py, fan_control.py
 │       ├── launchers.py, theme_selector.py
-│       ├── homebridge.py           # Ventana de control Homebridge con CTkSwitch
+│       ├── homebridge.py           # 5 tarjetas adaptativas por tipo de dispositivo
 │       ├── log_viewer.py           # Visor de logs con filtros y exportación
 │       └── __init__.py
 ├── utils/
@@ -13006,11 +13731,10 @@ system_dashboard/
 │       ├── logs/                   # Exportaciones del visor de logs
 │       └── screenshots/            # Capturas de gráficas
 ├── scripts/                         # Scripts personalizados del usuario
-├── .env                             # Credenciales Homebridge (NO en git)
+├── .env                             # Credenciales Homebridge + Telegram (NO en git)
 ├── .env.example                     # Plantilla de configuración
 ├── install_system.sh               # Instalación directa (recomendada)
 ├── install.sh                      # Instalación con venv (alternativa)
-├── test_logging.py                 # Prueba del sistema de logging
 ├── main.py
 └── requirements.txt
 ```
@@ -13036,13 +13760,16 @@ LAUNCHERS = [
 ]
 ```
 
-### **`.env` (Homebridge)**
+### **`.env` (Homebridge + Telegram)**
 
 ```env
 HOMEBRIDGE_HOST=192.168.1.X
 HOMEBRIDGE_PORT=8581
 HOMEBRIDGE_USER=admin
 HOMEBRIDGE_PASS=tu_contraseña
+
+TELEGRAM_TOKEN=123456789:ABCdefGHI...
+TELEGRAM_CHAT_ID=987654321
 ```
 
 ---
@@ -13064,12 +13791,13 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 
 Todos los servicios background registran su inicio y parada. Al arrancar verás entradas como:
 ```
-[SystemMonitor]   Sondeo iniciado (cada 2.0s)
-[ServiceMonitor]  Sondeo iniciado (cada 10s)
+[SystemMonitor]     Sondeo iniciado (cada 2.0s)
+[ServiceMonitor]    Sondeo iniciado (cada 10s)
 [HomebridgeMonitor] Sondeo iniciado (cada 30s)
-[FanAutoService]  Servicio iniciado
-[DataCollection]  Servicio iniciado (cada 5 min)
-[CleanupService]  Servicio iniciado
+[FanAutoService]    Servicio iniciado
+[DataCollection]    Servicio iniciado (cada 5 min)
+[CleanupService]    Servicio iniciado
+[AlertService]      Servicio iniciado (cada 15s)
 ```
 
 ---
@@ -13080,7 +13808,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 - **Uso RAM**: ~100-150 MB
 - **Base de datos**: ~5 MB por 10,000 registros
 - **Actualización UI**: 2 segundos (configurable en `UPDATE_MS`) — solo lectura de caché, sin syscalls bloqueantes
-- **Threads background**: 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main)
+- **Threads background**: 8 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + main)
 - **Log**: máx. 2MB con rotación automática
 
 ---
@@ -13099,6 +13827,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 | Badge hb_offline siempre rojo | Comprobar `HOMEBRIDGE_HOST` en `.env` y red entre Pis |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
 | No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
+| Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env`; ejecutar `send_test()` |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
@@ -13117,20 +13846,28 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 | Métrica | Valor |
 |---------|-------|
-| Versión | 3.0 |
-| Archivos Python | 44 |
+| Versión | 3.1 |
+| Archivos Python | 45 |
 | Ventanas | 15 |
 | Temas | 15 |
-| Servicios background | 7 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + main) |
+| Servicios background | 8 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + main) |
 | Badges en menú | 9 |
 | Cobertura logging | 100% módulos core y UI |
 | Exports organizados | 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo |
+| Tipos Homebridge | 5 (switch, light, thermostat, sensor, blind) |
 
 ---
 
 ## Changelog
 
-### **v3.0** - 2026-02-26 ⭐ ACTUAL
+### **v3.1** - 2026-02-26 ⭐ ACTUAL
+- ✅ **NUEVO**: Alertas externas por Telegram — `AlertService` con anti-spam (edge-trigger + sustain 60s), umbrales para temp/CPU/RAM/disco y servicios, sin dependencias nuevas (urllib stdlib)
+- ✅ **NUEVO**: Homebridge extendido — soporte para 5 tipos de dispositivo: switch, luz regulable, termostato, sensor temperatura/humedad, persiana
+- ✅ **NUEVO**: `set_brightness()` y `set_target_temp()` en `HomebridgeMonitor`
+- ✅ **NUEVO**: Tarjetas adaptativas en `HomebridgeWindow` según tipo de dispositivo
+- ✅ **MEJORA**: Diálogo salir — radiobuttons táctiles (30×30px), botones ajustados, layout corregido
+
+### **v3.0** - 2026-02-26
 - ✅ **NUEVO**: Visor de Logs — ventana con filtros por nivel, módulo, texto libre e intervalo de fechas/horas
 - ✅ **NUEVO**: Exportación de logs filtrados a `data/exports/logs/`
 - ✅ **NUEVO**: Carpetas organizadas para exports — `data/exports/{csv,logs,screenshots}` (creadas automáticamente al arrancar)
@@ -13162,8 +13899,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 ### **v2.6** - 2026-02-22
 - ✅ **NUEVO**: 6 badges de notificación visual en menú principal
 - ✅ **NUEVO**: `CleanupService` — limpieza automática background de CSV, PNG y BD
-- ✅ **NUEVO**: Fan control
- con entries en lugar de sliders
+- ✅ **NUEVO**: Fan control con entries en lugar de sliders
 
 ### v2.5.1 - 2026-02-19
 - Logging completo, Ventana Actualizaciones, Fix atexit DataCollectionService
@@ -13191,11 +13927,11 @@ CustomTkinter - psutil - matplotlib - Ookla Speedtest CLI - Homebridge - Raspber
 
 ---
 
-Dashboard v3.0: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit y sin bloqueos en UI
-`````
+Dashboard v3.1: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit, con Alertas Telegram y sin bloqueos en UI
+````
 
 ## File: main.py
-`````python
+````python
 #!/usr/bin/env python3
 """
 Sistema de Monitoreo y Control
@@ -13207,7 +13943,9 @@ import atexit
 import threading
 import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
-from core import SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService
+from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, 
+                  ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
+                  PiholeMonitor)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from ui.main_window import MainWindow
@@ -13244,6 +13982,9 @@ def main():
     update_monitor = UpdateMonitor()
     homebridge_monitor = HomebridgeMonitor()
     homebridge_monitor.start()
+    network_scanner = NetworkScanner()
+    pihole_monitor = PiholeMonitor()
+    pihole_monitor.start()
 
     # Comprobación inicial de actualizaciones en background
     # No bloquea el arranque y llena el caché para toda la sesión
@@ -13295,6 +14036,7 @@ def main():
         system_monitor.stop()
         service_monitor.stop()
         alert_service.stop()
+        pihole_monitor.stop()
     
     atexit.register(cleanup)
     
@@ -13310,7 +14052,10 @@ def main():
         service_monitor=service_monitor,
         update_monitor=update_monitor,
         cleanup_service=cleanup_service,
-        homebridge_monitor=homebridge_monitor
+        homebridge_monitor=homebridge_monitor,
+        network_scanner=network_scanner,
+        pihole_monitor=pihole_monitor,
+        alert_service=alert_service,
     )
 
     try:
@@ -13321,10 +14066,10 @@ def main():
 
 if __name__ == "__main__":
     main()
-`````
+````
 
 ## File: ui/main_window.py
-`````python
+````python
 """
 Ventana principal del sistema de monitoreo
 """
@@ -13332,7 +14077,9 @@ import tkinter as tk
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_X, DSI_Y, SCRIPTS_DIR
 from ui.styles import StyleManager, make_futuristic_button
-from ui.windows import FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow
+from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, 
+                        HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow, 
+                        NetworkLocalWindow, PiholeWindow, AlertHistoryWindow)
 from ui.windows.log_viewer import LogViewerWindow
 from ui.widgets import confirm_dialog, terminal_dialog
 from utils.system_utils import SystemUtils
@@ -13340,6 +14087,7 @@ from utils.logger import get_logger
 import sys
 import os
 from datetime import datetime
+import psutil  # uptime badge
 logger = get_logger(__name__)
 
 
@@ -13347,7 +14095,7 @@ class MainWindow:
     """Ventana principal del dashboard"""
     
     def __init__(self, root, system_monitor, fan_controller, network_monitor,
-                 disk_monitor, process_monitor, service_monitor, update_monitor, cleanup_service, homebridge_monitor,
+                 disk_monitor, process_monitor, service_monitor, update_monitor, cleanup_service, homebridge_monitor, network_scanner, pihole_monitor, alert_service,
                  update_interval=2000):
         self.root = root
         self.system_monitor = system_monitor
@@ -13359,6 +14107,9 @@ class MainWindow:
         self.update_monitor = update_monitor
         self.cleanup_service = cleanup_service
         self.homebridge_monitor = homebridge_monitor
+        self.network_scanner = network_scanner
+        self.pihole_monitor = pihole_monitor
+        self.alert_service = alert_service
         
         self.update_interval = update_interval
         self.system_utils = SystemUtils()
@@ -13383,6 +14134,11 @@ class MainWindow:
         self.theme_window = None
         self.homebridge_window = None
         self.log_viewer_window = None
+        self.network_local_window = None
+        self.pihole_window = None
+        self.alert_history_window = None
+
+        self._uptime_tick = 0  # uptime badge: contador para actualizar cada ~60s
 
         logger.info(f"[MainWindow] Dashboard iniciado en {self.system_utils.get_hostname()}")
 
@@ -13415,6 +14171,15 @@ class MainWindow:
             font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
             anchor="center",
         ).pack(side="left", expand=True)
+
+        self._uptime_label = ctk.CTkLabel(  # uptime badge
+            header_bar,
+            text="⏱ --",
+            text_color=COLORS['text_dim'],
+            font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
+            anchor="e",
+        )
+        self._uptime_label.pack(side="right", padx=(0, 4))  # izq del reloj
 
         self._clock_label = ctk.CTkLabel(
             header_bar,
@@ -13483,6 +14248,9 @@ class MainWindow:
             ("󰆧  Actualizaciones",       self.open_update_window,   ["updates"]),
             ("󰟐  Homebridge",        self.open_homebridge,     ["hb_offline", "hb_on", "hb_fault"]),
             ("󰷐  Visor de Logs",        self.open_log_viewer,      []),
+            ("🖧  Red Local",   self.open_network_local,   []),
+            ("🕳  Pi-hole",   self.open_pihole,   ["pihole_offline"]),
+            ("  Historial Alertas",  self.open_alert_history,   []),
             ("󰔎  Cambiar Tema",          self.open_theme_selector,  []),
             ("  Reiniciar",                 self.restart_application,  []),
             ("󰿅  Salir",                 self.exit_application,     []),
@@ -13713,7 +14481,9 @@ class MainWindow:
         """Abre la ventana de control de Homebridge"""
         if self.homebridge_window is None or not self.homebridge_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Homebridge")
+            self._btn_active("󰟐  Homebridge")
             self.homebridge_window = HomebridgeWindow(self.root, self.homebridge_monitor)
+            self.homebridge_window.bind("<Destroy>", lambda e: self._btn_idle("󰟐  Homebridge"))
         else:
             self.homebridge_window.lift()
 
@@ -13726,6 +14496,37 @@ class MainWindow:
             self.log_viewer_window.bind("<Destroy>", lambda e: self._btn_idle("󰷐  Visor de Logs"))
         else:
             self.log_viewer_window.lift()
+    
+    def open_network_local(self):
+        """Abre el panel de red local."""
+        if self.network_local_window is None or not self.network_local_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Red Local")
+            self._btn_active("🖧  Red Local")
+            self.network_local_window = NetworkLocalWindow(self.root)
+            self.network_local_window.bind(
+                "<Destroy>", lambda e: self._btn_idle("🖧  Red Local"))
+        else:
+            self.network_local_window.lift()
+    def open_pihole(self):
+        """Abre la ventana de Pi-hole."""
+        if self.pihole_window is None or not self.pihole_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Pi-hole")
+            self._btn_active("🕳  Pi-hole")
+            self.pihole_window = PiholeWindow(self.root, self.pihole_monitor)
+            self.pihole_window.bind("<Destroy>", lambda e: self._btn_idle("🕳  Pi-hole"))
+        else:
+            self.pihole_window.lift()
+    
+    def open_alert_history(self):
+        """Abre el historial de alertas."""
+        if self.alert_history_window is None or not self.alert_history_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Historial Alertas")
+            self._btn_active("  Historial Alertas")
+            self.alert_history_window = AlertHistoryWindow(self.root, self.alert_service)
+            self.alert_history_window.bind(
+                "<Destroy>", lambda e: self._btn_idle("  Historial Alertas"))
+        else:
+            self.alert_history_window.lift()
 
     
     # ── Salir / Reiniciar ─────────────────────────────────────────────────────
@@ -13871,8 +14672,24 @@ class MainWindow:
     # ── Loop de actualización ─────────────────────────────────────────────────
 
     def _tick_clock(self):
-        """Actualiza el reloj cada segundo"""
+        """Actualiza el reloj cada segundo y el uptime cada minuto."""
         self._clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
+
+        # Uptime badge: recalcular cada 60 ticks (~60s) y en el primero
+        self._uptime_tick += 1
+        if self._uptime_tick == 1 or self._uptime_tick >= 60:
+            self._uptime_tick = 1
+            try:
+                import time as _time
+                uptime_s = _time.time() - psutil.boot_time()
+                days    = int(uptime_s // 86400)
+                hours   = int((uptime_s % 86400) // 3600)
+                minutes = int((uptime_s % 3600) // 60)
+                uptime_str = f"⏱ {days}d {hours}h" if days > 0 else f"⏱ {hours}h {minutes}m"
+                self._uptime_label.configure(text=uptime_str)
+            except Exception:
+                pass
+
         self.root.after(1000, self._tick_clock)
 
     def _start_update_loop(self):
@@ -13894,6 +14711,7 @@ class MainWindow:
                 color=COLORS.get('warning', '#ffaa00'),
             )
             self._update_badge("hb_fault", self.homebridge_monitor.get_fault_count())
+            self._update_badge("pihole_offline", self.pihole_monitor.get_offline_count())
 
         except Exception:
             pass
@@ -13971,4 +14789,4 @@ class MainWindow:
         txt_color = "black" if color == COLORS.get('warning', '#ffaa00') else "white"
         canvas.itemconfigure(txt, fill=txt_color)
         canvas.place(relx=1.0, rely=0.0, anchor="ne", x=x_offset, y=6)
-`````
+````
