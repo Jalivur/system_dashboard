@@ -27,6 +27,7 @@ class MainWindow:
                  disk_monitor, process_monitor, service_monitor, update_monitor, 
                  cleanup_service, homebridge_monitor, network_scanner, pihole_monitor, 
                  alert_service, display_service, vpn_monitor, led_service, hardware_monitor,
+                 audio_alert_service,
                  update_interval=2000):
         self.root = root
         self.system_monitor = system_monitor
@@ -45,6 +46,7 @@ class MainWindow:
         self.vpn_monitor = vpn_monitor
         self.led_service = led_service
         self.hardware_monitor = hardware_monitor
+        self.audio_alert_service = audio_alert_service
         
         self.update_interval = update_interval
         self.system_utils = SystemUtils()

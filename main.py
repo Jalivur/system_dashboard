@@ -11,7 +11,7 @@ import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, 
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
-                  PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor)
+                  PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from ui.main_window import MainWindow
@@ -58,6 +58,8 @@ def main():
     #display_service.enable_dim_on_idle()
     vpn_monitor = VpnMonitor()
     vpn_monitor.start()
+    audio_alert_service = AudioAlertService(system_monitor, service_monitor)
+    audio_alert_service.start()
     
 
 
@@ -116,6 +118,7 @@ def main():
         display_service.screen_on()
         vpn_monitor.stop()
         hardware_monitor.stop()
+        audio_alert_service.stop()
     
     atexit.register(cleanup)
     
@@ -138,7 +141,8 @@ def main():
         display_service=display_service,
         vpn_monitor=vpn_monitor,
         led_service=led_service,
-        hardware_monitor=hardware_monitor
+        hardware_monitor=hardware_monitor,
+        audio_alert_service=audio_alert_service,
     )
 
     try:
