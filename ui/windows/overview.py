@@ -230,4 +230,4 @@ class OverviewWindow(ctk.CTkToplevel):
             self._widgets['pihole_status'].configure(text=f"{status}")
         except Exception:
             for k in ('pihole_blocked', 'pihole_pct', 'pihole_total', 'pihole_status'):
-                self._widgets[k].configure(text="--", text_color=COLORS['text_dim'])git 
+                self._widgets[k].configure(text="--", text_color=COLORS['text_dim'])
