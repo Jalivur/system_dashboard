@@ -8,7 +8,7 @@ from ui.styles import StyleManager, make_futuristic_button
 from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, 
                         HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow, 
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
-                        LedWindow)
+                        LedWindow, CameraWindow)
 from ui.windows.log_viewer import LogViewerWindow
 from ui.widgets import confirm_dialog, terminal_dialog
 from utils.system_utils import SystemUtils
@@ -78,6 +78,7 @@ class MainWindow:
         self.vpn_window = None
         self.overview_window = None
         self.led_window = None
+        self.camera_window = None
 
         self._uptime_tick = 0  # uptime badge: contador para actualizar cada ~60s
 
@@ -196,6 +197,7 @@ class MainWindow:
             ("  Historial Alertas",  self.open_alert_history,   []),
             ("󰃟  Brillo Pantalla", self.open_display_window, []),
             ("📊  Resumen Sistema", self.open_overview, []),
+            ("📷  Cámara",        self.open_camera_window, []),
             ("󰔎  Cambiar Tema",          self.open_theme_selector,  []),
             ("  Reiniciar",                 self.restart_application,  []),
             ("󰿅  Salir",                 self.exit_application,     []),
@@ -523,6 +525,15 @@ class MainWindow:
             self.led_window.bind("<Destroy>", lambda e: self._btn_idle("󰟖  LEDs RGB"))
         else:
             self.led_window.lift()
+    
+    def open_camera_window(self):
+        """Abre la ventana de cámara."""
+        if self.camera_window is None or not self.camera_window.winfo_exists():
+            self._btn_active("📷  Cámara")
+            self.camera_window = CameraWindow(self.root)
+            self.camera_window.bind("<Destroy>", lambda e: self._btn_idle("📷  Cámara"))
+        else:
+            self.camera_window.lift()
 
     
     
