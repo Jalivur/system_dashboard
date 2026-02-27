@@ -17,6 +17,7 @@ from .pihole_monitor import PiholeMonitor
 from .display_service import DisplayService       
 from .vpn_monitor import VpnMonitor
 from .led_service import LedService
+from .hardware_monitor import HardwareMonitor
 
 __all__ = [
     'FanController',
@@ -35,4 +36,5 @@ __all__ = [
     'DisplayService',
     'VpnMonitor',
     'LedService',
+    'HardwareMonitor',
 ]

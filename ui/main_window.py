@@ -26,7 +26,7 @@ class MainWindow:
     def __init__(self, root, system_monitor, fan_controller, network_monitor,
                  disk_monitor, process_monitor, service_monitor, update_monitor, 
                  cleanup_service, homebridge_monitor, network_scanner, pihole_monitor, 
-                 alert_service, display_service, vpn_monitor, led_service,
+                 alert_service, display_service, vpn_monitor, led_service, hardware_monitor,
                  update_interval=2000):
         self.root = root
         self.system_monitor = system_monitor
@@ -44,6 +44,7 @@ class MainWindow:
         self.display_service = display_service
         self.vpn_monitor = vpn_monitor
         self.led_service = led_service
+        self.hardware_monitor = hardware_monitor
         
         self.update_interval = update_interval
         self.system_utils = SystemUtils()
@@ -324,7 +325,7 @@ class MainWindow:
         if self.monitor_window is None or not self.monitor_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Placa")
             self._btn_active("󰚗  Monitor Placa")
-            self.monitor_window = MonitorWindow(self.root, self.system_monitor)
+            self.monitor_window = MonitorWindow(self.root, self.system_monitor, self.hardware_monitor)
             self.monitor_window.bind("<Destroy>", lambda e: self._btn_idle("󰚗  Monitor Placa"))
         else:
             self.monitor_window.lift()

@@ -18,9 +18,10 @@ _GRAPH_H_BOT = 75
 class MonitorWindow(ctk.CTkToplevel):
     """Ventana de monitoreo del sistema"""
 
-    def __init__(self, parent, system_monitor: SystemMonitor):
+    def __init__(self, parent, system_monitor: SystemMonitor, hardware_monitor=None):
         super().__init__(parent)
         self.system_monitor = system_monitor
+        self.hardware_monitor = hardware_monitor
         self.widgets = {}
         self.graphs  = {}
 
@@ -73,7 +74,54 @@ class MonitorWindow(ctk.CTkToplevel):
         self._create_cell(grid, 1, 1, "DISCO %",  "disk",       "%",    _GRAPH_H_TOP)
         self._create_cell(grid, 2, 0, "ESCRITURA","disk_write", "MB/s", _GRAPH_H_BOT)
         self._create_cell(grid, 2, 1, "LECTURA",  "disk_read",  "MB/s", _GRAPH_H_BOT)
+    # ── Tarjeta temperatura chasis + fan duty real (FNK0100K) ──
+        # Solo se crea si se pasó hardware_monitor (fase1 activo)
+        if self.hardware_monitor:
+            chassis_card = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+            chassis_card.pack(fill="x", padx=5, pady=(0, 5))
 
+            ctk.CTkLabel(
+                chassis_card,
+                text="🌡️ Hardware FNK0100K  (via fase1.py)",
+                font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
+                text_color=COLORS['primary'],
+                anchor="w",
+            ).pack(anchor="w", padx=8, pady=(6, 4))
+
+            hw_row = ctk.CTkFrame(chassis_card, fg_color="transparent")
+            hw_row.pack(fill="x", padx=8, pady=(0, 10))
+            hw_row.grid_columnconfigure(0, weight=1)
+            hw_row.grid_columnconfigure(1, weight=1)
+            hw_row.grid_columnconfigure(2, weight=1)
+
+            for col_idx, (key, title, unit) in enumerate([
+                ("chassis_temp", "Temp. chasis",  "°C"),
+                ("fan0_pct",     "Fan 1 (real)",  "%"),
+                ("fan1_pct",     "Fan 2 (real)",  "%"),
+            ]):
+                col_frame = ctk.CTkFrame(hw_row, fg_color="transparent")
+                col_frame.grid(row=0, column=col_idx, padx=4, sticky="nsew")
+
+                ctk.CTkLabel(
+                    col_frame,
+                    text=title,
+                    font=(FONT_FAMILY, FONT_SIZES['small']),
+                    text_color=COLORS['text_dim'],
+                    anchor="center",
+                ).pack()
+
+                lbl = ctk.CTkLabel(
+                    col_frame,
+                    text=f"-- {unit}",
+                    font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
+                    text_color=COLORS['primary'],
+                    anchor="center",
+                )
+                lbl.pack()
+
+                # Guardar en self.widgets con el mismo patrón que el resto
+                self.widgets[f"hw_{key}_value"] = (lbl, unit)
+                
     def _create_cell(self, parent, row, col, title, key, unit, graph_h):
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
@@ -110,8 +158,34 @@ class MonitorWindow(ctk.CTkToplevel):
 
         self._header.status_label.configure(
             text=f"CPU {stats['cpu']:.0f}%  ·  RAM {stats['ram']:.0f}%  ·  {stats['temp']:.0f}°C")
+        # ── Hardware FNK0100K (temperatura chasis + fan duty real) ──
+        if self.hardware_monitor:
+            if self.hardware_monitor.is_available():
+                hw = self.hardware_monitor.get_stats()
+                for key, warn, crit in [
+                    ("chassis_temp", 35, 45),
+                    ("fan0_pct",     80, 95),
+                    ("fan1_pct",     80, 95),
+                ]:
+                    entry = self.widgets.get(f"hw_{key}_value")
+                    if entry is None:
+                        continue
+                    lbl, unit = entry
+                    val = hw.get(key)
+                    if val is None:
+                        lbl.configure(text=f"-- {unit}", text_color=COLORS['text_dim'])
+                    else:
+                        color = self.system_monitor.level_color(val, warn, crit)
+                        lbl.configure(text=f"{val:.0f} {unit}", text_color=color)
+            else:
+                # fase1 no activo o datos obsoletos
+                for key in ("chassis_temp", "fan0_pct", "fan1_pct"):
+                    entry = self.widgets.get(f"hw_{key}_value")
+                    if entry:
+                        entry[0].configure(text="fase1 inactivo", text_color=COLORS['text_dim'])
 
         self.after(UPDATE_MS, self._update)
+
 
     def _update_metric(self, key, value, history, unit, warn, crit):
         color = self.system_monitor.level_color(value, warn, crit)
