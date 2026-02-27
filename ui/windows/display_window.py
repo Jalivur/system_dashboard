@@ -195,8 +195,7 @@ class DisplayWindow(ctk.CTkToplevel):
             switch_width=60, switch_height=30,
             progress_color=COLORS['primary'],
         )
-        self._dim_switch.pack(side="left")
-        self._dim_switch.select()   # activo por defecto
+        self._dim_switch.pack(side="left") 
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
 

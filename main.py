@@ -11,7 +11,7 @@ import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, 
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
-                  PiholeMonitor, DisplayService)
+                  PiholeMonitor, DisplayService, VpnMonitor)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from ui.main_window import MainWindow
@@ -53,6 +53,8 @@ def main():
     pihole_monitor.start()
     display_service = DisplayService()
     display_service.enable_dim_on_idle()
+    vpn_monitor = VpnMonitor()
+    vpn_monitor.start()
 
 
     # Comprobación inicial de actualizaciones en background
@@ -108,6 +110,7 @@ def main():
         pihole_monitor.stop()
         display_service.disable_dim_on_idle()
         display_service.screen_on()
+        vpn_monitor.stop()
     
     atexit.register(cleanup)
     
@@ -128,6 +131,7 @@ def main():
         pihole_monitor=pihole_monitor,
         alert_service=alert_service,
         display_service=display_service,
+        vpn_monitor=vpn_monitor,
     )
 
     try:
