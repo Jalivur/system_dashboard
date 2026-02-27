@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.2
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.3
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram y escáner de red local con integración Pi-hole.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo y pantalla de resumen.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-3.2-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.3-orange.svg)]()
 
 ---
 
@@ -146,7 +146,7 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Recarga manual**: Lee también el archivo rotado `.log.1`
 
 ### 🔔 **Badges de Notificación Visual**
-- **10 badges** en el menú principal con alertas en tiempo real
+- **12 badges** en el menú principal con alertas en tiempo real
 - **Temperatura**: naranja >60°C, rojo >70°C (Control Ventiladores + Monitor Placa)
 - **CPU y RAM**: naranja >75%, rojo >90% (Monitor Placa)
 - **Disco**: naranja >80%, rojo >90% (Monitor Disco)
@@ -155,9 +155,33 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Homebridge offline**: rojo si sin conexión
 - **Dispositivos encendidos**: naranja con contador
 - **Dispositivos con fallo**: rojo si `StatusFault=1`
-- **Pi-hole offline**: rojo si sin conexión *(nuevo en v3.2)*
+- **Pi-hole offline**: rojo si sin conexión *(v3.2)*
+- **VPN offline**: rojo si VPN desconectada *(nuevo en v3.3)*
 
-### 🧹 **Limpieza Automática**
+### 📊 **Resumen del Sistema / Pantalla de Reposo** *(nuevo en v3.3)*
+- **Vista unificada**: CPU, RAM, Temperatura, Disco, Red y Servicios en un solo vistazo
+- **Fila Pi-hole**: queries totales, bloqueadas y porcentaje de bloqueo en ancho completo
+- **Refresco cada 2s** leyendo directamente los cachés de los monitores — sin servicio adicional
+- **Colores por umbrales** en cada tarjeta (verde → naranja → rojo)
+- **Ideal como pantalla de reposo**: siempre visible sin abrir otras ventanas
+
+### 💡 **Control de Brillo de Pantalla** *(nuevo en v3.3)*
+- **Detección automática** del método disponible: `sysfs` (backlight kernel), `wlr-randr` (Wayland) o `xrandr` (X11)
+- **Compatible con Freenove FNK0100K**: detecta la ruta de backlight o usa `wlr-randr` en Raspberry Pi OS Bookworm
+- **Slider táctil** de 0-100% con 4 niveles rápidos predefinidos
+- **Modo ahorro**: dim automático al 20% tras 2 minutos de inactividad, apagado completo a los 4 minutos
+- **Encendido/Apagado** de pantalla con un botón
+- **Persistencia** del nivel entre reinicios en `data/display_state.json`
+
+### 🔒 **Gestor de Conexiones VPN** *(nuevo en v3.3)*
+- **Estado en tiempo real**: conectado/desconectado, IP asignada e interfaz activa (`tun0`/`wg0`)
+- **Compatible con WireGuard y OpenVPN**: detecta la interfaz vía `ip addr show`
+- **Conectar/Desconectar** desde la UI usando los scripts existentes de Lanzadores — con terminal en vivo
+- **Badge en menú**: 🔴 cuando la VPN está desconectada
+- **Sondeo cada 10s** en background sin bloquear la UI
+- **Fuerza sondeo inmediato** tras conectar/desconectar para reflejar el nuevo estado al instante
+
+
 - **CleanupService**: servicio background singleton
 - Limpia CSV exportados (máx. 10), PNG exportados (máx. 10), logs exportados (máx. 10)
 - Limpieza automática también al exportar — no solo en el ciclo de 24h
@@ -305,7 +329,7 @@ alert_service.send_test()
 
 ---
 
-## 󰍜 Menú Principal (18 botones)
+## 󰍜 Menú Principal (21 botones)
 
 ```
 ┌─────────────────────────────────────┐
@@ -328,14 +352,19 @@ alert_service.send_test()
 ├──────────────────┼───────────────────┤
 │  🖧 Red Local    │  🕳 Pi-hole       │
 ├──────────────────┼───────────────────┤
-│  🔔 Historial    │  Cambiar Tema     │
-│  Alertas         │                   │
+│  🔒 Gestor VPN  │  🔔 Historial     │
+│                  │  Alertas          │
 ├──────────────────┼───────────────────┤
-│  Reiniciar       │  Salir            │
+│  💡 Brillo       │  📊 Resumen       │
+│  Pantalla        │  Sistema          │
+├──────────────────┼───────────────────┤
+│  Cambiar Tema    │  Reiniciar        │
+├──────────────────┼───────────────────┤
+│  Salir           │                   │
 └──────────────────┴───────────────────┘
 ```
 
-### **Las 18 Ventanas:**
+### **Las 19 Ventanas:**
 
 1. **Control Ventiladores** - Configura modos y curvas PWM
 2. **Monitor Placa** - CPU, RAM, temperatura en tiempo real (status en header)
@@ -351,10 +380,11 @@ alert_service.send_test()
 12. **Visor de Logs** - Visualización y exportación del log del dashboard
 13. **🖧 Red Local** *(v3.2)* - Escáner arp-scan con IP, MAC y fabricante
 14. **🕳 Pi-hole** *(v3.2)* - Estadísticas de bloqueo DNS en tiempo real
-15. **🔔 Historial Alertas** *(v3.2)* - Registro persistente de alertas Telegram enviadas
-16. **Cambiar Tema** - Selecciona entre 15 temas
-17. **Reiniciar** - Reinicia el dashboard
-18. **Salir** - Cierra la app o apaga el sistema
+15. **🔒 Gestor VPN** *(v3.3)* - Estado en tiempo real + conectar/desconectar
+16. **🔔 Historial Alertas** *(v3.2)* - Registro persistente de alertas Telegram enviadas
+17. **💡 Brillo Pantalla** *(v3.3)* - Control de brillo DSI con modo ahorro
+18. **📊 Resumen Sistema** *(v3.3)* - Vista unificada de todas las métricas
+19. **Cambiar Tema** - Selecciona entre 15 temas
 
 ---
 
@@ -400,13 +430,15 @@ system_dashboard/
 │   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s, 5 tipos)
 │   ├── pihole_monitor.py           # Integración Pi-hole v6 (sesión sid, sondeo) — v3.2
 │   ├── alert_service.py            # Alertas Telegram + historial JSON — v3.2
+│   ├── display_service.py          # Control brillo DSI (sysfs/wlr-randr/xrandr) — v3.3
+│   ├── vpn_monitor.py              # Monitor VPN (tun0/wg0, sondeo 10s) — v3.3
 │   ├── data_logger.py              # SQLite logging
 │   ├── data_analyzer.py            # Análisis histórico
 │   ├── data_collection_service.py  # Recolección automática (singleton)
 │   ├── cleanup_service.py          # Limpieza automática background (singleton)
 │   └── __init__.py
 ├── ui/
-│   ├── main_window.py              # Ventana principal (18 botones + badges)
+│   ├── main_window.py              # Ventana principal (21 botones + badges)
 │   ├── styles.py                   # make_window_header(), make_futuristic_button(),
 │   │                               # make_homebridge_switch(), StyleManager
 │   ├── widgets/
@@ -422,6 +454,9 @@ system_dashboard/
 │       ├── network_local.py        # Escáner de red local (arp-scan) — v3.2
 │       ├── pihole_window.py        # Estadísticas Pi-hole v6 — v3.2
 │       ├── alert_history.py        # Historial de alertas Telegram — v3.2
+│       ├── vpn_window.py           # Gestor VPN — v3.3
+│       ├── display_window.py       # Control de brillo DSI — v3.3
+│       ├── overview.py             # Resumen del sistema / pantalla reposo — v3.3
 │       └── __init__.py
 ├── utils/
 │   ├── file_manager.py             # Gestión de JSON (escritura atómica)
@@ -430,6 +465,7 @@ system_dashboard/
 ├── data/                            # Auto-generado al ejecutar
 │   ├── fan_state.json, fan_curve.json, theme_config.json
 │   ├── alert_history.json          # Historial de alertas (máx. 100) — v3.2
+│   ├── display_state.json          # Brillo de pantalla persistido — v3.3
 │   ├── history.db                  # SQLite histórico
 │   ├── logs/dashboard.log          # Log del sistema
 │   └── exports/                    # Archivos exportados (máx. 10 por tipo)
@@ -519,7 +555,7 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 - **Uso RAM**: ~100-150 MB
 - **Base de datos**: ~5 MB por 10,000 registros
 - **Actualización UI**: 2 segundos (configurable en `UPDATE_MS`) — solo lectura de caché, sin syscalls bloqueantes
-- **Threads background**: 10 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + PiholeMonitor + NetworkScanner + main)
+- **Threads background**: 12 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + PiholeMonitor + NetworkScanner + VpnMonitor + DisplayService(timer) + main)
 - **Log**: máx. 2MB con rotación automática
 
 ---
@@ -538,6 +574,8 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 | Badge hb_offline siempre rojo | Comprobar `HOMEBRIDGE_HOST` en `.env` y red entre Pis |
 | Red Local no escanea | `sudo apt install arp-scan` y configurar sudoers |
 | Pi-hole no conecta | Verificar `PIHOLE_HOST` y `PIHOLE_PASSWORD` en `.env`; solo compatible con v6 |
+| VPN badge siempre rojo | Verificar que `VPN_INTERFACE` en `vpn_monitor.py` coincide con tu interfaz (`tun0`/`wg0`) |
+| Brillo no disponible | Ejecutar diagnóstico del Paso 0 en `GUIA_BRILLO_DSI.md`; instalar `wlr-randr` si Wayland |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
 | No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
 | Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env`; ejecutar `send_test()` |
@@ -560,12 +598,12 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 | Métrica | Valor |
 |---------|-------|
-| Versión | 3.2 |
-| Archivos Python | 48 |
-| Ventanas | 18 |
+| Versión | 3.3 |
+| Archivos Python | 53 |
+| Ventanas | 19 |
 | Temas | 15 |
-| Servicios background | 10 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + PiholeMonitor + NetworkScanner + main) |
-| Badges en menú | 10 |
+| Servicios background | 12 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + PiholeMonitor + NetworkScanner + VpnMonitor + DisplayService + main) |
+| Badges en menú | 12 |
 | Cobertura logging | 100% módulos core y UI |
 | Exports organizados | 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo |
 | Tipos Homebridge | 5 (switch, light, thermostat, sensor, blind) |
@@ -574,11 +612,17 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 ## Changelog
 
-### **v3.2** - 2026-02-27 ⭐ ACTUAL
+### **v3.3** - 2026-02-27 ⭐ ACTUAL
+- ✅ **NUEVO**: Resumen del Sistema — `OverviewWindow` con grid de 6 tarjetas (CPU, RAM, Temp, Disco, Red, Servicios) + fila Pi-hole, refresco 2s, ideal como pantalla de reposo
+- ✅ **NUEVO**: Control de Brillo DSI — `DisplayService` con detección automática de método (sysfs/wlr-randr/xrandr), slider táctil, modo ahorro por inactividad, persistencia en JSON
+- ✅ **NUEVO**: Gestor VPN — `VpnMonitor` con sondeo 10s via `ip addr show`, badge en menú, conectar/desconectar con terminal en vivo reutilizando scripts existentes
+- ✅ **MEJORA**: Menú principal ampliado de 18 a 21 botones; uptime en cabecera
+
+### **v3.2** - 2026-02-27
 - ✅ **NUEVO**: Escáner de Red Local — `NetworkScanner` con arp-scan, IP/MAC/fabricante, auto-refresco 60s, ventana `NetworkLocalWindow`
 - ✅ **NUEVO**: Integración Pi-hole v6 — `PiholeMonitor` con API v6 (sesión sid), estadísticas en tiempo real, badge offline en menú, ventana `PiholeWindow`
 - ✅ **NUEVO**: Historial de Alertas — persistencia en `data/alert_history.json` (máx. 100), ventana `AlertHistoryWindow` con tarjetas coloreadas por nivel
-- ✅ **MEJORA**: Visor de Logs — filtro de módulo migrado de `CTkOptionMenu` a `CTkEntry` (evita desbordamiento en pantalla DSI)
+- ✅ **MEJORA**: Visor de Logs — filtro de módulo migrado de `CTkOptionMenu` a `CTkEntry`
 - ✅ **MEJORA**: Menú principal ampliado de 15 a 18 botones
 
 ### **v3.1** - 2026-02-26
@@ -648,4 +692,4 @@ CustomTkinter - psutil - matplotlib - Ookla Speedtest CLI - Homebridge - Pi-hole
 
 ---
 
-Dashboard v3.2: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit y Pi-hole, con Alertas Telegram, Historial y sin bloqueos en UI
+Dashboard v3.3: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit y Pi-hole, con Alertas Telegram, Historial, Gestor VPN, Control de Brillo y Pantalla de Resumen — sin bloqueos en UI
