@@ -52,7 +52,7 @@ def main():
     pihole_monitor = PiholeMonitor()
     pihole_monitor.start()
     display_service = DisplayService()
-    display_service.enable_dim_on_idle()
+    #display_service.enable_dim_on_idle()
     vpn_monitor = VpnMonitor()
     vpn_monitor.start()
 
