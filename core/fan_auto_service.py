@@ -156,7 +156,6 @@ class FanAutoService:
         Returns:
             True si está activo, False si no
         """
-        logger.debug(f"[FanAutoService] is_running: {self._running}")
         return self._running
     
     def get_status(self) -> dict:

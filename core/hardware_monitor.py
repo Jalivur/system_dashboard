@@ -53,6 +53,7 @@ class HardwareMonitor:
         self._stop.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
+        self._cache = {}
         logger.info("[HardwareMonitor] Detenido")
 
     # ── Bucle ─────────────────────────────────────────────────────────────────
@@ -95,10 +96,14 @@ class HardwareMonitor:
 
     def get_stats(self) -> dict:
         """Devuelve el estado del hardware desde caché."""
+        if not self._running:
+            return {}
         with self._lock:
             return dict(self._data)
 
     def is_available(self) -> bool:
         """True si fase1.py está corriendo y ha escrito datos recientes."""
+        if not self._running:
+            return False
         with self._lock:
             return self._data.get("available", False)

@@ -70,7 +70,7 @@ class ProcessWindow(ctk.CTkToplevel):
         # Área de scroll para procesos (con altura limitada)
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-        
+
         # Limitar altura del canvas para que el botón cerrar sea visible
         max_height = DSI_HEIGHT - 300  # Dejar espacio para header, controles y botón
         
@@ -100,7 +100,7 @@ class ProcessWindow(ctk.CTkToplevel):
         canvas.create_window((0, 0), window=self.process_frame, anchor="nw", width=DSI_WIDTH-50)
         self.process_frame.bind("<Configure>",
                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        
+        self._content = self.process_frame
         # Botón cerrar
         bottom = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         bottom.pack(fill="x", pady=5, padx=10)
@@ -291,9 +291,13 @@ class ProcessWindow(ctk.CTkToplevel):
     
     def _update(self):
         """Actualiza la lista de procesos"""
+        
         if not self.winfo_exists():
             return
-        
+        if not self.process_monitor._running:
+            StyleManager.show_service_stopped_banner(self._content, "Process Monitor")
+            self.after(UPDATE_MS, self._update)
+            return
         # Si está pausada, reprogramar y salir
         if self.update_paused:
             self.update_job = self.after(UPDATE_MS * 2, self._update)

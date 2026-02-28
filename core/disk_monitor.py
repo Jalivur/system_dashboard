@@ -1,6 +1,7 @@
 """
 Monitor de disco
 """
+import threading
 from collections import deque
 from typing import Dict
 from config.settings import HISTORY, UPDATE_MS, COLORS
@@ -22,41 +23,90 @@ class DiskMonitor:
         self.write_hist = deque(maxlen=HISTORY)
         self.nvme_temp_hist = deque(maxlen=HISTORY)  # NUEVO
         
+        self._cache_lock = threading.Lock()
+        self._cache: Dict = {
+            'disk_usage': 0.0,
+            'disk_read_mb': 0.0,
+            'disk_write_mb': 0.0,
+            'nmve_temp': 0.0,
+        }
         # Para calcular velocidad de I/O
         self.last_disk_io = psutil.disk_io_counters()
-    
-    def get_current_stats(self) -> Dict:
-        """
-        Obtiene estadísticas actuales del disco
+        self._running =False
+        self._stop_evt = threading.Event()
+        self._thread = None
+        self._interval_s = max(UPDATE_MS / 1000.0, 1.0)
         
-        Returns:
-            Diccionario con todas las métricas
-        """
-        # Uso de disco (%)
-        disk_usage = psutil.disk_usage('/').percent
+        self.start()
         
-        # I/O (calcular velocidad)
-        disk_io = psutil.disk_io_counters()
-        read_bytes = max(0, disk_io.read_bytes - self.last_disk_io.read_bytes)
-        write_bytes = max(0, disk_io.write_bytes - self.last_disk_io.write_bytes)
-        self.last_disk_io = disk_io
+    def start(self):
+        if self._running:
+            return
+        self._running = True
+        self._stop_evt.clear()
+        self._thread = threading.Thread(target=self._poll_loop, daemon=True,
+        name="DiskMonitorPoll")
+        self._thread.start()
+        logger.info("[DiskMonitor] sondeo iniciado (cada %.1fs)", self._interval_s)
         
-        # Convertir a MB/s
-
-        seconds = UPDATE_MS / 1000.0
-        read_mb = (read_bytes / (1024 * 1024)) / seconds
-        write_mb = (write_bytes / (1024 * 1024)) / seconds
-        
-        # Temperatura NVMe (NUEVO)
-        nvme_temp = self.system_utils.get_nvme_temp()
-        
-        return {
-            'disk_usage': disk_usage,
-            'disk_read_mb': read_mb,
-            'disk_write_mb': write_mb,
-            'nvme_temp': nvme_temp  # NUEVO
+    def stop(self):
+        self._running = False
+        self._stop_evt.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=5)
+        self._current_stats = {
+            'disk_usage': 0.0,
+            'disk_read_mb': 0.0,
+            'disk_write_mb': 0.0,
+            'nmve_temp': 0.0,
         }
-    
+        logger.info("[DiskMonitor] Detenido")
+    def _poll_loop(self) -> None:
+        self._do_poll()
+        while self._running:
+            self._stop_evt.wait(timeout=self._interval_s)
+            if self._stop_evt.is_set():
+                break
+            self._do_poll()
+            
+    def _do_poll(self):
+        try:
+            disk_usage = psutil.disk_usage('/').percent
+            
+            # I/O (calcular velocidad)
+            disk_io = psutil.disk_io_counters()
+            read_bytes = max(0, disk_io.read_bytes - self.last_disk_io.read_bytes)
+            write_bytes = max(0, disk_io.write_bytes - self.last_disk_io.write_bytes)
+            self.last_disk_io = disk_io
+            
+            # Convertir a MB/s
+            read_mb = (read_bytes / (1024 * 1024)) / self._interval_s
+            write_mb = (write_bytes / (1024 * 1024)) / self._interval_s
+            
+            # Temperatura NVMe (NUEVO)
+            nvme_temp = self.system_utils.get_nvme_temp()
+            stats = {
+                'disk_usage': disk_usage,
+                'disk_read_mb': read_mb,
+                'disk_write_mb': write_mb,
+                'nvme_temp': nvme_temp  # NUEVO
+            } 
+            
+            with self._cache_lock:
+                self._cache = stats
+            self.update_history(stats)
+        except Exception as e:
+            logger.error("[DiskMonitor] Error en _do_poll: %s", e)
+    def get_current_stats(self) -> Dict:
+
+        if not self._running:
+            return {
+                'disk_usage': 0.0, 'nvme_temp': 0.0,
+                'disk_write_mb': 0.0, 'disk_read_mb': 0.0,
+            }
+        with self._cache_lock:
+            return dict(self._cache) 
+    get_cached_stats = get_current_stats
     def update_history(self, stats: Dict) -> None:
         """
         Actualiza historiales con estadísticas actuales
@@ -98,6 +148,9 @@ class DiskMonitor:
             percentage_used   — % de vida útil consumida (0=nuevo, 100=al límite)
             available         — False si smartctl falla o no hay NVMe
         """
+        if not self._running:
+            return {'available': False}
+        
         result = {
             "power_on_hours":   None,
             "power_cycles":     None,

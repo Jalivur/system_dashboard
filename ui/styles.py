@@ -149,6 +149,39 @@ class StyleManager:
             scrollbar_button_color=color,
             scrollbar_button_hover_color=COLORS['secondary']
         )
+    @staticmethod
+    def show_service_stopped_banner(parent_frame, service_name: str) -> None:
+        """
+        Limpia parent_frame y pinta un banner de 'servicio detenido'.
+        Llamar cuando el monitor asociado a la ventana está parado.
+        """
+        for w in parent_frame.winfo_children():
+            w.destroy()
+
+        banner = ctk.CTkFrame(parent_frame, fg_color=COLORS['bg_dark'], corner_radius=10)
+        banner.pack(expand=True, padx=40, pady=60)
+
+        ctk.CTkLabel(
+            banner,
+            text="⛔",
+            font=(FONT_FAMILY, 48),
+            text_color=COLORS['danger'],
+        ).pack(pady=(30, 8))
+
+        ctk.CTkLabel(
+            banner,
+            text=f"{service_name} detenido",
+            font=(FONT_FAMILY, FONT_SIZES['large'], "bold"),
+            text_color=COLORS['danger'],
+        ).pack()
+
+        ctk.CTkLabel(
+            banner,
+            text="Inícialo desde\nGestor de Servicios",
+            font=(FONT_FAMILY, FONT_SIZES['medium']),
+            text_color=COLORS['text_dim'],
+            justify="center",
+        ).pack(pady=(6, 30))
 
 
 def make_futuristic_button(parent, text: str, command=None, 

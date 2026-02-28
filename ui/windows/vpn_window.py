@@ -8,9 +8,10 @@ from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
     DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR
 )
-from ui.styles import make_window_header, make_futuristic_button
+from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from ui.widgets.dialogs import terminal_dialog
 from utils.logger import get_logger
+import os
 
 logger = get_logger(__name__)
 
@@ -19,7 +20,7 @@ _SCRIPT_CONNECT    = str(SCRIPTS_DIR / "conectar_vpn.sh")
 _SCRIPT_DISCONNECT = str(SCRIPTS_DIR / "desconectar_vpn.sh")
 
 # Intervalo de refresco del estado en ms
-_REFRESH_MS = 3000
+UPDATE_MS = 3000
 
 
 class VpnWindow(ctk.CTkToplevel):
@@ -55,11 +56,11 @@ class VpnWindow(ctk.CTkToplevel):
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
         make_window_header(main, title="GESTOR VPN", on_close=self.destroy)
-
+        
         # ── Tarjeta de estado ──
         status_card = ctk.CTkFrame(main, fg_color=COLORS['bg_dark'], corner_radius=8)
         status_card.pack(fill="x", padx=10, pady=(8, 4))
-
+        self._content_frame = status_card
         ctk.CTkLabel(
             status_card,
             text="Estado de la conexión",
@@ -172,8 +173,12 @@ class VpnWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _update(self):
-        if not self._running:
+        
+        if not self.vpn_monitor._running:
+            StyleManager.show_service_stopped_banner(self._content_frame, "VPN Monitor")
+            self.after(UPDATE_MS, self._update)
             return
+        
         try:
             status = self.vpn_monitor.get_status()
             connected = status['connected']
@@ -202,13 +207,15 @@ class VpnWindow(ctk.CTkToplevel):
         except Exception as e:
             logger.error("[VpnWindow] Error en _update: %s", e)
 
-        self.after(_REFRESH_MS, self._update)
+        self.after(UPDATE_MS, self._update)
 
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _connect(self):
         """Ejecuta conectar_vpn.sh con terminal en vivo."""
-        import os
+        if not self.vpn_monitor._running:
+            return
+
         if not os.path.exists(_SCRIPT_CONNECT):
             from ui.widgets.dialogs import custom_msgbox
             custom_msgbox(
@@ -227,7 +234,9 @@ class VpnWindow(ctk.CTkToplevel):
 
     def _disconnect(self):
         """Ejecuta desconectar_vpn.sh con terminal en vivo."""
-        import os
+        if not self.vpn_monitor._running:
+            return
+        
         if not os.path.exists(_SCRIPT_DISCONNECT):
             from ui.widgets.dialogs import custom_msgbox
             custom_msgbox(

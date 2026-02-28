@@ -69,6 +69,7 @@ class ServiceMonitor:
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=6)
+        self._cache = {}
         self._logger.info("[ServiceMonitor] Sondeo detenido")
 
     def _poll_loop(self) -> None:
@@ -233,6 +234,8 @@ class ServiceMonitor:
         Devuelve las estadísticas del caché.
         No lanza ningún subprocess — nunca bloquea el hilo de UI.
         """
+        if not self._running:
+            return {'total': 0, 'running': 0, 'failed': 0, 'services': []}
         with self._lock:
             return dict(self._cached_stats)
 

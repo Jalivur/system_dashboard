@@ -8,7 +8,7 @@ from ui.styles import StyleManager, make_futuristic_button
 from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow, 
                         HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow, 
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
-                        LedWindow, CameraWindow)
+                        LedWindow, CameraWindow, ServicesManagerWindow)
 from ui.windows.log_viewer import LogViewerWindow
 from ui.widgets import confirm_dialog, terminal_dialog
 from utils.system_utils import SystemUtils
@@ -23,7 +23,8 @@ logger = get_logger(__name__)
 class MainWindow:
     """Ventana principal del dashboard"""
     
-    def __init__(self, root, system_monitor, fan_controller, network_monitor,
+    def __init__(self, root, system_monitor, fan_controller, 
+                 fan_service, data_service, network_monitor,
                  disk_monitor, process_monitor, service_monitor, update_monitor, 
                  cleanup_service, homebridge_monitor, network_scanner, pihole_monitor, 
                  alert_service, display_service, vpn_monitor, led_service, hardware_monitor,
@@ -32,6 +33,8 @@ class MainWindow:
         self.root = root
         self.system_monitor = system_monitor
         self.fan_controller = fan_controller
+        self.fan_service = fan_service
+        self.data_service = data_service
         self.network_monitor = network_monitor
         self.disk_monitor = disk_monitor
         self.process_monitor = process_monitor
@@ -79,6 +82,7 @@ class MainWindow:
         self.overview_window = None
         self.led_window = None
         self.camera_window = None
+        self.services_manager_window = None
 
         self._uptime_tick = 0  # uptime badge: contador para actualizar cada ~60s
 
@@ -187,6 +191,7 @@ class MainWindow:
             ("󱓞  Lanzadores",            self.open_launchers,       []),
             ("⚙️ Monitor Procesos",     self.open_process_window,  []),
             ("⚙️ Monitor Servicios",    self.open_service_window,  ["services"]),
+            ("⚙️  Servicios Dashboard", self.open_services_manager, []),
             ("󱘿  Histórico Datos",       self.open_history_window,  []),
             ("󰆧  Actualizaciones",       self.open_update_window,   ["updates"]),
             ("󰟐  Homebridge",        self.open_homebridge,     ["hb_offline", "hb_on", "hb_fault"]),
@@ -535,7 +540,31 @@ class MainWindow:
         else:
             self.camera_window.lift()
 
-    
+    def open_services_manager(self):
+        """Abre la ventana de gestión de servicios del dashboard."""
+        if self.services_manager_window is None or not self.services_manager_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Servicios Dashboard")
+            self._btn_active("⚙️  Servicios Dashboard")
+            self.services_manager_window = ServicesManagerWindow(
+                self.root,
+                system_monitor       = self.system_monitor,
+                disk_monitor         = self.disk_monitor,
+                hardware_monitor     = self.hardware_monitor,
+                process_monitor      = self.process_monitor,
+                service_monitor      = self.service_monitor,
+                alert_service        = self.alert_service,
+                audio_alert_service  = self.audio_alert_service,
+                homebridge_monitor   = self.homebridge_monitor,
+                pihole_monitor       = self.pihole_monitor,
+                vpn_monitor          = self.vpn_monitor,
+                data_service         = self.data_service,
+                cleanup_service      = self.cleanup_service,
+            )
+            self.services_manager_window.bind(
+                "<Destroy>", lambda e: self._btn_idle("⚙️  Servicios Dashboard"))
+        else:
+            self.services_manager_window.lift()
+
     
 
     

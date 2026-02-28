@@ -69,7 +69,7 @@ class ServiceWindow(ctk.CTkToplevel):
         # Área de scroll para servicios
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-
+        self._content_frame = scroll_container
         # Limitar altura
         max_height = DSI_HEIGHT - 300
 
@@ -238,6 +238,10 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _update(self):
         """Actualiza la lista de servicios"""
+        if not self.service_monitor._running:
+            StyleManager.show_service_stopped_banner(self._content_frame, "Service Monitor")
+            self._update_job = self.after(UPDATE_MS, self._update)
+            return
         if not self.winfo_exists():
             return
 

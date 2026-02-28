@@ -170,6 +170,11 @@ class OverviewWindow(ctk.CTkToplevel):
         return COLORS['primary']
 
     def _refresh_system(self):
+        if not self.system_monitor._running:
+            for key in ('cpu', 'ram', 'temp', 'disk'):
+                self._widgets[key].configure(text="-- (parado)",
+                                             text_color=COLORS['text_dim'])
+            return
         stats = self.system_monitor.get_current_stats()
 
         cpu  = stats.get('cpu', 0)
@@ -195,6 +200,10 @@ class OverviewWindow(ctk.CTkToplevel):
         )
 
     def _refresh_services(self):
+        if not self.service_monitor._running:
+            self._widgets['services'].configure(text="-- (parado)",
+                                                text_color=COLORS['text_dim'])
+            return
         stats  = self.service_monitor.get_stats()
         failed = stats.get('failed', 0)
         total  = stats.get('total', 0)
@@ -203,6 +212,13 @@ class OverviewWindow(ctk.CTkToplevel):
         self._widgets['services'].configure(text=text, text_color=color)
 
     def _refresh_net(self):
+        """
+        if not self.network_monitor._running:
+            self._widgets['net'].configure(text="-- (parado)",
+                                           text_color=COLORS['text_dim'])
+            return
+        """
+        
         try:
             stats = self.network_monitor.get_current_stats()
             dl = stats.get('download_mb', 0)
@@ -216,6 +232,11 @@ class OverviewWindow(ctk.CTkToplevel):
             self._widgets['net'].configure(text="--")
 
     def _refresh_pihole(self):
+        if not self.pihole_monitor._running:
+            for k in ('pihole_blocked','pihole_pct','pihole_total','pihole_status'):
+                self._widgets[k].configure(text="-- (parado)",
+                                           text_color=COLORS['text_dim'])
+            return
         try:
             stats = self.pihole_monitor.get_stats()
             if not stats:

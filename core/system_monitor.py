@@ -27,18 +27,14 @@ class SystemMonitor:
         self.cpu_hist        = deque(maxlen=HISTORY)
         self.ram_hist        = deque(maxlen=HISTORY)
         self.temp_hist       = deque(maxlen=HISTORY)
-        self.disk_hist       = deque(maxlen=HISTORY)
-        self.disk_write_hist = deque(maxlen=HISTORY)
-        self.disk_read_hist  = deque(maxlen=HISTORY)
+
 
         self._cache_lock = threading.Lock()
         self._cached: Dict = {
             'cpu': 0.0, 'ram': 0.0, 'ram_used': 0,
-            'temp': 0.0, 'disk_usage': 0.0,
-            'disk_read_mb': 0.0, 'disk_write_mb': 0.0,
+            'temp': 0.0,
         }
 
-        self._last_disk_io = psutil.disk_io_counters()
         self._running      = False
         self._stop_evt     = threading.Event()
         self._thread       = None
@@ -60,6 +56,10 @@ class SystemMonitor:
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=3)
+        self._current_stats = {
+            'cpu': 0.0, 'ram': 0.0, 'temp': 0.0,
+            'disk_usage': 0.0, 'disk_write_mb': 0.0, 'disk_read_mb': 0.0,
+        }
         logger.info("[SystemMonitor] Sondeo detenido")
 
     def _poll_loop(self) -> None:
@@ -75,21 +75,12 @@ class SystemMonitor:
             cpu      = psutil.cpu_percent()
             vm       = psutil.virtual_memory()
             temp     = self.system_utils.get_cpu_temp()
-            disk_pct = psutil.disk_usage('/').percent
-
-            disk_io      = psutil.disk_io_counters()
-            disk_read_b  = max(0, disk_io.read_bytes  - self._last_disk_io.read_bytes)
-            disk_write_b = max(0, disk_io.write_bytes - self._last_disk_io.write_bytes)
-            self._last_disk_io = disk_io
-
+            
             stats = {
                 'cpu':           cpu,
                 'ram':           vm.percent,
                 'ram_used':      vm.used,
                 'temp':          temp,
-                'disk_usage':    disk_pct,
-                'disk_read_mb':  (disk_read_b  / (1024 * 1024)) / self._interval_s,
-                'disk_write_mb': (disk_write_b / (1024 * 1024)) / self._interval_s,
             }
 
             with self._cache_lock:
@@ -101,6 +92,10 @@ class SystemMonitor:
             logger.error("[SystemMonitor] Error en _do_poll: %s", e)
 
     def get_current_stats(self) -> Dict:
+        if not self._running:
+            return {
+                'cpu': 0.0, 'ram': 0.0, 'temp': 0.0,
+            }
         with self._cache_lock:
             return dict(self._cached)
 
@@ -110,18 +105,12 @@ class SystemMonitor:
         self.cpu_hist.append(stats['cpu'])
         self.ram_hist.append(stats['ram'])
         self.temp_hist.append(stats['temp'])
-        self.disk_hist.append(stats['disk_usage'])
-        self.disk_read_hist.append(stats['disk_read_mb'])
-        self.disk_write_hist.append(stats['disk_write_mb'])
-
+        
     def get_history(self) -> Dict:
         return {
             'cpu':        list(self.cpu_hist),
             'ram':        list(self.ram_hist),
             'temp':       list(self.temp_hist),
-            'disk':       list(self.disk_hist),
-            'disk_read':  list(self.disk_read_hist),
-            'disk_write': list(self.disk_write_hist),
         }
 
     @staticmethod

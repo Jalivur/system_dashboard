@@ -2,10 +2,12 @@
 Monitor de procesos del sistema
 """
 import psutil
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 from utils import DashboardLogger
+import threading
 
+PROCCES_POLL_INTERVAL = 10
 
 class ProcessMonitor:
     """Monitor de procesos en tiempo real"""
@@ -16,6 +18,69 @@ class ProcessMonitor:
         self.sort_reverse = True
         self.filter_type = "all"  # all, user, system
         self.dashboard_logger = DashboardLogger()
+        self._logger = self.dashboard_logger.get_logger(__name__)
+        
+        self._lock: threading.Lock = threading.Lock()
+        self._cached_procces: List[Dict] = []
+        
+        self._running = False
+        self._stop_evt = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self.start()
+        
+    def start(self) -> None:
+        """Arranca el sondeo en background (llamado automáticamente en __init__)."""
+        if self._running:
+            return
+        self._running = True
+        self._stop_evt.clear()
+        self._thread = threading.Thread(
+            target=self._poll_loop,
+            daemon=True,
+            name="ServiceMonitorPoll",
+        )
+        self._thread.start()
+        self._logger.info(
+            "[ProcessMonitor] Sondeo iniciado (cada %ds)", PROCCES_POLL_INTERVAL
+        )
+    
+    def stop(self) -> None:
+        """Detiene el sondeo limpiamente."""
+        self._running = False
+        self._stop_evt.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=6)
+        self._cache = {}
+        self._logger.info("[ServiceMonitor] Sondeo detenido")
+    
+    def _poll_loop(self) -> None:
+        """Bucle de background: sondea process y actualiza el caché."""
+        self._do_poll()  # primera lectura inmediata
+        while self._running:
+            self._stop_evt.wait(timeout=PROCCES_POLL_INTERVAL)
+            if self._stop_evt.is_set():
+                break
+            self._do_poll()
+    
+    def refresh_now(self) -> None:
+        """
+        Fuerza un refresco inmediato del caché en background.
+        Llamar desde ServiceWindow tras start/stop/restart/enable/disable.
+        """
+        threading.Thread(
+            target=self._do_poll,
+            daemon=True,
+            name="ProcessMonitor-ForceRefresh",
+        ).start()
+    
+    def _do_poll(self) -> None:
+        try:
+            processes = self.get_processes()
+            
+            with self._lock:
+                self._cached_procces = processes
+        except Exception as e:
+            self._logger.error("[ProccesMonitor] Error en _do_poll: %s", e)
     
     def get_processes(self, limit: int = 20) -> List[Dict]:
         """

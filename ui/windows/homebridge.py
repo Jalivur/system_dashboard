@@ -95,7 +95,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
         )
-
+        self._content_frame = self._device_frame
         # ── Botón Refrescar ───────────────────────────────────────────────────
         bottom = ctk.CTkFrame(self.main, fg_color=COLORS['bg_medium'])
         bottom.pack(fill="x", pady=8, padx=10)
@@ -122,6 +122,12 @@ class HomebridgeWindow(ctk.CTkToplevel):
 
     def _fetch_and_render(self):
         """Lanza la petición en background y actualiza la UI cuando termina."""
+        if not self.hb._running:
+            StyleManager.show_service_stopped_banner(self._device_frame, "Homebridge Monitor")
+            self._update_job = self.after(HB_UPDATE_MS, self._fetch_and_render)
+            return
+        if self._busy:
+            return
         if self._busy:
             return
         self._busy = True
@@ -350,6 +356,12 @@ class HomebridgeWindow(ctk.CTkToplevel):
 
     def _toggle(self, unique_id: str, turn_on: bool):
         """Envía el comando ON/OFF al dispositivo en background."""
+        if not self.hb._running:
+            StyleManager.show_service_stopped_banner(self._device_frame, "Homebridge Monitor")
+            self._update_job = self.after(HB_UPDATE_MS, self._fetch_and_render)
+            return
+        if self._busy:
+            return
         def send():
             ok = self.hb.toggle(unique_id, turn_on)
             if ok:

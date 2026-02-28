@@ -122,6 +122,12 @@ class HomebridgeMonitor:
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=REQUEST_TIMEOUT + 1)
+        # ── limpiar caché y token ──
+        with self._accessories_lock:
+            self._accessories = []
+        with self._token_lock:
+            self._token = None
+        self._reachable = False
         logger.info("[HomebridgeMonitor] Sondeo detenido")
 
     def _poll_loop(self) -> None:
@@ -234,6 +240,10 @@ class HomebridgeMonitor:
           blind       — CurrentPosition (persiana / estor)
           light       — On + Brightness (luz regulable)
         """
+        # Si el monitor se ha detenido mientras esta función estaba en ejecución, no actualiza el estado ni el caché.
+        if not self._running:
+            self._reachable = False
+            return []
         data = self._request("GET", "/api/accessories")
         if data is None:
             self._reachable = False
@@ -313,6 +323,9 @@ class HomebridgeMonitor:
         Devuelve la lista en memoria sin hacer ninguna petición HTTP.
         Usar desde la ventana para el refresco visual inmediato.
         """
+        # Si el monitor se ha detenido, devuelve lista vacía para que la ventana refleje el estado real (sin conexión).
+        if not self._running:
+            return []
         with self._accessories_lock:
             return list(self._accessories)
 
@@ -322,6 +335,10 @@ class HomebridgeMonitor:
         Tras el comando lanza un sondeo inmediato para que los badges
         reflejen el cambio sin esperar los 30s del ciclo normal.
         """
+        # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
+        if not self._running:
+            logger.warning("[HomebridgeMonitor] toggle() ignorado — servicio parado")
+            return False
         body   = {"characteristicType": "On", "value": turn_on}
         result = self._request("PUT", f"/api/accessories/{unique_id}", body)
         if result is not None:
@@ -367,6 +384,10 @@ class HomebridgeMonitor:
         
     def set_brightness(self, unique_id: str, brightness: int) -> bool:
         """Establece el brillo de una luz (0–100)."""
+        # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
+        if not self._running:
+            logger.warning("[HomebridgeMonitor] set_brightness() ignorado — servicio parado")
+            return False
         brightness = max(0, min(100, brightness))
         result = self._request(
             "PUT", f"/api/accessories/{unique_id}",
@@ -381,6 +402,10 @@ class HomebridgeMonitor:
 
     def set_target_temp(self, unique_id: str, temp: float) -> bool:
         """Establece la temperatura objetivo de un termostato."""
+        # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
+        if not self._running:
+            logger.warning("[HomebridgeMonitor] set_target_temp() ignorado — servicio parado")
+            return False
         result = self._request(
             "PUT", f"/api/accessories/{unique_id}",
             {"characteristicType": "TargetTemperature", "value": temp}

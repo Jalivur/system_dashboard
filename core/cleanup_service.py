@@ -125,6 +125,8 @@ class CleanupService:
     # ── Lógica de limpieza ────────────────────────────────────────────────────
 
     def _cleanup_cycle(self):
+        if not self._running:
+            return
         """Ejecuta un ciclo completo de limpieza."""
         logger.info("[CleanupService] Iniciando ciclo de limpieza")
         self.clean_csv()
@@ -135,6 +137,8 @@ class CleanupService:
         logger.info("[CleanupService] Ciclo de limpieza completado")
 
     def clean_csv(self, max_files: int = None) -> int:
+        if not self._running:
+            return
         """
         Elimina los CSV exportados más antiguos que superen el límite.
 
@@ -149,6 +153,8 @@ class CleanupService:
         return self._trim_files(pattern, limit, "CSV")
 
     def clean_png(self, max_files: int = None) -> int:
+        if not self._running:
+            return
         """
         Elimina los PNG exportados más antiguos que superen el límite.
 
@@ -164,6 +170,8 @@ class CleanupService:
 
 
     def clean_log_exports(self, max_files: int = None) -> int:
+        if not self._running:
+            return
         """
         Elimina los archivos de exportación de logs más antiguos que superen el límite.
 
@@ -178,6 +186,8 @@ class CleanupService:
         return self._trim_files(pattern, limit, "LOG_EXPORT")
 
     def clean_db(self, days: int = None) -> bool:
+        if not self._running:
+            return
         """
         Elimina registros de la BD más antiguos que 'days' días.
 
@@ -201,6 +211,8 @@ class CleanupService:
             return False
 
     def _trim_files(self, pattern: str, max_files: int, label: str) -> int:
+        if not self._running:
+            return
         """
         Elimina los archivos más antiguos que superen max_files.
 

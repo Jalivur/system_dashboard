@@ -6,9 +6,10 @@ from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
     DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
 )
-from ui.styles import make_window_header, make_futuristic_button
+from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from core.pihole_monitor import PiholeMonitor
 from utils.logger import get_logger
+import threading
 
 logger = get_logger(__name__)
 
@@ -38,6 +39,8 @@ class PiholeWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        
+        
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -46,12 +49,13 @@ class PiholeWindow(ctk.CTkToplevel):
             on_close=self._on_close,
             status_text="Cargando...",
         )
-
+        
         # Grid 2×2 de tarjetas métricas
         grid = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         grid.pack(fill="both", expand=True, padx=5, pady=5)
         grid.grid_columnconfigure(0, weight=1, uniform="col")
         grid.grid_columnconfigure(1, weight=1, uniform="col")
+        self._grid_frame = grid
 
         # Tarjetas: (título, clave_interna, unidad, color)
         cards_config = [
@@ -102,7 +106,9 @@ class PiholeWindow(ctk.CTkToplevel):
 
     def _force_refresh(self):
         """Pide al monitor que sondee de inmediato (en background)."""
-        import threading
+        if not self.pihole._running:
+            return
+
         threading.Thread(
             target=self.pihole._fetch,
             daemon=True, name="PiholeForceRefresh"
@@ -115,7 +121,11 @@ class PiholeWindow(ctk.CTkToplevel):
         """Actualiza los valores en pantalla con la caché del monitor."""
         if not self.winfo_exists():
             return
-
+        if not self.pihole._running:
+            StyleManager.show_service_stopped_banner(self._grid_frame, "Pi-hole Monitor")
+            self._update_job = self.after(UPDATE_MS, self._render)
+            return
+        
         stats = self.pihole.get_stats()
 
         if not stats.get("reachable", False):

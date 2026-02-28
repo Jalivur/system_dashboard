@@ -35,6 +35,7 @@ class MonitorWindow(ctk.CTkToplevel):
         self._update()
 
     def _create_ui(self):
+       
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -61,7 +62,7 @@ class MonitorWindow(ctk.CTkToplevel):
         canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
         inner.bind("<Configure>",
                    lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-
+        self._content_frame = inner
         # Grid 2 columnas dentro del inner scrollable
         grid = ctk.CTkFrame(inner, fg_color=COLORS['bg_medium'])
         grid.pack(fill="x")
@@ -71,9 +72,7 @@ class MonitorWindow(ctk.CTkToplevel):
         self._create_cell(grid, 0, 0, "CPU %",    "cpu",        "%",    _GRAPH_H_TOP)
         self._create_cell(grid, 0, 1, "RAM %",    "ram",        "%",    _GRAPH_H_TOP)
         self._create_cell(grid, 1, 0, "TEMP °C",  "temp",       "°C",   _GRAPH_H_TOP)
-        self._create_cell(grid, 1, 1, "DISCO %",  "disk",       "%",    _GRAPH_H_TOP)
-        self._create_cell(grid, 2, 0, "ESCRITURA","disk_write", "MB/s", _GRAPH_H_BOT)
-        self._create_cell(grid, 2, 1, "LECTURA",  "disk_read",  "MB/s", _GRAPH_H_BOT)
+        
     # ── Tarjeta temperatura chasis + fan duty real (FNK0100K) ──
         # Solo se crea si se pasó hardware_monitor (fase1 activo)
         if self.hardware_monitor:
@@ -144,7 +143,10 @@ class MonitorWindow(ctk.CTkToplevel):
     def _update(self):
         if not self.winfo_exists():
             return
-
+        if not self.system_monitor._running:
+            StyleManager.show_service_stopped_banner(self._content_frame, "System Monitor")
+            self.after(UPDATE_MS, self._update)
+            return
         stats   = self.system_monitor.get_current_stats()
         self.system_monitor.update_history(stats)
         history = self.system_monitor.get_history()
@@ -152,9 +154,6 @@ class MonitorWindow(ctk.CTkToplevel):
         self._update_metric('cpu',  stats['cpu'],        history['cpu'],   "%",   CPU_WARN,  CPU_CRIT)
         self._update_metric('ram',  stats['ram'],        history['ram'],   "%",   RAM_WARN,  RAM_CRIT)
         self._update_metric('temp', stats['temp'],       history['temp'],  "°C",  TEMP_WARN, TEMP_CRIT)
-        self._update_metric('disk', stats['disk_usage'], history['disk'],  "%",   60,        80)
-        self._update_io('disk_write', stats['disk_write_mb'], history['disk_write'])
-        self._update_io('disk_read',  stats['disk_read_mb'],  history['disk_read'])
 
         self._header.status_label.configure(
             text=f"CPU {stats['cpu']:.0f}%  ·  RAM {stats['ram']:.0f}%  ·  {stats['temp']:.0f}°C")

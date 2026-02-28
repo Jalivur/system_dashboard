@@ -56,6 +56,7 @@ class VpnMonitor:
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
+        self._status = {'connected': False, 'interface': '', 'ip': ''}
         logger.info("[VpnMonitor] Servicio detenido")
 
     # ── Bucle de sondeo ───────────────────────────────────────────────────────
@@ -130,6 +131,8 @@ class VpnMonitor:
 
     def get_status(self) -> dict:
         """Devuelve el estado actual de la VPN desde caché."""
+        if not self._running:
+            return {'connected': False, 'interface': '', 'ip': ''}
         with self._lock:
             return {
                 "connected": self._connected,
@@ -149,4 +152,6 @@ class VpnMonitor:
 
     def force_poll(self) -> None:
         """Fuerza una comprobación inmediata (útil tras conectar/desconectar)."""
+        if not self._running:
+            return
         threading.Thread(target=self._poll, daemon=True).start()

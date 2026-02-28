@@ -124,3 +124,12 @@ class DataCollectionService:
     def force_collection(self):
         """Fuerza una recolección inmediata (útil para testing)"""
         self._collect_and_save()
+
+    def is_running(self) -> bool:
+        """
+        Verifica si el servicio está corriendo
+        
+        Returns:
+            True si está activo, False si no
+        """
+        return self.running

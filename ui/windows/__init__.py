@@ -21,6 +21,7 @@ from .vpn_window import VpnWindow
 from .overview import OverviewWindow
 from .led_window import LedWindow
 from .camera_window import CameraWindow
+from .services_manager_window import ServicesManagerWindow
 
 __all__ = [
     'FanControlWindow',
@@ -43,5 +44,6 @@ __all__ = [
     'OverviewWindow',
     'LedWindow',
     'CameraWindow',
+    'ServicesManagerWindow',
     
 ]

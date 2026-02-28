@@ -37,6 +37,15 @@ class NetworkMonitor:
             "download": 0.0,
             "upload": 0.0
         }
+        
+    """def stop(self):
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=5)
+        # ── AÑADIR: limpiar caché ──
+        # (no tiene caché central — get_current_stats lee psutil en directo)
+        # marcar con flag para que get_current_stats devuelva vacío
+        logger.info("[NetworkMonitor] Detenido")"""
     
     def get_current_stats(self, interface: Optional[str] = None) -> Dict:
         """
@@ -48,6 +57,11 @@ class NetworkMonitor:
         Returns:
             Diccionario con estadísticas de red
         """
+        """if not self._running:
+            return {
+                'interface': '', 'download_mb': 0.0,
+                'upload_mb': 0.0, 'ip': '',
+            }"""
         iface, stats = self.system_utils.get_net_io(interface)
         
         prev = self.last_net_io.get(iface)
@@ -125,6 +139,9 @@ class NetworkMonitor:
     
     def run_speedtest(self) -> None:
         """Ejecuta speedtest (Ookla CLI) en un thread separado"""
+        """if not self._running:
+            logger.warning("[NetworkMonitor] run_speedtest() ignorado — servicio parado")
+            return"""
         def _run():
             logger.info("[NetworkMonitor] Iniciando speedtest...")
             self.speedtest_result["status"] = "running"

@@ -64,7 +64,7 @@ class DiskWindow(ctk.CTkToplevel):
         canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
         inner.bind("<Configure>",
                    lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-
+        self._content_inner = inner
         # ── Grid 2 columnas — celdas originales con gráfica ──
         grid = ctk.CTkFrame(inner, fg_color=COLORS['bg_medium'])
         grid.pack(fill="x")
@@ -168,7 +168,10 @@ class DiskWindow(ctk.CTkToplevel):
     def _update(self):
         if not self.winfo_exists():
             return
-
+        if not self.disk_monitor._running:
+            StyleManager.show_service_stopped_banner(self._content_inner, "Disk Monitor")
+            self.after(UPDATE_MS, self._update)
+            return
         stats   = self.disk_monitor.get_current_stats()
         self.disk_monitor.update_history(stats)
         history = self.disk_monitor.get_history()

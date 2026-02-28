@@ -127,6 +127,8 @@ def main():
         root,
         system_monitor=system_monitor,
         fan_controller=fan_controller,
+        fan_service=fan_service,
+        data_service=data_service,
         network_monitor=network_monitor,
         disk_monitor=disk_monitor,
         update_interval=UPDATE_MS,

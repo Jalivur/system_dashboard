@@ -101,6 +101,9 @@ class PiholeMonitor:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=REQUEST_TIMEOUT + 1)
         self._logout()
+        # ── limpiar caché ──
+        with self._stats_lock:
+            self._stats = dict(_EMPTY_STATS)
         logger.info("[PiholeMonitor] Sondeo detenido")
 
     def _poll_loop(self) -> None:
@@ -182,6 +185,9 @@ class PiholeMonitor:
 
     def _fetch(self) -> None:
         """Llama a la API v6 de Pi-hole y actualiza la caché."""
+        # Si no estamos corriendo, no hacemos nada (evita fetch innecesarios al parar)
+        if not self._running:
+            return
         try:
             sid = self._get_sid()
             headers = {"sid": sid} if sid else {}
@@ -238,6 +244,9 @@ class PiholeMonitor:
 
     def get_stats(self) -> Dict:
         """Devuelve las estadísticas en caché. Sin petición HTTP."""
+        # ── devolver vacío si parado ──
+        if not self._running:
+            return dict(_EMPTY_STATS)
         with self._stats_lock:
             return dict(self._stats)
 
