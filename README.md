@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.3
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.4
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo y pantalla de resumen.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR y SMART extendido de NVMe.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-3.3-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.4-orange.svg)]()
 
 ---
 
@@ -181,6 +181,33 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Sondeo cada 10s** en background sin bloquear la UI
 - **Fuerza sondeo inmediato** tras conectar/desconectar para reflejar el nuevo estado al instante
 
+### 💡 **Control LEDs RGB** *(nuevo en v3.4)*
+- **6 modos**: auto (sigue temperatura), apagado, color fijo, secuencial, respiración, arcoíris
+- **Sin destellos**: solo escribe por I2C cuando el modo o color cambia — el firmware anima solo
+- **Sliders RGB** con preview de color en tiempo real y colores rápidos preestablecidos
+- **Persistente**: el modo survives reinicios del dashboard via `data/led_state.json`
+- **Modo auto**: degradado verde→naranja→rojo siguiendo la temperatura CPU
+
+### 🔊 **Alertas de Audio** *(nuevo en v3.4)*
+- **Voz TTS en español** generada con `espeak-ng` + tono sintético por nivel
+- **11 archivos de audio**: uno por métrica (temp, CPU, RAM, servicios) y nivel (warn, crit, ok)
+- **Lógica correcta**: `warn.wav` cada 5 min mientras siga en aviso, `crit.wav` cada 30s mientras siga crítico, `ok.wav` una sola vez al recuperarse
+- **4 métricas independientes**: todas se evalúan por separado, sin `elif`
+- **Un solo proceso** de audio activo a la vez — sin solapamientos
+
+### 📷 **Cámara + Escáner OCR** *(nuevo en v3.4)*
+- **Cámara OV5647** via `rpicam-still` (Bookworm), resoluciones hasta 2592×1944
+- **OCR con Tesseract** local (sin internet): español, inglés o ambos
+- **Preprocesado de imagen**: escala de grises + contraste + nitidez para mejor extracción
+- **Guarda en dos formatos**: `.txt` plano y `.md` con metadata (fecha, idioma, palabras)
+- **Lista de escaneos** con carga, copia al portapapeles y borrado
+
+### 🌡️ **Hardware FNK0100K extendido** *(nuevo en v3.4)*
+- **Temperatura del chasis**: sensor interno del GPIO Board (distinto a CPU), visible en Monitor Placa
+- **Fan duty real**: lecturas reales de `board.get_fan0/1_duty()` en lugar del PWM calculado
+- **NVMe SMART extendido**: horas de uso, ciclos de encendido, apagados bruscos, TB escritos/leídos y % de vida útil consumida (actualización cada 30s)
+- **Arquitectura sin acoplamiento**: `fase1.py` escribe `hardware_state.json` cada 5s, el dashboard solo lee JSON
+
 
 - **CleanupService**: servicio background singleton
 - Limpia CSV exportados (máx. 10), PNG exportados (máx. 10), logs exportados (máx. 10)
@@ -243,10 +270,19 @@ sudo sensors-detect --auto
 # 4. Dependencias Python
 pip3 install --break-system-packages -r requirements.txt
 
-# 5. Sudoers para arp-scan (Red Local)
-echo "usuario ALL=(ALL) NOPASSWD: /usr/sbin/arp-scan" | sudo tee /etc/sudoers.d/arp-scan
+# 5. Sudoers para arp-scan (Red Local) y smartctl (NVMe SMART)
+echo "$(whoami) ALL=(ALL) NOPASSWD: /usr/sbin/arp-scan" | sudo tee /etc/sudoers.d/arp-scan
+echo "$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/smartctl"  | sudo tee /etc/sudoers.d/smartctl
 
-# 6. Ejecutar
+# 6. Hardware FNK0100K — cámara y OCR (opcional)
+sudo apt install rpicam-apps tesseract-ocr tesseract-ocr-spa espeak-ng
+pip install pytesseract --break-system-packages
+sudo usermod -aG video $(whoami)
+
+# 7. Generar archivos de audio (opcional)
+python3 scripts/generate_sounds.py
+
+# 8. Ejecutar
 python3 main.py
 ```
 
@@ -329,7 +365,7 @@ alert_service.send_test()
 
 ---
 
-## 󰍜 Menú Principal (21 botones)
+## 󰍜 Menú Principal (23 botones)
 
 ```
 ┌─────────────────────────────────────┐
@@ -358,19 +394,22 @@ alert_service.send_test()
 │  💡 Brillo       │  📊 Resumen       │
 │  Pantalla        │  Sistema          │
 ├──────────────────┼───────────────────┤
+│  💡 LEDs RGB     │  📷 Cámara        │
+│                  │                   │
+├──────────────────┼───────────────────┤
 │  Cambiar Tema    │  Reiniciar        │
 ├──────────────────┼───────────────────┤
 │  Salir           │                   │
 └──────────────────┴───────────────────┘
 ```
 
-### **Las 19 Ventanas:**
+### **Las 21 Ventanas:**
 
 1. **Control Ventiladores** - Configura modos y curvas PWM
-2. **Monitor Placa** - CPU, RAM, temperatura en tiempo real (status en header)
-3. **Monitor Red** - Tráfico, speedtest Ookla, interfaces e IPs (status en header)
+2. **Monitor Placa** - CPU, RAM, temperatura + temperatura chasis + fan duty real *(v3.4)*
+3. **Monitor Red** - Tráfico, speedtest Ookla, interfaces e IPs
 4. **Monitor USB** - Dispositivos y expulsión segura
-5. **Monitor Disco** - Espacio, temperatura NVMe, I/O (status en header)
+5. **Monitor Disco** - Espacio, temperatura NVMe, I/O + SMART extendido *(v3.4)*
 6. **Lanzadores** - Ejecuta scripts con terminal en vivo
 7. **Monitor Procesos** - Gestión avanzada de procesos
 8. **Monitor Servicios** - Control de servicios systemd
@@ -384,7 +423,9 @@ alert_service.send_test()
 16. **🔔 Historial Alertas** *(v3.2)* - Registro persistente de alertas Telegram enviadas
 17. **💡 Brillo Pantalla** *(v3.3)* - Control de brillo DSI con modo ahorro
 18. **📊 Resumen Sistema** *(v3.3)* - Vista unificada de todas las métricas
-19. **Cambiar Tema** - Selecciona entre 15 temas
+19. **💡 LEDs RGB** *(v3.4)* - Control de los 4 LEDs RGB del GPIO Board FNK0100K
+20. **📷 Cámara / Escáner OCR** *(v3.4)* - Captura de fotos + OCR con Tesseract
+21. **Cambiar Tema** - Selecciona entre 15 temas
 
 ---
 
@@ -430,6 +471,9 @@ system_dashboard/
 │   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s, 5 tipos)
 │   ├── pihole_monitor.py           # Integración Pi-hole v6 (sesión sid, sondeo) — v3.2
 │   ├── alert_service.py            # Alertas Telegram + historial JSON — v3.2
+│   ├── led_service.py              # Control LEDs RGB (escribe led_state.json) — v3.4
+│   ├── hardware_monitor.py         # Lee hardware_state.json de fase1.py — v3.4
+│   ├── audio_alert_service.py      # Alertas sonoras TTS español — v3.4
 │   ├── display_service.py          # Control brillo DSI (sysfs/wlr-randr/xrandr) — v3.3
 │   ├── vpn_monitor.py              # Monitor VPN (tun0/wg0, sondeo 10s) — v3.3
 │   ├── data_logger.py              # SQLite logging
@@ -457,6 +501,8 @@ system_dashboard/
 │       ├── vpn_window.py           # Gestor VPN — v3.3
 │       ├── display_window.py       # Control de brillo DSI — v3.3
 │       ├── overview.py             # Resumen del sistema / pantalla reposo — v3.3
+│       ├── led_window.py           # Control LEDs RGB GPIO Board — v3.4
+│       ├── camera_window.py        # Cámara OV5647 + Escáner OCR Tesseract — v3.4
 │       └── __init__.py
 ├── utils/
 │   ├── file_manager.py             # Gestión de JSON (escritura atómica)
@@ -464,15 +510,25 @@ system_dashboard/
 │   └── logger.py                   # DashboardLogger (rotación 2MB)
 ├── data/                            # Auto-generado al ejecutar
 │   ├── fan_state.json, fan_curve.json, theme_config.json
+│   ├── led_state.json              # Modo y color LEDs (dashboard → fase1.py) — v3.4
+│   ├── hardware_state.json         # Temp chasis + fan duty real (fase1.py → dashboard) — v3.4
 │   ├── alert_history.json          # Historial de alertas (máx. 100) — v3.2
 │   ├── display_state.json          # Brillo de pantalla persistido — v3.3
 │   ├── history.db                  # SQLite histórico
 │   ├── logs/dashboard.log          # Log del sistema
+│   ├── photos/                     # Fotos capturadas con cámara OV5647 — v3.4
+│   ├── scans/                      # Escaneos OCR (.txt + .md) — v3.4
 │   └── exports/                    # Archivos exportados (máx. 10 por tipo)
-│       ├── csv/                    # Exportaciones CSV del histórico
-│       ├── logs/                   # Exportaciones del visor de logs
-│       └── screenshots/            # Capturas de gráficas
-├── scripts/                         # Scripts personalizados del usuario
+│       ├── csv/
+│       ├── logs/
+│       └── screenshots/
+├── scripts/
+│   ├── sounds/                     # 11 archivos .wav (tono + voz TTS) — v3.4
+│   │   ├── temp_warn.wav, temp_crit.wav, temp_ok.wav
+│   │   ├── cpu_warn.wav,  cpu_crit.wav,  cpu_ok.wav
+│   │   ├── ram_warn.wav,  ram_crit.wav,  ram_ok.wav
+│   │   └── services_crit.wav, services_ok.wav
+│   └── generate_sounds.py          # Genera los 11 audios — v3.4
 ├── .env                             # Credenciales Homebridge + Telegram + Pi-hole (NO en git)
 ├── .env.example                     # Plantilla de configuración
 ├── install_system.sh               # Instalación directa (recomendada)
@@ -576,6 +632,13 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 | Pi-hole no conecta | Verificar `PIHOLE_HOST` y `PIHOLE_PASSWORD` en `.env`; solo compatible con v6 |
 | VPN badge siempre rojo | Verificar que `VPN_INTERFACE` en `vpn_monitor.py` coincide con tu interfaz (`tun0`/`wg0`) |
 | Brillo no disponible | Ejecutar diagnóstico del Paso 0 en `GUIA_BRILLO_DSI.md`; instalar `wlr-randr` si Wayland |
+| LEDs con destellos | Ver `FIX_LED_DESTELLOS.md` — reemplazar `apply_led_state()` en fase1.py |
+| LEDs no responden | Verificar `data/led_state.json` y que fase1.py esté activo |
+| Temperatura chasis N/D | Verificar `data/hardware_state.json` y que fase1.py esté corriendo |
+| Audio no suena | `aplay -l` → verificar dispositivo HDMI; probar `aplay scripts/sounds/temp_crit.wav` |
+| Cámara no encontrada | `sudo apt install rpicam-apps` + `sudo usermod -aG video $(whoami)` + relogin |
+| OCR no detecta texto | Mejorar iluminación; usar resolución 2592×1944; instalar `tesseract-ocr-spa` |
+| SMART muestra N/D | `sudo smartctl -A /dev/nvme0` para verificar; revisar `/etc/sudoers.d/smartctl` |
 | Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
 | No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
 | Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env`; ejecutar `send_test()` |
@@ -596,27 +659,36 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 ## 📊 Estadísticas del Proyecto
 
-| Métrica | Valor |
-|---------|-------|
-| Versión | 3.3 |
-| Archivos Python | 53 |
-| Ventanas | 19 |
-| Temas | 15 |
-| Servicios background | 12 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + PiholeMonitor + NetworkScanner + VpnMonitor + DisplayService + main) |
-| Badges en menú | 12 |
-| Cobertura logging | 100% módulos core y UI |
-| Exports organizados | 3 carpetas (csv, logs, screenshots) — máx. 10 por tipo |
-| Tipos Homebridge | 5 (switch, light, thermostat, sensor, blind) |
+| Métrica | v3.3 | v3.4 |
+|---------|------|------|
+| Versión | 3.3 | **3.4** |
+| Archivos Python | 53 | **60** |
+| Ventanas | 19 | **21** |
+| Temas | 15 | 15 |
+| Servicios background | 12 | **14** |
+| Badges en menú | 12 | 12 |
+| JSONs de estado compartidos | 1 | **3** |
+| Archivos de audio | 0 | **11** |
+| Documentos | 15 | **18** |
 
 ---
 
 ## Changelog
 
-### **v3.3** - 2026-02-27 ⭐ ACTUAL
+### **v3.4** - 2026-02-27 ⭐ ACTUAL
+- ✅ **NUEVO**: Control LEDs RGB — `LedService` + `LedWindow` con 6 modos (auto/off/static/follow/breathing/rainbow), sliders RGB, preview en tiempo real. Comunicación via `led_state.json` sin acoplar el dashboard a I2C
+- ✅ **NUEVO**: Temperatura chasis + Fan duty real — `HardwareMonitor` lee `hardware_state.json` escrito por fase1.py cada 5s. Visible en `MonitorWindow` como tarjeta adicional
+- ✅ **NUEVO**: Alertas de audio — `AudioAlertService` con 11 archivos .wav (tono sintético + voz TTS español). Lógica correcta: warn cada 5min, crit cada 30s, ok una vez al recuperarse. 4 métricas independientes
+- ✅ **NUEVO**: Cámara + Escáner OCR — `CameraWindow` con `rpicam-still` (OV5647, Bookworm), OCR Tesseract local, preprocesado PIL, guarda `.txt` y `.md`, scroll con patrón del proyecto
+- ✅ **NUEVO**: NVMe SMART extendido — `DiskMonitor.get_nvme_smart()` + tarjeta en `DiskWindow` con horas de uso, ciclos, apagados bruscos, TB escritos/leídos y % vida útil. Actualización cada 30s
+- ✅ **FIX**: Destellos en LEDs animados — `apply_led_state()` solo escribe I2C cuando modo o color cambia, evitando resetear la animación del firmware en cada tick de 0.5s
+- ✅ **MEJORA**: Menú principal ampliado de 21 a 23 botones
+
+### **v3.3** - 2026-02-27
 - ✅ **NUEVO**: Resumen del Sistema — `OverviewWindow` con grid de 6 tarjetas (CPU, RAM, Temp, Disco, Red, Servicios) + fila Pi-hole, refresco 2s, ideal como pantalla de reposo
 - ✅ **NUEVO**: Control de Brillo DSI — `DisplayService` con detección automática de método (sysfs/wlr-randr/xrandr), slider táctil, modo ahorro por inactividad, persistencia en JSON
-- ✅ **NUEVO**: Gestor VPN — `VpnMonitor` con sondeo 10s via `ip addr show`, badge en menú, conectar/desconectar con terminal en vivo reutilizando scripts existentes
-- ✅ **MEJORA**: Menú principal ampliado de 18 a 21 botones; uptime en cabecera
+- ✅ **NUEVO**: Gestor VPN — `VpnMonitor` con sondeo 10s via `ip addr show`, badge en menú, conectar/desconectar con terminal en vivo
+- ✅ **MEJORA**: Menú principal ampliado de 18 a 21 botones
 
 ### **v3.2** - 2026-02-27
 - ✅ **NUEVO**: Escáner de Red Local — `NetworkScanner` con arp-scan, IP/MAC/fabricante, auto-refresco 60s, ventana `NetworkLocalWindow`
