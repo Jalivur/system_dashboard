@@ -1,92 +1,123 @@
 import customtkinter as ctk
-from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR
-from ui.styles import make_futuristic_button
+from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR, UPDATE_MS
+from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets.dialogs import terminal_dialog
 from utils import SystemUtils
 
 
 class UpdatesWindow(ctk.CTkToplevel):
     """Ventana de control de actualizaciones del sistema"""
-    
+
     def __init__(self, parent, update_monitor):
         super().__init__(parent)
         self.system_utils = SystemUtils()
         self.monitor = update_monitor
         self._polling = False
+        self._banner_shown = False
 
-        # Configuración de ventana (Estilo DSI)
         self.title("Actualizaciones del Sistema")
         self.configure(fg_color=COLORS['bg_medium'])
         self.overrideredirect(True)
         self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
-        
+
         self._create_ui()
-        self._refresh_status(force=False)
+        self._update()
 
     def _create_ui(self):
-        # Frame Principal
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
-        main.pack(fill="both", expand=True, padx=20, pady=10)
-        
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+
+        make_window_header(main, title="ACTUALIZACIONES DEL SISTEMA", on_close=self.destroy)
+
+        # Frame de contenido que se puede limpiar para el banner
+        self._content = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
+        self._content.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self._build_content(self._content)
+
+    def _build_content(self, parent):
+        """Construye el contenido normal de la ventana."""
         # Icono
-        self.status_icon = ctk.CTkLabel(main, text="󰚰", font=(FONT_FAMILY, 60))
+        self.status_icon = ctk.CTkLabel(parent, text="󰚰", font=(FONT_FAMILY, 60))
         self.status_icon.pack(pady=(10, 5))
-        
+
         # Labels
         self.status_label = ctk.CTkLabel(
-            main, text="Verificando...", 
+            parent, text="Verificando...",
             font=(FONT_FAMILY, FONT_SIZES['xxlarge'], "bold")
         )
         self.status_label.pack()
-        
+
         self.info_label = ctk.CTkLabel(
-            main, text="Estado de los paquetes",
+            parent, text="Estado de los paquetes",
             text_color=COLORS['text_dim'], font=(FONT_FAMILY, FONT_SIZES['medium'])
         )
         self.info_label.pack(pady=5)
-        
+
         # Frame para botones
-        btn_frame = ctk.CTkFrame(main, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
         btn_frame.pack(side="bottom", fill="x", pady=(10, 20))
-        
-        # 1. Botón Buscar (Manual)
+
         self.search_btn = make_futuristic_button(
-            btn_frame, text="🔍 Buscar", 
+            btn_frame, text="🔍 Buscar",
             command=lambda: self._refresh_status(force=True), width=12
         )
         self.search_btn.pack(side="left", padx=5, expand=True)
 
-        # 2. Botón Instalar
         self.update_btn = make_futuristic_button(
-            btn_frame, text="󰚰 Instalar", 
+            btn_frame, text="󰚰 Instalar",
             command=self._execute_update_script, width=12
         )
         self.update_btn.pack(side="left", padx=5, expand=True)
         self.update_btn.configure(state="disabled")
-        
-        # 3. Botón Cerrar
+
         close_btn = make_futuristic_button(
-            btn_frame, text="Cerrar", 
+            btn_frame, text="Cerrar",
             command=self.destroy, width=12
         )
         close_btn.pack(side="left", padx=5, expand=True)
 
+        self._refresh_status(force=False)
+
+    # ── Loop de actualización con banner ──────────────────────────────────────
+
+    def _update(self):
+        if not self.winfo_exists():
+            return
+
+        if not self.monitor._running:
+            if not self._banner_shown:
+                for w in self._content.winfo_children():
+                    w.destroy()
+                StyleManager.show_service_stopped_banner(self._content, "Update Monitor")
+                self._banner_shown = True
+        else:
+            if self._banner_shown:
+                self._banner_shown = False
+                for w in self._content.winfo_children():
+                    w.destroy()
+                self._build_content(self._content)
+
+        self.after(UPDATE_MS, self._update)
+
+    # ── Lógica de actualizaciones ─────────────────────────────────────────────
+
     def _refresh_status(self, force=False):
         """Consulta el estado de actualizaciones"""
+        if not self.monitor._running:
+            return
         if force:
-            self._polling = False  # Cancelar polling si el usuario busca manualmente
+            self._polling = False
             self.status_label.configure(text="Buscando...", text_color=COLORS['warning'])
             self.update_idletasks()
 
         res = self.monitor.check_updates(force=force)
 
-        # Si el thread de arranque aún no ha terminado, mostrar estado de espera
         if res['status'] == "Unknown":
             self.status_label.configure(text="Comprobando...", text_color=COLORS['text_dim'])
             self.info_label.configure(text="Verificación inicial en curso")
             self.status_icon.configure(text_color=COLORS['text_dim'])
             self.update_btn.configure(state="disabled")
-            # Reintentar cada 2 segundos hasta tener resultado real
             if not self._polling:
                 self._polling = True
                 self._poll_until_ready()
@@ -108,7 +139,6 @@ class UpdatesWindow(ctk.CTkToplevel):
                 return
         except Exception:
             return
-
         res = self.monitor.check_updates(force=False)
         if res['status'] != "Unknown":
             self._refresh_status(force=False)
@@ -118,13 +148,13 @@ class UpdatesWindow(ctk.CTkToplevel):
     def _execute_update_script(self):
         """Lanza el script de terminal y refresca al terminar"""
         script_path = str(SCRIPTS_DIR / "update.sh")
-        
+
         def al_terminar_actualizacion():
             self._refresh_status(force=True)
-        
+
         terminal_dialog(
-            self, 
-            script_path, 
+            self,
+            script_path,
             "CONSOLA DE ACTUALIZACIÓN",
             on_close=al_terminar_actualizacion
         )

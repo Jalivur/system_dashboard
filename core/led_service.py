@@ -17,12 +17,12 @@ LED_MODES = ["auto", "off", "static", "follow", "breathing", "rainbow"]
 
 # Descripciones legibles para la UI
 LED_MODE_LABELS = {
-    "auto":     "Auto (temperatura)",
-    "off":      "Apagado",
-    "static":   "Color fijo",
-    "follow":   "Secuencial",
+    "auto":      "Auto (temperatura)",
+    "off":       "Apagado",
+    "static":    "Color fijo",
+    "follow":    "Secuencial",
     "breathing": "Respiración",
-    "rainbow":  "Arcoíris",
+    "rainbow":   "Arcoíris",
 }
 
 class LedService:
@@ -32,11 +32,24 @@ class LedService:
     """
 
     def __init__(self):
-        self._lock  = threading.Lock()
-        self._state = self._load()
+        self._lock    = threading.Lock()
+        self._state   = self._load()
+        self._running = True
         logger.info("[LedService] Iniciado. Modo actual: %s", self._state.get("mode", "auto"))
 
-    # ── API pública ──────────────────────────────────────────────────────────
+    # ── Ciclo de vida ─────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        self._running = True
+        logger.info("[LedService] Iniciado")
+
+    def stop(self) -> None:
+        """Apaga los LEDs y desactiva el servicio."""
+        self._running = False
+        self._save({"mode": "off", "r": 0, "g": 0, "b": 0})
+        logger.info("[LedService] Detenido — LEDs apagados")
+
+    # ── API pública ───────────────────────────────────────────────────────────
 
     def get_state(self) -> dict:
         with self._lock:
@@ -48,6 +61,9 @@ class LedService:
         mode: uno de LED_MODES
         r, g, b: 0-255 (solo se usan en static/follow/breathing)
         """
+        if not self._running:
+            logger.warning("[LedService] set_mode() ignorado — servicio parado")
+            return False
         if mode not in LED_MODES:
             logger.warning("[LedService] Modo desconocido: %s", mode)
             return False
@@ -62,11 +78,13 @@ class LedService:
 
     def set_color(self, r: int, g: int, b: int) -> bool:
         """Cambia el color sin cambiar el modo."""
+        if not self._running:
+            return False
         with self._lock:
             mode = self._state.get("mode", "static")
         return self.set_mode(mode, r, g, b)
 
-    # ── Persistencia ─────────────────────────────────────────────────────────
+    # ── Persistencia ──────────────────────────────────────────────────────────
 
     def _save(self, state: dict) -> bool:
         try:
