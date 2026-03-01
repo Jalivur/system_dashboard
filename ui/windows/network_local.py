@@ -8,7 +8,6 @@ from config.settings import (
     DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
 )
 from ui.styles import make_window_header, make_futuristic_button, StyleManager
-from core.network_scanner import NetworkScanner
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -20,9 +19,9 @@ AUTO_REFRESH_S = 60
 class NetworkLocalWindow(ctk.CTkToplevel):
     """Panel de dispositivos en la red local."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, network_scanner):  # ── MODIFICADO: recibe scanner ──
         super().__init__(parent)
-        self._scanner     = NetworkScanner()
+        self._scanner     = network_scanner  # ── MODIFICADO: usa el scanner externo ──
         self._auto_job    = None
         self._poll_job    = None
 
@@ -94,6 +93,16 @@ class NetworkLocalWindow(ctk.CTkToplevel):
 
     def _start_scan(self):
         """Lanza el escaneo y activa el polling de resultado."""
+        # ── guard: servicio detenido ──────────────────────────────────────────
+        if not self._scanner._running:
+            StyleManager.show_service_stopped_banner(self._device_frame, "Escáner de Red")
+            self._header.status_label.configure(text="Servicio detenido")
+            self._scan_btn.configure(state="disabled")
+            return
+
+        # ── si estaba con banner, limpiar y reactivar botón ──────────────────
+        self._scan_btn.configure(state="normal", text="⟳  Escanear")
+
         if self._scanner.get_status() == "scanning":
             return
         self._scan_btn.configure(state="disabled", text="Escaneando...")
@@ -103,6 +112,11 @@ class NetworkLocalWindow(ctk.CTkToplevel):
 
     def _poll_result(self):
         """Comprueba cada 500ms si el escaneo terminó."""
+        # Si el servicio se paró durante el escaneo, mostrar banner
+        if not self._scanner._running:
+            self._start_scan()  # redirige al banner
+            return
+
         status = self._scanner.get_status()
         if status == "scanning":
             self._poll_job = self.after(500, self._poll_result)
