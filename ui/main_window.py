@@ -549,6 +549,8 @@ class MainWindow:
                 self.root,
                 system_monitor       = self.system_monitor,
                 disk_monitor         = self.disk_monitor,
+                network_monitor      = self.network_monitor,
+                #network_scanner      = self.network_scanner,
                 hardware_monitor     = self.hardware_monitor,
                 process_monitor      = self.process_monitor,
                 service_monitor      = self.service_monitor,
