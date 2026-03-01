@@ -3,8 +3,8 @@ Ventana de control de LEDs RGB del GPIO Board.
 Hardware: Freenove FNK0100K — 4 LEDs RGB (I2C 0x21, gestionados por fase1.py).
 """
 import customtkinter as ctk
-from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
-from ui.styles import make_window_header, make_futuristic_button
+from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
+from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from core.led_service import LED_MODES, LED_MODE_LABELS
 from utils.logger import get_logger
 
@@ -31,8 +31,11 @@ class LedWindow(ctk.CTkToplevel):
         self._b = ctk.IntVar(value=0)
         self._mode_var = ctk.StringVar(value="auto")
 
+        self._banner_shown = False
+        self._inner = None   # referencia al frame de contenido
+
         self._create_ui()
-        self._load_current_state()
+        self._update()
         logger.info("[LedWindow] Ventana abierta")
 
     # ── UI ────────────────────────────────────────────────────────────────────
@@ -49,7 +52,6 @@ class LedWindow(ctk.CTkToplevel):
         canvas = ctk.CTkCanvas(scroll_container, bg=COLORS['bg_medium'], highlightthickness=0)
         canvas.pack(side="left", fill="both", expand=True)
 
-        from ui.styles import StyleManager
         sb = ctk.CTkScrollbar(scroll_container, orientation="vertical", command=canvas.yview, width=30)
         sb.pack(side="right", fill="y")
         StyleManager.style_scrollbar_ctk(sb)
@@ -58,7 +60,12 @@ class LedWindow(ctk.CTkToplevel):
         inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
         canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
         inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        self._inner = inner
 
+        self._build_content(inner)
+
+    def _build_content(self, inner):
+        """Construye el contenido real de la ventana."""
         # ── Selector de modo ──
         mode_card = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         mode_card.pack(fill="x", padx=10, pady=(6, 4))
@@ -70,7 +77,6 @@ class LedWindow(ctk.CTkToplevel):
         btn_row = ctk.CTkFrame(mode_card, fg_color="transparent")
         btn_row.pack(fill="x", padx=10, pady=(0, 10))
 
-        # 3 botones por fila
         self._mode_btns = {}
         for i, mode in enumerate(LED_MODES):
             label = LED_MODE_LABELS[mode]
@@ -149,12 +155,12 @@ class LedWindow(ctk.CTkToplevel):
                      text_color=COLORS['text_dim']).pack(anchor="w", padx=14, pady=(10, 6))
 
         presets = [
-            ("🔴 Rojo",    255, 0,   0),
-            ("🟢 Verde",   0,   255, 0),
-            ("🔵 Azul",    0,   0,   255),
-            ("🟡 Amarillo",255, 200, 0),
-            ("🟣 Violeta", 180, 0,   255),
-            ("⚪ Blanco",  255, 255, 255),
+            ("🔴 Rojo",     255, 0,   0),
+            ("🟢 Verde",    0,   255, 0),
+            ("🔵 Azul",     0,   0,   255),
+            ("🟡 Amarillo", 255, 200, 0),
+            ("🟣 Violeta",  180, 0,   255),
+            ("⚪ Blanco",   255, 255, 255),
         ]
         qrow = ctk.CTkFrame(quick_card, fg_color="transparent")
         qrow.pack(fill="x", padx=10, pady=(0, 10))
@@ -169,11 +175,35 @@ class LedWindow(ctk.CTkToplevel):
 
         # ── Estado actual ──
         self._status_label = ctk.CTkLabel(inner, text="",
-                                           font=(FONT_FAMILY, FONT_SIZES['small']),
-                                           text_color=COLORS['text_dim'])
+                                          font=(FONT_FAMILY, FONT_SIZES['small']),
+                                          text_color=COLORS['text_dim'])
         self._status_label.pack(pady=6)
 
+        self._load_current_state()
         self._update_preview()
+
+    # ── Loop de actualización con banner ──────────────────────────────────────
+
+    def _update(self):
+        if not self.winfo_exists():
+            return
+
+        if not self.led_service._running:
+            # Mostrar banner si no estaba ya
+            if not self._banner_shown:
+                for w in self._inner.winfo_children():
+                    w.destroy()
+                StyleManager.show_service_stopped_banner(self._inner, "LED Service")
+                self._banner_shown = True
+        else:
+            # Reconstruir contenido si veníamos de banner
+            if self._banner_shown:
+                self._banner_shown = False
+                for w in self._inner.winfo_children():
+                    w.destroy()
+                self._build_content(self._inner)
+
+        self.after(UPDATE_MS, self._update)
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
@@ -205,6 +235,8 @@ class LedWindow(ctk.CTkToplevel):
         self._apply_color()
 
     def _update_preview(self):
+        if not hasattr(self, "_preview_canvas"):
+            return
         r, g, b = self._r.get(), self._g.get(), self._b.get()
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
         self._preview_canvas.itemconfigure(self._preview_rect, fill=hex_color)
@@ -214,6 +246,8 @@ class LedWindow(ctk.CTkToplevel):
             self._b_lbl.configure(text=str(b))
 
     def _highlight_mode_btn(self, active_mode: str):
+        if not hasattr(self, "_mode_btns"):
+            return
         for mode, btn in self._mode_btns.items():
             if mode == active_mode:
                 btn.configure(fg_color=COLORS['primary'], border_width=2,
@@ -223,6 +257,8 @@ class LedWindow(ctk.CTkToplevel):
                               border_color=COLORS['border'])
 
     def _update_status(self):
+        if not hasattr(self, "_status_label"):
+            return
         state = self.led_service.get_state()
         mode  = state.get("mode", "auto")
         label = LED_MODE_LABELS.get(mode, mode)

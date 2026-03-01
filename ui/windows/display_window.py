@@ -5,7 +5,7 @@ Hardware: Freenove FNK0100K — Raspberry Pi 5.
 import customtkinter as ctk
 from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
-    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 )
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from utils.logger import get_logger
@@ -37,9 +37,11 @@ class DisplayWindow(ctk.CTkToplevel):
         self.after(150, self.focus_set)
 
         self._slider_var = ctk.IntVar(value=self.display_service.get_brightness())
+        self._banner_shown = False
+        self._inner = None
 
         self._create_ui()
-        self._refresh()
+        self._update()
         logger.info("[DisplayWindow] Ventana abierta (método: %s)",
                     self.display_service.get_method())
 
@@ -50,37 +52,40 @@ class DisplayWindow(ctk.CTkToplevel):
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
         self._header = make_window_header(
-            main, 
-            title="CONTROL DE PANTALLA", 
+            main,
+            title="CONTROL DE PANTALLA",
             on_close=self.destroy,
-            )
+        )
         # Area de scroll
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-        # Canvas para scroll
+
         canvas = ctk.CTkCanvas(
-            scroll_container, 
-            bg=COLORS['bg_medium'], 
+            scroll_container,
+            bg=COLORS['bg_medium'],
             highlightthickness=0,
-        )        
+        )
         canvas.pack(side="left", fill="both", expand=True)
-        # Scrollable frame dentro del canvas
+
         scrollbar = ctk.CTkScrollbar(
-            scroll_container, 
+            scroll_container,
             orientation="vertical",
             command=canvas.yview,
             width=30,
-            )
+        )
         scrollbar.pack(side="right", fill="y")
         StyleManager.style_scrollbar_ctk(scrollbar)
-        
         canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Frame que contiene el contenido real, dentro del canvas
+
         inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH-50)
+        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
         inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        
+        self._inner = inner
+
+        self._build_content(inner)
+
+    def _build_content(self, inner):
+        """Construye el contenido real de la ventana."""
         # ── Sin método disponible ──
         if not self.display_service.is_available():
             ctk.CTkLabel(
@@ -195,7 +200,30 @@ class DisplayWindow(ctk.CTkToplevel):
             switch_width=60, switch_height=30,
             progress_color=COLORS['primary'],
         )
-        self._dim_switch.pack(side="left") 
+        self._dim_switch.pack(side="left")
+
+        self._refresh()
+
+    # ── Loop de actualización con banner ──────────────────────────────────────
+
+    def _update(self):
+        if not self.winfo_exists():
+            return
+
+        if not self.display_service._running:
+            if not self._banner_shown:
+                for w in self._inner.winfo_children():
+                    w.destroy()
+                StyleManager.show_service_stopped_banner(self._inner, "Display Service")
+                self._banner_shown = True
+        else:
+            if self._banner_shown:
+                self._banner_shown = False
+                for w in self._inner.winfo_children():
+                    w.destroy()
+                self._build_content(self._inner)
+
+        self.after(UPDATE_MS, self._update)
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
@@ -224,6 +252,8 @@ class DisplayWindow(ctk.CTkToplevel):
 
     def _refresh(self):
         if not self.display_service.is_available():
+            return
+        if not hasattr(self, "_brightness_label"):
             return
         pct = self.display_service.get_brightness()
         self._brightness_label.configure(text=f"{pct}%")

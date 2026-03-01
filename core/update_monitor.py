@@ -13,11 +13,25 @@ class UpdateMonitor:
     """Lógica para verificar actualizaciones del sistema con caché"""
 
     def __init__(self):
+        self._running = True
         # Inicializar con tiempo actual para que la caché sea válida desde el inicio
         # Solo ejecuta apt update real cuando: arranque (main.py) o usuario pulsa "Buscar"
         self.last_check_time = time.time()
         self.cached_result = {"pending": 0, "status": "Unknown", "message": "No comprobado"}
         self.check_interval = 43200  # 12 horas en segundos
+
+    # ── Ciclo de vida ─────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        self._running = True
+        logger.info("[UpdateMonitor] Iniciado")
+
+    def stop(self) -> None:
+        self._running = False
+        self.cached_result = {"pending": 0, "status": "Unknown", "message": "Servicio parado"}
+        logger.info("[UpdateMonitor] Detenido")
+
+    # ── API pública ───────────────────────────────────────────────────────────
 
     def check_updates(self, force=False) -> Dict:
         """
@@ -29,6 +43,10 @@ class UpdateMonitor:
         Returns:
             Diccionario con pending, status y message
         """
+        if not self._running:
+            logger.warning("[UpdateMonitor] check_updates() ignorado — servicio parado")
+            return {"pending": 0, "status": "Stopped", "message": "Servicio parado"}
+
         current_time = time.time()
 
         # Devolver caché si no ha pasado el intervalo y no se fuerza

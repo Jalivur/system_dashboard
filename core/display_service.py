@@ -17,7 +17,7 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ── Configuración ─────────────────────────────────────────────────────────────
+# ── Configuración ──────────────────────────────────────────────────────────────
 
 # Rutas posibles de backlight sysfs — se comprueba por orden
 _BACKLIGHT_CANDIDATES = [
@@ -36,12 +36,12 @@ BRIGHTNESS_MAX = 100   # % máximo
 BRIGHTNESS_OFF = 0     # apagado completo
 
 # Timeouts de inactividad
-DIM_TIMEOUT_S = 120    # segundos hasta dim (20%)
+DIM_TIMEOUT_S = 120        # segundos hasta dim (20%)
 OFF_TIMEOUT_S = 2400000    # segundos hasta apagado completo
 
 _STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "display_state.json"
 
-# ── Detección automática ──────────────────────────────────────────────────────
+# ── Detección automática ───────────────────────────────────────────────────────
 
 def _find_backlight() -> Optional[Path]:
     for p in _BACKLIGHT_CANDIDATES:
@@ -69,7 +69,7 @@ def _detect_method() -> str:
     return 'none'
 
 
-# ── Servicio ──────────────────────────────────────────────────────────────────
+# ── Servicio ───────────────────────────────────────────────────────────────────
 
 class DisplayService:
     """
@@ -85,6 +85,7 @@ class DisplayService:
         self._brightness: int = BRIGHTNESS_MAX
         self._dimmed    = False
         self._dim_timer: Optional[threading.Timer] = None
+        self._running   = True
 
         logger.info("[DisplayService] Método detectado: %s", self._method)
         if self._method == 'none':
@@ -94,6 +95,18 @@ class DisplayService:
             )
 
         self._load_state()
+
+    # ── Ciclo de vida ─────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        self._running = True
+        logger.info("[DisplayService] Iniciado")
+
+    def stop(self) -> None:
+        """Desactiva el servicio y cancela timers de dim."""
+        self._running = False
+        self._cancel_dim_timer()
+        logger.info("[DisplayService] Detenido")
 
     # ── API pública ───────────────────────────────────────────────────────────
 
@@ -114,6 +127,9 @@ class DisplayService:
         Establece el brillo. pct en rango 0-100.
         Devuelve True si tuvo éxito.
         """
+        if not self._running:
+            logger.warning("[DisplayService] set_brightness() ignorado — servicio parado")
+            return False
         pct = max(BRIGHTNESS_OFF, min(BRIGHTNESS_MAX, int(pct)))
         if not self.is_available():
             return False
@@ -203,6 +219,8 @@ class DisplayService:
         Llamar desde la UI en cada interacción del usuario.
         Cancela el timer, restaura brillo si estaba en dim, reinicia el timer.
         """
+        if not self._running:
+            return
         self._cancel_dim_timer()
         if self._dimmed:
             self.screen_on()
@@ -212,6 +230,8 @@ class DisplayService:
 
     def enable_dim_on_idle(self):
         """Activa el timer de dim. Llamar al arrancar."""
+        if not self._running:
+            return
         self._start_dim_timer()
         logger.info("[DisplayService] Dim automático activado (%ds→dim, %ds→off)",
                     DIM_TIMEOUT_S, OFF_TIMEOUT_S)
@@ -234,19 +254,21 @@ class DisplayService:
 
     def _on_dim(self):
         """Baja el brillo al 20% y programa el apagado completo."""
-        if not self._dimmed:
+        if not self._dimmed and self._running:
             logger.debug("[DisplayService] Dim por inactividad")
             with self._lock:
                 self._dimmed = True
             self.set_brightness(20)
-        t = threading.Timer(OFF_TIMEOUT_S - DIM_TIMEOUT_S, self._on_off)
-        t.daemon = True
-        t.start()
-        self._dim_timer = t
+        if self._running:
+            t = threading.Timer(OFF_TIMEOUT_S - DIM_TIMEOUT_S, self._on_off)
+            t.daemon = True
+            t.start()
+            self._dim_timer = t
 
     def _on_off(self):
-        logger.debug("[DisplayService] Apagado por inactividad")
-        self.screen_off()
+        if self._running:
+            logger.debug("[DisplayService] Apagado por inactividad")
+            self.screen_off()
 
     # ── Persistencia ──────────────────────────────────────────────────────────
 
@@ -269,4 +291,3 @@ class DisplayService:
                         self.set_brightness(saved)
         except Exception as e:
             logger.warning("[DisplayService] No se pudo cargar estado: %s", e)
-            

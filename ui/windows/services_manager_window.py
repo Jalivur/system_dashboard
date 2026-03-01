@@ -6,6 +6,12 @@ Cuando un servicio está parado:
   - Su thread interno no corre
   - Sus métodos de acción devuelven sin hacer nada (ver parches en core/)
   - Las ventanas asociadas muestran aviso "Servicio detenido"
+
+Recibe el ServiceRegistry completo — muestra todos los servicios registrados
+que aparezcan en _DEFINITIONS.
+
+El botón "Guardar predeterminado" persiste el estado actual al services.json
+para que en el próximo arranque los servicios parados no se inicien.
 """
 import threading
 import tkinter as tk
@@ -24,17 +30,18 @@ _REFRESH_MS = 1500
 class ServicesManagerWindow(ctk.CTkToplevel):
     """Manager total de servicios del dashboard."""
 
+    # Definición completa de todos los servicios gestionables
     _DEFINITIONS = [
         ("system_monitor",
          "System Monitor", "🖥️",
          "CPU, RAM y temperatura dejarán de actualizarse en todas las ventanas."),
         ("disk_monitor",
-         "Disk Monitor", " ",
-         "Uso de disco, lectura y escritura, temperatura y smart dejaran de actualizarse."),
+         "Disk Monitor", "💾",
+         "Uso de disco, lectura y escritura, temperatura y smart dejarán de actualizarse."),
         ("hardware_monitor",
          "Hardware Monitor", "🌡️",
          "Temperatura del chasis y fan duty real dejarán de leerse."),
-        ("network_monitor",                                          
+        ("network_monitor",
          "Network Monitor", "🌐",
          "El tráfico de red dejará de monitorizarse y el speedtest quedará desactivado."),
         ("network_scanner",
@@ -42,16 +49,13 @@ class ServicesManagerWindow(ctk.CTkToplevel):
          "El escáner de red local (arp-scan) quedará desactivado."),
         ("process_monitor",
          "Process Monitor", "⚙️",
-         "El estado de los Procesos activos no se actualizará."),
+         "El estado de los procesos activos no se actualizará."),
         ("service_monitor",
          "Service Monitor", "⚙️",
          "El estado de los servicios systemd no se actualizará."),
-        ("alert_service",
-         "Alert Service (Telegram)", "📲",
-         "Las alertas por Telegram quedarán desactivadas."),
-        ("audio_alert_service",
-         "Audio Alert Service", "🔊",
-         "Las alertas de audio quedarán desactivadas."),
+        ("update_monitor",
+         "Update Monitor", "󰆧",
+         "La comprobación de actualizaciones pendientes quedará desactivada."),
         ("homebridge_monitor",
          "Homebridge Monitor", "🏠",
          "Homebridge dejará de sondearse y los controles quedarán bloqueados."),
@@ -61,15 +65,30 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         ("vpn_monitor",
          "VPN Monitor", "🔒",
          "El estado de la VPN no se actualizará."),
+        ("alert_service",
+         "Alert Service (Telegram)", "📲",
+         "Las alertas por Telegram quedarán desactivadas."),
+        ("audio_alert_service",
+         "Audio Alert Service", "🔊",
+         "Las alertas de audio quedarán desactivadas."),
         ("data_service",
          "Data Collection", "📊",
          "No se guardarán datos en el histórico mientras esté parado."),
         ("cleanup_service",
          "Cleanup Service", "🧹",
          "La limpieza automática de exports y BD quedará pausada."),
+        ("fan_service",
+         "Fan Auto Service", "󰈐",
+         "El control automático de ventiladores quedará desactivado."),
+        ("led_service",
+         "LED Service", "󰟖",
+         "Los LEDs RGB quedarán apagados y sin control."),
+        ("display_service",
+         "Display Service", "󰃟",
+         "El control de brillo y apagado de pantalla quedará desactivado."),
     ]
 
-    def __init__(self, parent, **services):
+    def __init__(self, parent, registry):
         super().__init__(parent)
         self.title("Gestión de Servicios")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -80,7 +99,9 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         self.after(150, self.focus_set)
         self.lift()
 
-        self._services: dict = {k: v for k, v in services.items() if v is not None}
+        self._registry = registry
+        # Solo mostrar servicios que estén registrados en el registry
+        self._services = registry.get_all()
         self._defs = [(k, lbl, emj, warn)
                       for k, lbl, emj, warn in self._DEFINITIONS
                       if k in self._services]
@@ -94,7 +115,6 @@ class ServicesManagerWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -135,11 +155,15 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         footer.pack(fill="x", padx=8, pady=(8, 6))
         make_futuristic_button(footer, text="⏹  Parar todos",
                                command=self._stop_all,
-                               width=14, height=6, font_size=13,
-                               ).pack(side="left", padx=(0, 8))
+                               width=13, height=6, font_size=13,
+                               ).pack(side="left", padx=(0, 6))
         make_futuristic_button(footer, text="▶  Iniciar todos",
                                command=self._start_all,
-                               width=14, height=6, font_size=13,
+                               width=13, height=6, font_size=13,
+                               ).pack(side="left", padx=(0, 6))
+        make_futuristic_button(footer, text="💾  Guardar predeterminado",
+                               command=self._save_defaults,
+                               width=18, height=6, font_size=13,
                                ).pack(side="left")
 
     def _create_row(self, parent, key, label, emoji, warn):
@@ -266,3 +290,11 @@ class ServicesManagerWindow(ctk.CTkToplevel):
             parent=self,
             text=f"¿Arrancar los {len(keys)} servicios parados?",
             on_confirm=lambda: [self._execute(k, stop=False) for k in keys])
+
+    def _save_defaults(self):
+        """Persiste el estado actual al services.json como configuración de arranque."""
+        confirm_dialog(
+            parent=self,
+            text="💾 ¿Guardar el estado actual como configuración de arranque?\n\n"
+                 "Los servicios PARADOS no arrancarán en el próximo inicio.",
+            on_confirm=self._registry.save_config)

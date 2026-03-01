@@ -9,11 +9,12 @@ import atexit
 import threading
 import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
-from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor, 
+from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor,
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
                   PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
+from core.service_registry import ServiceRegistry
 from ui.main_window import MainWindow
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -22,10 +23,10 @@ def main():
     """Función principal"""
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("dark-blue")
-    
+
     root = ctk.CTk()
     root.title("Sistema de Monitoreo")
-    
+
     root.withdraw()
     root.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
     root.configure(bg="#111111")
@@ -34,44 +35,24 @@ def main():
     root.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
     root.update_idletasks()
     root.deiconify()
-    """root.lift()
-    root.attributes('-topmost', True)
-    root.after(100, lambda: root.attributes('-topmost', False))"""
-    
-    # Inicializar monitores
-    system_monitor = SystemMonitor()
-    fan_controller = FanController()
-    network_monitor = NetworkMonitor()
-    disk_monitor = DiskMonitor()
-    process_monitor = ProcessMonitor()
-    service_monitor = ServiceMonitor()
-    update_monitor = UpdateMonitor()
+
+    # ── Instanciar servicios ──────────────────────────────────────────────────
+    system_monitor    = SystemMonitor()
+    fan_controller    = FanController()
+    network_monitor   = NetworkMonitor()
+    disk_monitor      = DiskMonitor()
+    process_monitor   = ProcessMonitor()
+    service_monitor   = ServiceMonitor()
+    update_monitor    = UpdateMonitor()
     homebridge_monitor = HomebridgeMonitor()
-    homebridge_monitor.start()
-    network_scanner = NetworkScanner()
-    pihole_monitor = PiholeMonitor()
-    pihole_monitor.start()
-    display_service = DisplayService()
-    led_service = LedService()
-    hardware_monitor = HardwareMonitor()
-    hardware_monitor.start()
-    #display_service.enable_dim_on_idle()
-    vpn_monitor = VpnMonitor()
-    vpn_monitor.start()
+    network_scanner   = NetworkScanner()
+    pihole_monitor    = PiholeMonitor()
+    display_service   = DisplayService()
+    led_service       = LedService()
+    hardware_monitor  = HardwareMonitor()
+    vpn_monitor       = VpnMonitor()
     audio_alert_service = AudioAlertService(system_monitor, service_monitor)
-    audio_alert_service.start()
-    
 
-
-    # Comprobación inicial de actualizaciones en background
-    # No bloquea el arranque y llena el caché para toda la sesión
-    threading.Thread(
-        target=lambda: update_monitor.check_updates(force=True),
-        daemon=True,
-        name="UpdateCheck-Startup"
-    ).start()
-
-    # Iniciar servicio de recolección de datos
     data_service = DataCollectionService(
         system_monitor=system_monitor,
         fan_controller=fan_controller,
@@ -80,16 +61,12 @@ def main():
         update_monitor=update_monitor,
         interval_minutes=5
     )
-    data_service.start()
-    
-    # Iniciar servicio de alertas
+
     alert_service = AlertService(
-    system_monitor=system_monitor,
-    service_monitor=service_monitor,
+        system_monitor=system_monitor,
+        service_monitor=service_monitor,
     )
-    alert_service.start()
-    
-    # Iniciar servicio de limpieza automática
+
     cleanup_service = CleanupService(
         data_logger=DataLogger(),
         max_csv=10,
@@ -97,15 +74,55 @@ def main():
         db_days=90,
         interval_hours=24,
     )
-    cleanup_service.start()
 
-    # Iniciar servicio de ventiladores AUTO
     fan_service = FanAutoService(fan_controller, system_monitor)
+
+    # ── Arrancar los que requieren start() explícito ──────────────────────────
+    homebridge_monitor.start()
+    pihole_monitor.start()
+    hardware_monitor.start()
+    vpn_monitor.start()
+    audio_alert_service.start()
+    data_service.start()
+    alert_service.start()
+    cleanup_service.start()
     fan_service.start()
-    
-    # Cleanup centralizado — ambos servicios aquí, ninguno en atexit interno
+
+    # ── Registrar en el registry y aplicar configuración ─────────────────────
+    registry = ServiceRegistry()
+    registry.register("fan_controller",     fan_controller)   # no tiene start/stop, solo se pasa
+    registry.register("fan_controller",      fan_controller)       # no tiene start/stop, se pasa directo
+    registry.register("system_monitor",      system_monitor)
+    registry.register("disk_monitor",       disk_monitor)
+    registry.register("hardware_monitor",   hardware_monitor)
+    registry.register("network_monitor",    network_monitor)
+    registry.register("network_scanner",    network_scanner)
+    registry.register("process_monitor",    process_monitor)
+    registry.register("service_monitor",    service_monitor)
+    registry.register("update_monitor",     update_monitor)
+    registry.register("homebridge_monitor", homebridge_monitor)
+    registry.register("pihole_monitor",     pihole_monitor)
+    registry.register("vpn_monitor",        vpn_monitor)
+    registry.register("alert_service",      alert_service)
+    registry.register("audio_alert_service",audio_alert_service)
+    registry.register("data_service",       data_service)
+    registry.register("cleanup_service",    cleanup_service)
+    registry.register("fan_service",        fan_service)
+    registry.register("led_service",        led_service)
+    registry.register("display_service",    display_service)
+
+    # Para los servicios configurados como False en services.json
+    registry.apply_config()
+
+    # ── Comprobación inicial de actualizaciones en background ─────────────────
+    threading.Thread(
+        target=lambda: update_monitor.check_updates(force=True),
+        daemon=True,
+        name="UpdateCheck-Startup"
+    ).start()
+
+    # ── Cleanup centralizado ──────────────────────────────────────────────────
     def cleanup():
-        """Limpieza al cerrar la aplicación"""
         fan_service.stop()
         data_service.stop()
         cleanup_service.stop()
@@ -119,33 +136,11 @@ def main():
         vpn_monitor.stop()
         hardware_monitor.stop()
         audio_alert_service.stop()
-    
+
     atexit.register(cleanup)
-    
-    # Crear interfaz
-    app = MainWindow(
-        root,
-        system_monitor=system_monitor,
-        fan_controller=fan_controller,
-        fan_service=fan_service,
-        data_service=data_service,
-        network_monitor=network_monitor,
-        disk_monitor=disk_monitor,
-        update_interval=UPDATE_MS,
-        process_monitor=process_monitor,
-        service_monitor=service_monitor,
-        update_monitor=update_monitor,
-        cleanup_service=cleanup_service,
-        homebridge_monitor=homebridge_monitor,
-        network_scanner=network_scanner,
-        pihole_monitor=pihole_monitor,
-        alert_service=alert_service,
-        display_service=display_service,
-        vpn_monitor=vpn_monitor,
-        led_service=led_service,
-        hardware_monitor=hardware_monitor,
-        audio_alert_service=audio_alert_service,
-    )
+
+    # ── Crear interfaz ────────────────────────────────────────────────────────
+    app = MainWindow(root, registry=registry, update_interval=UPDATE_MS)
 
     try:
         root.mainloop()
