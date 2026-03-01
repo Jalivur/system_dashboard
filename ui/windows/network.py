@@ -6,7 +6,6 @@ from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH,
                              DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS, NET_INTERFACE)
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets import GraphWidget
-from core.network_monitor import NetworkMonitor
 from utils.system_utils import SystemUtils
 
 _COL_W   = (DSI_WIDTH - 70) // 2
@@ -16,12 +15,13 @@ _GRAPH_H = 110
 class NetworkWindow(ctk.CTkToplevel):
     """Ventana de monitoreo de red"""
 
-    def __init__(self, parent, network_monitor: NetworkMonitor):
+    def __init__(self, parent, network_monitor):
         super().__init__(parent)
         self.network_monitor = network_monitor
         self.widgets = {}
         self.graphs  = {}
         self._interface_update_counter = 0
+        self._banner_shown = False  # ── AÑADIDO ──
 
         self.title("Monitor de Red")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -56,11 +56,15 @@ class NetworkWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
-        inner.bind("<Configure>",
-                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        self._inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])  # ── AÑADIDO ref ──
+        canvas.create_window((0, 0), window=self._inner, anchor="nw", width=DSI_WIDTH - 50)
+        self._inner.bind("<Configure>",
+                         lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
+        self._build_content(self._inner)  # ── AÑADIDO ──
+
+    def _build_content(self, inner):  # ── AÑADIDO: extraído de _create_ui ──
+        """Construye el contenido scrollable (se puede reconstruir al reanudar)."""
         # Grid 2 columnas dentro del inner scrollable
         grid = ctk.CTkFrame(inner, fg_color=COLORS['bg_medium'])
         grid.pack(fill="x")
@@ -197,6 +201,24 @@ class NetworkWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
+        # ── guard: servicio detenido ──────────────────────────────────────────
+        if not self.network_monitor._running:
+            if not self._banner_shown:
+                StyleManager.show_service_stopped_banner(self._inner, "Monitor de Red")
+                self._banner_shown = True
+            self.after(UPDATE_MS, self._update)
+            return
+
+        # ── reanudar tras parada ──────────────────────────────────────────────
+        if self._banner_shown:
+            self._banner_shown = False
+            self.widgets.clear()
+            self.graphs.clear()
+            for w in self._inner.winfo_children():
+                w.destroy()
+            self._build_content(self._inner)
+
+        # ── actualización normal ──────────────────────────────────────────────
         stats = self.network_monitor.get_current_stats(NET_INTERFACE)
         self.network_monitor.update_history(stats)
         self.network_monitor.update_dynamic_scale()

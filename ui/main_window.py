@@ -344,7 +344,7 @@ class MainWindow:
         if self.network_window is None or not self.network_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor Red")
             self._btn_active("  Monitor Red")
-            self.network_window = NetworkWindow(self.root, self.network_monitor)
+            self.network_window = NetworkWindow(self.root, network_monitor = self.network_monitor)
             self.network_window.bind("<Destroy>", lambda e: self._btn_idle("  Monitor Red"))
         else:
             self.network_window.lift()
@@ -454,7 +454,7 @@ class MainWindow:
         if self.network_local_window is None or not self.network_local_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Red Local")
             self._btn_active("🖧  Red Local")
-            self.network_local_window = NetworkLocalWindow(self.root)
+            self.network_local_window = NetworkLocalWindow(self.root, network_scanner = self.network_scanner)
             self.network_local_window.bind(
                 "<Destroy>", lambda e: self._btn_idle("🖧  Red Local"))
         else:
@@ -549,6 +549,8 @@ class MainWindow:
                 self.root,
                 system_monitor       = self.system_monitor,
                 disk_monitor         = self.disk_monitor,
+                network_monitor      = self.network_monitor,
+                network_scanner      = self.network_scanner,
                 hardware_monitor     = self.hardware_monitor,
                 process_monitor      = self.process_monitor,
                 service_monitor      = self.service_monitor,

@@ -40,11 +40,29 @@ class NetworkScanner:
         self._error   = ""
         self._last_scan: Optional[float] = None
         self._lock    = threading.Lock()
+        self._running = True  # ── AÑADIDO ──
+
+    # ── Gestión de ciclo de vida ──────────────────────────────────────────────
+
+    def start(self) -> None:  # ── AÑADIDO ──
+        self._running = True
+        logger.info("[NetworkScanner] Iniciado")
+
+    def stop(self) -> None:  # ── AÑADIDO ──
+        self._running = False
+        with self._lock:
+            self._devices = []
+            self._status  = "idle"
+            self._error   = ""
+        logger.info("[NetworkScanner] Detenido")
 
     # ── API pública ───────────────────────────────────────────────────────────
 
     def scan(self) -> None:
         """Lanza el escaneo en background. Si ya hay uno en curso, no hace nada."""
+        if not self._running:  # ── AÑADIDO ──
+            logger.warning("[NetworkScanner] scan() ignorado — servicio parado")
+            return
         with self._lock:
             if self._status == "scanning":
                 return

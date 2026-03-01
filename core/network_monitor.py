@@ -19,7 +19,8 @@ class NetworkMonitor:
     
     def __init__(self):
         self.system_utils = SystemUtils()
-        
+        self._running = True  # ── AÑADIDO ──
+
         # Historiales
         self.download_hist = deque(maxlen=HISTORY)
         self.upload_hist = deque(maxlen=HISTORY)
@@ -37,16 +38,18 @@ class NetworkMonitor:
             "download": 0.0,
             "upload": 0.0
         }
-        
-    """def stop(self):
+
+    def start(self) -> None:  # ── AÑADIDO ──
+        self._running = True
+        logger.info("[NetworkMonitor] Iniciado")
+
+    def stop(self) -> None:  # ── AÑADIDO ──
         self._running = False
-        if self._thread:
-            self._thread.join(timeout=5)
-        # ── AÑADIR: limpiar caché ──
-        # (no tiene caché central — get_current_stats lee psutil en directo)
-        # marcar con flag para que get_current_stats devuelva vacío
-        logger.info("[NetworkMonitor] Detenido")"""
-    
+        self.download_hist.clear()
+        self.upload_hist.clear()
+        self.speedtest_result = {"status": "idle", "ping": 0, "download": 0.0, "upload": 0.0}
+        logger.info("[NetworkMonitor] Detenido")
+
     def get_current_stats(self, interface: Optional[str] = None) -> Dict:
         """
         Obtiene estadísticas actuales de red
@@ -57,11 +60,9 @@ class NetworkMonitor:
         Returns:
             Diccionario con estadísticas de red
         """
-        """if not self._running:
-            return {
-                'interface': '', 'download_mb': 0.0,
-                'upload_mb': 0.0, 'ip': '',
-            }"""
+        if not self._running:  # ── AÑADIDO ──
+            return {'interface': '', 'download_mb': 0.0, 'upload_mb': 0.0, 'ip': ''}
+
         iface, stats = self.system_utils.get_net_io(interface)
         
         prev = self.last_net_io.get(iface)
@@ -131,6 +132,9 @@ class NetworkMonitor:
         Returns:
             Diccionario con historiales
         """
+        if not self._running:  # ── AÑADIDO ──
+            return {'download': [], 'upload': [], 'dynamic_max': NET_MAX_MB}
+
         return {
             'download': list(self.download_hist),
             'upload': list(self.upload_hist),
@@ -139,9 +143,10 @@ class NetworkMonitor:
     
     def run_speedtest(self) -> None:
         """Ejecuta speedtest (Ookla CLI) en un thread separado"""
-        """if not self._running:
+        if not self._running:  # ── AÑADIDO ──
             logger.warning("[NetworkMonitor] run_speedtest() ignorado — servicio parado")
-            return"""
+            return
+
         def _run():
             logger.info("[NetworkMonitor] Iniciando speedtest...")
             self.speedtest_result["status"] = "running"
