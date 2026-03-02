@@ -13,6 +13,13 @@ class FanController:
     
     def __init__(self):
         self.file_manager = FileManager()
+        self._running = True  # stateless — siempre activo
+
+    def start(self) -> None:
+        self._running = True
+
+    def stop(self) -> None:
+        self._running = False
     
     def compute_pwm_from_curve(self, temp: float) -> int:
         """

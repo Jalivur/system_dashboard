@@ -76,7 +76,7 @@ class FanAutoService:
     def stop(self):
         """Detiene el servicio"""
         if not self._running:
-            logger.warning("[FanAutoService] no está corriendo")
+            logger.debug("[FanAutoService] stop() ignorado — ya estaba parado (normal si deshabilitado en config)")
             return
         
         self._running = False

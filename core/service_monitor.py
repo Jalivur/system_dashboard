@@ -121,7 +121,7 @@ class ServiceMonitor:
             ["systemctl", "list-units", "--type=service", "--all", "--no-pager"],
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=20,
         )
         if result.returncode != 0:
             return []
@@ -190,7 +190,7 @@ class ServiceMonitor:
                 ["systemctl", "is-enabled", "--"] + units,
                 capture_output=True,
                 text=True,
-                timeout=8,
+                timeout=20,
             )
             # La salida tiene una línea por unidad, en el mismo orden
             lines = result.stdout.strip().split('\n')

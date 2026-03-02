@@ -60,7 +60,7 @@ class UpdateMonitor:
             result = subprocess.run(
                 ["sudo", "apt", "update"],
                 capture_output=True,
-                timeout=20
+                timeout=60
             )
             if result.returncode != 0:
                 logger.warning(f"[UpdateMonitor] apt update retornó código {result.returncode}")
@@ -83,7 +83,7 @@ class UpdateMonitor:
             return self.cached_result
 
         except subprocess.TimeoutExpired:
-            logger.error("[UpdateMonitor] check_updates: timeout ejecutando apt update (>20s)")
+            logger.error("[UpdateMonitor] check_updates: timeout ejecutando apt update (>60s)")
             return {"pending": 0, "status": "Error", "message": "Timeout ejecutando apt update"}
         except FileNotFoundError:
             logger.error("[UpdateMonitor] check_updates: apt no encontrado en el sistema")

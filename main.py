@@ -90,8 +90,7 @@ def main():
 
     # ── Registrar en el registry y aplicar configuración ─────────────────────
     registry = ServiceRegistry()
-    registry.register("fan_controller",     fan_controller)   # no tiene start/stop, solo se pasa
-    registry.register("fan_controller",      fan_controller)       # no tiene start/stop, se pasa directo
+    registry.register("fan_controller",      fan_controller)
     registry.register("system_monitor",      system_monitor)
     registry.register("disk_monitor",       disk_monitor)
     registry.register("hardware_monitor",   hardware_monitor)
@@ -144,8 +143,13 @@ def main():
 
     try:
         root.mainloop()
+    except KeyboardInterrupt:
+        pass
     finally:
-        cleanup()
+        try:
+            cleanup()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
