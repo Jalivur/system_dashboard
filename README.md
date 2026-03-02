@@ -553,7 +553,7 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 | Temas | 15 | 15 |
 | Servicios background | 14 | 14 |
 | Badges en menú | 12 | 12 |
-| Documentos | 18 | **18** |
+| Documentos | 9 | **9** |
 
 ---
 
