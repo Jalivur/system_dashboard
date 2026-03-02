@@ -81,13 +81,7 @@ Crear `config/local_settings.py` (en `.gitignore`) con los valores de `DSI_X/Y/W
 ├── THEMES_GUIDE.md                   🎨 Temas
 ├── INTEGRATION_GUIDE.md              🤝 Integración fase1
 ├── IDEAS_EXPANSION.md                💡 Roadmap v3.8+
-├── COMPATIBILIDAD.md                 🌐 Compatibilidad
-├── GUIA_BRILLO_DSI.md                💡 Brillo DSI (v3.3)
-├── GUIA_GESTOR_VPN.md                🔒 Gestor VPN (v3.3)
-├── GUIA_DASHBOARD_RESUMEN.md         📊 Resumen Sistema (v3.3)
-├── GUIA_V34_HARDWARE_FNK0100K.md     🔧 Hardware completo (v3.4)
-├── FIX_LED_DESTELLOS.md              💡 Fix LEDs animados (v3.4)
-└── INTEGRACION_MONITOR_HARDWARE.md   🌡️ Monitor chasis (v3.4)
+└── COMPATIBILIDAD.md                 🌐 Compatibilidad
 ```
 
 ---
