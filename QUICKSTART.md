@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v3.1
+# 🚀 Inicio Rápido - Dashboard v3.7
 
 ---
 
@@ -18,8 +18,6 @@ El script instala automáticamente las dependencias del sistema y Python, la CLI
 
 ## 🔁 Alternativa con Entorno Virtual
 
-Si prefieres aislar las dependencias:
-
 ```bash
 chmod +x install.sh
 ./install.sh
@@ -27,7 +25,7 @@ source venv/bin/activate
 python3 main.py
 ```
 
-> Recuerda activar el entorno (`source venv/bin/activate`) cada vez que quieras ejecutar el dashboard.
+> Recuerda activar el entorno (`source venv/bin/activate`) cada vez que quieras ejecutar.
 
 ---
 
@@ -40,79 +38,120 @@ python3 main.py
 
 ---
 
-## 🎯 Menú Principal (15 botones)
+## 🖥️ Config por máquina (multi-Pi)
 
+Si tienes varias Pi con configuraciones distintas, crea `config/local_settings.py` (está en `.gitignore`, no se sube a git):
+
+```python
+# Ejemplo Pi 3B+ con Xvfb
+DSI_X = 0
+DSI_Y = 0
+DSI_WIDTH = 1024
+DSI_HEIGHT = 762
 ```
-┌───────────────────────────────────┐
-│  Control        │  Monitor         │
-│  Ventiladores   │  Placa           │
-├─────────────────┼──────────────────┤
-│  Monitor        │  Monitor         │
-│  Red            │  USB             │
-├─────────────────┼──────────────────┤
-│  Monitor        │  Lanzadores      │
-│  Disco          │                  │
-├─────────────────┼──────────────────┤
-│  Monitor        │  Monitor         │
-│  Procesos       │  Servicios       │
-├─────────────────┼──────────────────┤
-│  Histórico      │  Actualizaciones │
-│  Datos          │                  │
-├─────────────────┼──────────────────┤
-│  Homebridge     │  Visor de Logs   │
-├─────────────────┼──────────────────┤
-│  Cambiar Tema   │  Reiniciar       │
-├─────────────────┼──────────────────┤
-│  Salir          │                  │
-└─────────────────┴──────────────────┘
-```
+
+Este fichero sobreescribe los valores de `config/settings.py` sin tocar el repositorio.
 
 ---
 
-## 🖥️ Las 15 Ventanas
+## 🎯 Menú Principal (26 botones)
 
-**1. Monitor Placa** — CPU, RAM y temperatura en tiempo real (status en header)
+```
+┌─────────────────────────────────────┐
+│  Control         │  LEDs RGB         │
+│  Ventiladores    │                   │
+├──────────────────┼───────────────────┤
+│  Monitor Placa   │  Monitor Red      │
+├──────────────────┼───────────────────┤
+│  Monitor USB     │  Monitor Disco    │
+├──────────────────┼───────────────────┤
+│  Lanzadores      │  Monitor Procesos │
+├──────────────────┼───────────────────┤
+│  Monitor         │  Servicios        │
+│  Servicios       │  Dashboard        │
+├──────────────────┼───────────────────┤
+│  Gestor Crontab  │  Gestor Botones   │
+├──────────────────┼───────────────────┤
+│  Histórico Datos │  Actualizaciones  │
+├──────────────────┼───────────────────┤
+│  Homebridge      │  Visor de Logs    │
+├──────────────────┼───────────────────┤
+│  🖧 Red Local    │  🕳 Pi-hole       │
+├──────────────────┼───────────────────┤
+│  🔒 Gestor VPN  │  🔔 Historial     │
+├──────────────────┼───────────────────┤
+│  💡 Brillo       │  📊 Resumen       │
+├──────────────────┼───────────────────┤
+│  📷 Cámara       │  Cambiar Tema     │
+├──────────────────┼───────────────────┤
+│  Reiniciar       │  Salir            │
+└──────────────────┴───────────────────┘
+```
 
-**2. Monitor Red** — Download/Upload en vivo, speedtest Ookla, lista de IPs (status en header)
+> Puedes ocultar botones que no uses con el **Gestor de Botones**.
 
-**3. Monitor USB** — Dispositivos conectados, expulsión segura
+---
 
-**4. Monitor Disco** — Espacio, temperatura NVMe, velocidad I/O (status en header)
+## 🖥️ Las 24 Ventanas
 
-**5. Monitor Procesos** — Top 20 procesos, búsqueda, matar procesos
+**1. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
 
-**6. Monitor Servicios** — Start/Stop/Restart systemd, ver logs
+**2. LEDs RGB** — 6 modos (auto, apagado, color fijo, secuencial, respiración, arcoíris)
 
-**7. Histórico Datos** — 8 gráficas CPU/RAM/Temp/Red/Disco/PWM en 24h, 7d, 30d, exportar CSV
+**3. Monitor Placa** — CPU, RAM, temperatura, temperatura chasis, fan duty real
 
-**8. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
+**4. Monitor Red** — Download/Upload, speedtest Ookla, lista de IPs
 
-**9. Lanzadores** — Scripts personalizados con terminal en vivo
+**5. Monitor USB** — Dispositivos conectados, expulsión segura
 
-**10. Actualizaciones** — Estado de paquetes, instalar con terminal integrada
+**6. Monitor Disco** — Espacio, temperatura NVMe, velocidad I/O, SMART extendido
 
-**11. Homebridge** — Control de **5 tipos de dispositivos HomeKit**: switches/enchufes, luces con brillo, termostatos, sensores temperatura/humedad, persianas
+**7. Lanzadores** — Scripts personalizados con terminal en vivo
 
-**12. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo de tiempo; exportación a `data/exports/logs/`
+**8. Monitor Procesos** — Top 20 procesos, búsqueda, matar procesos
 
-**13. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
+**9. Monitor Servicios** — Start/Stop/Restart systemd, ver logs
 
-**14. Reiniciar** — Reinicia el dashboard aplicando cambios de código
+**10. Servicios Dashboard** — Activar/desactivar servicios background del dashboard
 
-**15. Salir** — Salir de la app o apagar el sistema
+**11. Gestor Crontab** — Ver/añadir/editar/eliminar entradas del crontab por usuario
 
-> **Todas las ventanas** incluyen header unificado con título, status en tiempo real y botón ✕ táctil (52×42px) optimizado para pantalla DSI.
+**12. Gestor de Botones** — Mostrar/ocultar botones del menú principal
 
-> **Exports organizados** en `data/exports/{csv,logs,screenshots}` — carpetas creadas automáticamente, máx. 10 archivos por tipo.
+**13. Histórico Datos** — 8 gráficas CPU/RAM/Temp/Red/Disco/PWM en 24h, 7d, 30d
+
+**14. Actualizaciones** — Estado de paquetes, instalar con terminal integrada
+
+**15. Homebridge** — Control de 5 tipos de dispositivos HomeKit
+
+**16. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación
+
+**17. 🖧 Red Local** — Escáner arp-scan con IP, MAC y fabricante
+
+**18. 🕳 Pi-hole** — Estadísticas de bloqueo DNS en tiempo real (solo v6)
+
+**19. 🔒 Gestor VPN** — Estado, badge en menú, conectar/desconectar
+
+**20. 🔔 Historial Alertas** — Registro persistente de alertas Telegram enviadas
+
+**21. 💡 Brillo Pantalla** — Control brillo DSI, modo ahorro, encendido/apagado
+
+**22. 📊 Resumen Sistema** — Vista unificada de todas las métricas (ideal como reposo)
+
+**23. 📷 Cámara / Escáner OCR** — Foto con OV5647 + OCR Tesseract local
+
+**24. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
 
 ---
 
 ## 🔧 Configuración Básica
 
-### Ajustar posición en pantalla DSI (`config/settings.py`):
+### Ajustar posición en pantalla (`config/settings.py`):
 ```python
-DSI_X = 0     # Posición horizontal
-DSI_Y = 0     # Posición vertical
+DSI_X = 0
+DSI_Y = 0
+DSI_WIDTH = 800
+DSI_HEIGHT = 480
 ```
 
 ### Añadir scripts en Lanzadores:
@@ -126,51 +165,32 @@ LAUNCHERS = [
 
 ## 🏠 Configurar Homebridge
 
-Crea el archivo `.env` en la raíz del proyecto (cópialo desde `.env.example`):
-
 ```env
-HOMEBRIDGE_HOST=192.168.1.X    # IP de la Pi con Homebridge
+HOMEBRIDGE_HOST=192.168.1.X
 HOMEBRIDGE_PORT=8581
 HOMEBRIDGE_USER=admin
 HOMEBRIDGE_PASS=tu_contraseña
 ```
 
-> **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`). Sin él, la API no permite acceder a los accesorios.
-
-La ventana Homebridge muestra los accesorios en grid de 2 columnas con tarjetas adaptativas según el tipo:
-
-- **Switch / Enchufe / Luz básica**: CTkSwitch táctil (90×46px)
-- **Luz regulable**: switch ON/OFF con control de brillo
-- **Termostato**: temperatura actual + botones +/− 0.5°C para temperatura objetivo
-- **Sensor**: temperatura y/o humedad en modo solo lectura
-- **Persiana / Estor**: posición actual (%) con barra visual
-
-Si un dispositivo tiene `StatusFault=1` aparece ⚠ FALLO en rojo y el switch queda bloqueado.
+> Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`).
 
 ---
 
 ## 📲 Configurar Alertas Telegram
 
-Añade al mismo archivo `.env`:
-
 ```env
-TELEGRAM_TOKEN=123456789:ABCdefGHI...   # Token del bot (@BotFather)
-TELEGRAM_CHAT_ID=987654321              # ID del chat o canal destino
+TELEGRAM_TOKEN=123456789:ABCdefGHI...
+TELEGRAM_CHAT_ID=987654321
 ```
 
-Las alertas se envían cuando temperatura, CPU, RAM o disco superan los umbrales durante 60 segundos sostenidos (anti-spam). También avisa si hay servicios en estado FAILED.
-
-> Si no configuras estas variables, el dashboard funciona igual — las alertas simplemente no se envían.
+Las alertas se envían cuando temp/CPU/RAM/disco superan umbrales durante 60s sostenidos (anti-spam). También avisa si hay servicios FAILED.
 
 ---
 
 ## 📋 Ver Logs del Sistema
 
 ```bash
-# En tiempo real
 tail -f data/logs/dashboard.log
-
-# Solo errores
 grep ERROR data/logs/dashboard.log
 ```
 
@@ -185,41 +205,20 @@ grep ERROR data/logs/dashboard.log
 | NVMe temp 0 | `sudo apt install smartmontools` |
 | Speedtest falla | Instalar CLI Ookla: `sudo apt install speedtest` |
 | USB no expulsa | `sudo apt install udisks2` |
-| Homebridge no conecta | Revisar `.env` y activar Insecure Mode en Homebridge |
-| Badge hb_offline siempre rojo | Comprobar conectividad entre Pis y `HOMEBRIDGE_HOST` |
-| Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
-| No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
-| Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env` |
+| Homebridge no conecta | Revisar `.env` y activar Insecure Mode |
+| No puedo escribir en entries (VNC) | Verificar que se usa `make_entry()` de `ui/styles.py` |
+| Foco perdido tras inactividad (Wayland) | `gsettings set org.gnome.desktop.session idle-delay 0` |
+| Dashboard no visible por VNC en Pi 5 | `wayvnc --output=DSI-2 0.0.0.0 5901` |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
-
----
-
-## 🆕 Novedades v3.1
-
-✅ **Alertas Telegram** — `AlertService` con anti-spam (edge-trigger + sustain 60s), monitoriza temp/CPU/RAM/disco y servicios  
-✅ **Homebridge extendido** — 5 tipos de dispositivo: switch, luz regulable, termostato, sensor, persiana  
-✅ **UI diálogo salir** — radiobuttons táctiles 30×30px, botones ajustados, layout corregido  
-
-### v3.0 (referencia)
-✅ **Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación incluida  
-✅ **Exports organizados** — `data/exports/{csv,logs,screenshots}` creadas automáticamente  
-✅ **Limpieza al exportar** — CleanupService actúa también al guardar, no solo cada 24h  
-✅ **Fix entries** — Eliminado `grab_set()` en FanControl que bloqueaba el teclado  
-
-### v2.9 (referencia)
-✅ **Switches táctiles Homebridge** — CTkSwitch de 90×46px, optimizado para el dedo en DSI  
-✅ **Sin bloqueos en UI** — SystemMonitor y ServiceMonitor con caché en background thread  
-✅ **ServiceMonitor optimizado** — is-enabled en llamada batch, sondeo cada 10s  
-✅ **Logging completo** — Todos los servicios registran inicio y parada  
 
 ---
 
 ## 📚 Más Información
 
-**[README.md](README.md)** — Documentación completa  
-**[INSTALL_GUIDE.md](INSTALL_GUIDE.md)** — Instalación detallada  
+**[README.md](README.md)** — Documentación completa
+**[INSTALL_GUIDE.md](INSTALL_GUIDE.md)** — Instalación detallada
 **[INDEX.md](INDEX.md)** — Índice de toda la documentación
 
 ---
 
-**Dashboard v3.1** 🚀🏠📲✨
+**Dashboard v3.7** 🚀

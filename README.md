@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.4
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.7
 
 Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR y SMART extendido de NVMe.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-3.4-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.7-orange.svg)]()
 
 ---
 
@@ -36,206 +36,149 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Speedtest integrado**: CLI oficial de Ookla (JSON nativo, resultados en MB/s reales)
 - **Status en header**: interfaz activa + velocidades actuales
 
-### 🖧 **Escáner de Red Local** *(nuevo en v3.2)*
+### 🖧 **Escáner de Red Local**
 - **Escaneo con arp-scan**: Detecta todos los dispositivos activos en la red local
 - **Información por dispositivo**: IP, MAC y fabricante (OUI lookup)
 - **Auto-refresco cada 60s** en background sin bloquear la UI
-- **Lista scrollable** con todos los dispositivos encontrados
 - **Sudoers preconfigurado**: `usuario ALL=(ALL) NOPASSWD: /usr/sbin/arp-scan`
 
-### 🕳️ **Integración Pi-hole v6** *(nuevo en v3.2)*
-- **API v6 nativa**: autenticación por sesión (`POST /api/auth` → sid), compatible con Pi-hole v6
-- **Estadísticas en tiempo real**: consultas totales, bloqueadas, porcentaje de bloqueo, clientes activos, dominios en lista negra
-- **Renovación automática de sesión**: refresca antes de que expire (margen de 60s sobre 1800s)
-- **Logout limpio**: `DELETE /api/auth` al parar el servicio
+### 🕳️ **Integración Pi-hole v6**
+- **API v6 nativa**: autenticación por sesión (`POST /api/auth` → sid)
+- **Estadísticas en tiempo real**: consultas totales, bloqueadas, porcentaje de bloqueo, clientes activos
+- **Renovación automática de sesión** y logout limpio al parar
 - **Badge en menú**: 🔴 si Pi-hole está offline
-- **Configuración por `.env`**: `PIHOLE_HOST`, `PIHOLE_PORT`, `PIHOLE_PASSWORD`
 
 ### 📲 **Alertas Externas por Telegram**
 - **Sin dependencias nuevas**: usa `urllib` de la stdlib de Python
 - **Métricas monitorizadas**: temperatura, CPU, RAM, disco y servicios fallidos
-- **Umbrales configurables**: warn y crit independientes por métrica
-- **Anti-spam inteligente**: edge-trigger + sustain de 60s (condición debe mantenerse antes de enviar)
-- **Reseteo automático**: cuando la condición baja del umbral, permite una nueva alerta en el siguiente flanco
-- **Configurable por `.env`**: `TELEGRAM_TOKEN` + `TELEGRAM_CHAT_ID`
-- **Mensaje de prueba**: `alert_service.send_test()` para verificar la configuración
+- **Anti-spam inteligente**: edge-trigger + sustain de 60s
+- **Reseteo automático**: cuando la condición baja del umbral
 
-### 🔔 **Historial de Alertas** *(nuevo en v3.2)*
+### 🔔 **Historial de Alertas**
 - **Registro persistente**: guarda en `data/alert_history.json` cada alerta enviada a Telegram
-- **Máximo 100 entradas** (FIFO — las más antiguas se descartan)
+- **Máximo 100 entradas** (FIFO)
 - **Ventana dedicada**: tarjetas con franja de color lateral (naranja=aviso, rojo=crítico)
-- **Información completa**: tipo de alerta, valor, unidad y timestamp
-- **Orden cronológico inverso**: la alerta más reciente aparece primero
-- **Acciones**: actualizar lista y borrar historial completo con confirmación
 
 ### 🏠 **Integración Homebridge Extendida**
-- **5 tipos de dispositivo**: switch/enchufe, luz regulable (brillo), termostato, sensor temperatura/humedad, persiana/estor
-- **CTkSwitch táctil** (90×46px): Toggle grande optimizado para uso con el dedo en pantalla DSI
-- **Tarjetas adaptativas**: Cada tipo muestra su propia interfaz de control
-  - **Luces**: switch ON/OFF igual que enchufes
-  - **Termostatos**: temperatura actual + botones +/− 0.5°C para temperatura objetivo
-  - **Sensores**: temperatura y/o humedad en modo solo lectura
-  - **Persianas**: posición actual (%) con barra visual (control desde HomeKit)
-- **Indicador visual**: switch verde ON / gris OFF, ⚠ rojo bloqueado si `StatusFault=1`
-- **Sondeo ligero en background**: Cada 30 segundos sin bloquear la UI
+- **5 tipos de dispositivo**: switch/enchufe, luz regulable, termostato, sensor temperatura/humedad, persiana/estor
+- **CTkSwitch táctil** (90×46px)
+- **Tarjetas adaptativas** por tipo de dispositivo
 - **Autenticación JWT** con renovación automática en 401
-- **3 badges en el menú**: offline (🔴), dispositivos encendidos (🟠), dispositivos con fallo (🔴)
-- **Configuración por `.env`**: IP, puerto, usuario y contraseña de Homebridge
-- Requiere **Insecure Mode** activado en Homebridge para acceder a accesorios
+- **3 badges en el menú**: offline (🔴), encendidos (🟠), con fallo (🔴)
 
 ### ⚙️ **Monitor de Procesos**
-- **Lista en tiempo real**: Top 20 procesos con CPU/RAM
-- **Búsqueda inteligente**: Por nombre o comando completo
-- **Filtros**: Todos / Usuario / Sistema
-- **Terminar procesos**: Con confirmación y feedback
+- Lista en tiempo real: Top 20 procesos con CPU/RAM
+- Búsqueda inteligente, filtros, terminar procesos con confirmación
 
 ### ⚙️ **Monitor de Servicios systemd**
-- **Gestión completa**: Start/Stop/Restart servicios
-- **Estado visual**: active, inactive, failed con iconos
-- **Autostart**: Enable/Disable con confirmación
-- **Logs en tiempo real**: Ver últimas 50 líneas
-- **Caché en background**: Sondeo cada 10s sin bloquear la UI; `is-enabled` en llamada batch
+- Gestión completa: Start/Stop/Restart, estado visual, autostart, logs en tiempo real
+- Caché en background: sondeo cada 10s, `is-enabled` en llamada batch
+
+### ⚙️ **Servicios Dashboard** *(v3.5/v3.6)*
+- **ServiceRegistry**: registro centralizado de todos los servicios del dashboard
+- **ServicesManagerWindow**: activar/desactivar servicios background desde la UI
+- **Persistencia**: configuración guardada en `data/services.json`
+
+### 🔧 **Gestor de Botones del Menú** *(v3.6.5)*
+- **ButtonManagerWindow**: mostrar/ocultar botones del menú principal
+- **Persistencia**: configuración guardada en `data/button_config.json`
+- Ideal para simplificar el menú en cada máquina según sus capacidades
+
+### 🕐 **Gestor de Crontab** *(v3.7)*
+- **Ver, añadir, editar y eliminar** entradas del crontab
+- **Selector de usuario**: `usuario` / `root`
+- **Accesos rápidos** de programación: @reboot, cada hora, cada día, etc.
+- **Preview legible** de la expresión cron
 
 ### 📊 **Histórico de Datos**
-- **Recolección automática**: Cada 5 minutos en background
-- **Base de datos SQLite**: Ligera y eficiente
-- **Visualización gráfica**: 8 gráficas (CPU, RAM, Temperatura, Red Download, Red Upload, Disk Read, Disk Write, PWM)
-- **Periodos**: 24 horas, 7 días, 30 días
-- **Estadísticas**: Promedios, mínimos, máximos
-- **Detección de anomalías**: Alertas automáticas
-- **Exportación CSV**: Para análisis externo
+- Recolección automática cada 5 minutos en background (SQLite)
+- 8 gráficas (CPU, RAM, Temperatura, Red, Disco, PWM) en 24h, 7d, 30d
+- Estadísticas, detección de anomalías, exportación CSV
 
 ### 󱇰 **Monitor USB**
-- **Detección automática**: Dispositivos conectados
-- **Separación inteligente**: Mouse/teclado vs almacenamiento
-- **Expulsión segura**: Unmount + eject con confirmación
+- Detección automática, separación inteligente, expulsión segura
 
 ###  **Monitor de Disco**
-- **Particiones**: Uso de espacio de todas las unidades
-- **Temperatura NVMe**: Monitoreo térmico del SSD (smartctl/sysfs)
-- **Velocidad I/O**: Lectura/escritura en MB/s
-- **Status en header**: espacio disponible + temperatura NVMe en tiempo real
+- Particiones, temperatura NVMe, velocidad I/O
+- SMART extendido: horas de uso, ciclos, TB escritos/leídos, % vida útil
 
 ### 󱓞 **Lanzadores de Scripts**
-- **Terminal integrada**: Visualiza la ejecución en tiempo real
-- **Layout en grid**: Organización visual en columnas
-- **Confirmación previa**: Diálogo antes de ejecutar
+- Terminal integrada, layout en grid, confirmación previa
 
 ### 󰆧 **Actualizaciones del Sistema**
-- **Verificación al arranque**: En background sin bloquear la UI
-- **Sistema de caché 12h**: No repite `apt update` innecesariamente
-- **Terminal integrada**: Instala viendo el output en vivo
-- **Botón Buscar**: Fuerza comprobación manual
+- Verificación al arranque, caché 12h, terminal integrada
 
-### 󰆧 **15 Temas Personalizables**
-- **Cambio con un clic**: Reinicio automático
-- **Paletas completas**: Cyberpunk, Matrix, Dracula, Nord, Tokyo Night, etc.
-- **Preview en vivo**: Ve los colores antes de aplicar
+### 󰔎 **15 Temas Personalizables**
+- Cambio con un clic, paletas completas, preview en vivo
 
-### /󰿅 **Reinicio y Apagado**
-- **Botón Reiniciar**: Reinicia el dashboard aplicando cambios de código
-- **Botón Salir**: Salir de la app o apagar el sistema con radiobuttons táctiles (30×30px)
-- **Terminal de apagado**: Visualiza `apagado.sh` en tiempo real
-- **Con confirmación**: Evita acciones accidentales
+### 📊 **Resumen del Sistema / Pantalla de Reposo**
+- Vista unificada: CPU, RAM, Temperatura, Disco, Red y Servicios
+- Fila Pi-hole, refresco cada 2s
 
-### 📋 **Visor de Logs**
-- **Filtros avanzados**: Por nivel (DEBUG/INFO/WARNING/ERROR), módulo, texto libre e intervalo de fechas/horas
-- **Colores por nivel**: gris / azul / naranja / rojo
-- **Selector rápido**: 15min, 1h, 6h, 24h o rango manual
-- **Exportación**: Guarda el resultado filtrado en `data/exports/logs/`
-- **Recarga manual**: Lee también el archivo rotado `.log.1`
+### 💡 **Control de Brillo de Pantalla**
+- Detección automática del método: `sysfs`, `wlr-randr` (Wayland) o `xrandr` (X11)
+- Slider táctil, modo ahorro, encendido/apagado, persistencia
 
-### 🔔 **Badges de Notificación Visual**
-- **12 badges** en el menú principal con alertas en tiempo real
-- **Temperatura**: naranja >60°C, rojo >70°C (Control Ventiladores + Monitor Placa)
-- **CPU y RAM**: naranja >75%, rojo >90% (Monitor Placa)
-- **Disco**: naranja >80%, rojo >90% (Monitor Disco)
-- **Servicios fallidos**: rojo con contador (Monitor Servicios)
-- **Actualizaciones pendientes**: naranja con contador (Actualizaciones)
-- **Homebridge offline**: rojo si sin conexión
-- **Dispositivos encendidos**: naranja con contador
-- **Dispositivos con fallo**: rojo si `StatusFault=1`
-- **Pi-hole offline**: rojo si sin conexión *(v3.2)*
-- **VPN offline**: rojo si VPN desconectada *(nuevo en v3.3)*
+### 🔒 **Gestor de Conexiones VPN**
+- Estado en tiempo real, badge en menú, conectar/desconectar con terminal en vivo
+- Compatible con WireGuard y OpenVPN
 
-### 📊 **Resumen del Sistema / Pantalla de Reposo** *(nuevo en v3.3)*
-- **Vista unificada**: CPU, RAM, Temperatura, Disco, Red y Servicios en un solo vistazo
-- **Fila Pi-hole**: queries totales, bloqueadas y porcentaje de bloqueo en ancho completo
-- **Refresco cada 2s** leyendo directamente los cachés de los monitores — sin servicio adicional
-- **Colores por umbrales** en cada tarjeta (verde → naranja → rojo)
-- **Ideal como pantalla de reposo**: siempre visible sin abrir otras ventanas
+### 💡 **Control LEDs RGB**
+- 6 modos: auto, apagado, color fijo, secuencial, respiración, arcoíris
+- Sin destellos, sliders RGB, preview en tiempo real
 
-### 💡 **Control de Brillo de Pantalla** *(nuevo en v3.3)*
-- **Detección automática** del método disponible: `sysfs` (backlight kernel), `wlr-randr` (Wayland) o `xrandr` (X11)
-- **Compatible con Freenove FNK0100K**: detecta la ruta de backlight o usa `wlr-randr` en Raspberry Pi OS Bookworm
-- **Slider táctil** de 0-100% con 4 niveles rápidos predefinidos
-- **Modo ahorro**: dim automático al 20% tras 2 minutos de inactividad, apagado completo a los 4 minutos
-- **Encendido/Apagado** de pantalla con un botón
-- **Persistencia** del nivel entre reinicios en `data/display_state.json`
+### 🔊 **Alertas de Audio**
+- Voz TTS en español con `espeak-ng` + tono sintético por nivel
+- 11 archivos .wav, lógica correcta por nivel y métrica
 
-### 🔒 **Gestor de Conexiones VPN** *(nuevo en v3.3)*
-- **Estado en tiempo real**: conectado/desconectado, IP asignada e interfaz activa (`tun0`/`wg0`)
-- **Compatible con WireGuard y OpenVPN**: detecta la interfaz vía `ip addr show`
-- **Conectar/Desconectar** desde la UI usando los scripts existentes de Lanzadores — con terminal en vivo
-- **Badge en menú**: 🔴 cuando la VPN está desconectada
-- **Sondeo cada 10s** en background sin bloquear la UI
-- **Fuerza sondeo inmediato** tras conectar/desconectar para reflejar el nuevo estado al instante
+### 📷 **Cámara + Escáner OCR**
+- Cámara OV5647 via `rpicam-still`, resoluciones hasta 2592×1944
+- OCR con Tesseract local, preprocesado PIL, guarda `.txt` y `.md`
 
-### 💡 **Control LEDs RGB** *(nuevo en v3.4)*
-- **6 modos**: auto (sigue temperatura), apagado, color fijo, secuencial, respiración, arcoíris
-- **Sin destellos**: solo escribe por I2C cuando el modo o color cambia — el firmware anima solo
-- **Sliders RGB** con preview de color en tiempo real y colores rápidos preestablecidos
-- **Persistente**: el modo survives reinicios del dashboard via `data/led_state.json`
-- **Modo auto**: degradado verde→naranja→rojo siguiendo la temperatura CPU
+### 🌡️ **Hardware FNK0100K extendido**
+- Temperatura del chasis, fan duty real, NVMe SMART extendido
+- Arquitectura sin acoplamiento via `hardware_state.json`
 
-### 🔊 **Alertas de Audio** *(nuevo en v3.4)*
-- **Voz TTS en español** generada con `espeak-ng` + tono sintético por nivel
-- **11 archivos de audio**: uno por métrica (temp, CPU, RAM, servicios) y nivel (warn, crit, ok)
-- **Lógica correcta**: `warn.wav` cada 5 min mientras siga en aviso, `crit.wav` cada 30s mientras siga crítico, `ok.wav` una sola vez al recuperarse
-- **4 métricas independientes**: todas se evalúan por separado, sin `elif`
-- **Un solo proceso** de audio activo a la vez — sin solapamientos
+---
 
-### 📷 **Cámara + Escáner OCR** *(nuevo en v3.4)*
-- **Cámara OV5647** via `rpicam-still` (Bookworm), resoluciones hasta 2592×1944
-- **OCR con Tesseract** local (sin internet): español, inglés o ambos
-- **Preprocesado de imagen**: escala de grises + contraste + nitidez para mejor extracción
-- **Guarda en dos formatos**: `.txt` plano y `.md` con metadata (fecha, idioma, palabras)
-- **Lista de escaneos** con carga, copia al portapapeles y borrado
+## 🖥️ Soporte Multi-máquina
 
-### 🌡️ **Hardware FNK0100K extendido** *(nuevo en v3.4)*
-- **Temperatura del chasis**: sensor interno del GPIO Board (distinto a CPU), visible en Monitor Placa
-- **Fan duty real**: lecturas reales de `board.get_fan0/1_duty()` en lugar del PWM calculado
-- **NVMe SMART extendido**: horas de uso, ciclos de encendido, apagados bruscos, TB escritos/leídos y % de vida útil consumida (actualización cada 30s)
-- **Arquitectura sin acoplamiento**: `fase1.py` escribe `hardware_state.json` cada 5s, el dashboard solo lee JSON
+El dashboard soporta múltiples Raspberry Pi con configuraciones distintas sin tocar git.
 
+### Config por máquina
+`config/settings.py` al final carga opcionalmente:
+```python
+try:
+    from config.local_settings import *
+except ImportError:
+    pass
+```
+`config/local_settings.py` está en `.gitignore` — cada máquina tiene el suyo.
 
-- **CleanupService**: servicio background singleton
-- Limpia CSV exportados (máx. 10), PNG exportados (máx. 10), logs exportados (máx. 10)
-- Limpieza automática también al exportar — no solo en el ciclo de 24h
-- Limpia BD SQLite: registros >30 días cada 24h
-- Red de seguridad: si BD supera 5MB limpia a 7 días al arrancar
-- Botón "Limpiar Antiguos" fuerza limpieza manual completa
+### Pi 5 (pantalla DSI física + Wayland)
+- Compositor: **labwc** sobre Wayland
+- Acceso remoto: **wayvnc** (`wayvnc --output=DSI-2 0.0.0.0 5901`)
+- Resolución DSI: 800×480 en posición 1124,1080
+- Idle desactivado: `gsettings set org.gnome.desktop.session idle-delay 0`
 
-### 📋 **Sistema de Logging Completo**
-- **Cobertura total**: Todos los módulos core y UI incluyendo todos los servicios background
-- **Niveles diferenciados**: DEBUG, INFO, WARNING, ERROR
-- **Rotación automática**: 2MB máximo con backup
-- **Ubicación**: `data/logs/dashboard.log`
-- **Todos los servicios** registran inicio y parada en el log
+### Pi 3B+ (sin pantalla física + X11)
+- Display virtual `:1` con **Xvfb** (resolución configurable)
+- Dashboard corre en `:1`, aislado del escritorio XFCE en `:0`
+- Acceso remoto: x11vnc en puerto `5901` sobre `:1`
+- XFCE/RealVNC sigue en `:0` puerto `5900` sin cambios
+- `local_settings.py`: `DSI_X=0, DSI_Y=0, DSI_WIDTH=1024, DSI_HEIGHT=762`
 
 ---
 
 ## 📦 Instalación
 
-###  **Requisitos del Sistema**
+### Requisitos del Sistema
 - **Hardware**: Raspberry Pi 3/4/5
 - **OS**: Raspberry Pi OS (Bullseye/Bookworm) o Kali Linux
-- **Pantalla**: Touchscreen DSI 4,5" (800x480) o HDMI
+- **Pantalla**: Touchscreen DSI 4,5" (800×480) o HDMI
 - **Python**: 3.8 o superior
 
-### ⚡ **Instalación Recomendada**
-
-Usa el script de instalación directa (sin entorno virtual):
+### ⚡ Instalación Recomendada
 
 ```bash
 git clone https://github.com/tu-usuario/system-dashboard.git
@@ -245,15 +188,7 @@ sudo ./install_system.sh
 python3 main.py
 ```
 
-El script `install_system.sh` instala automáticamente:
-- Dependencias del sistema (`lm-sensors`, `usbutils`, `udisks2`, `arp-scan`)
-- Dependencias Python con `--break-system-packages`
-- CLI oficial de Ookla para speedtest
-- Ofrece configurar sensores de temperatura
-
-### 🛠️ **Instalación Manual**
-
-Si prefieres instalar paso a paso:
+### 🛠️ Instalación Manual
 
 ```bash
 # 1. Dependencias del sistema
@@ -270,7 +205,7 @@ sudo sensors-detect --auto
 # 4. Dependencias Python
 pip3 install --break-system-packages -r requirements.txt
 
-# 5. Sudoers para arp-scan (Red Local) y smartctl (NVMe SMART)
+# 5. Sudoers para arp-scan y smartctl
 echo "$(whoami) ALL=(ALL) NOPASSWD: /usr/sbin/arp-scan" | sudo tee /etc/sudoers.d/arp-scan
 echo "$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/smartctl"  | sudo tee /etc/sudoers.d/smartctl
 
@@ -286,9 +221,7 @@ python3 scripts/generate_sounds.py
 python3 main.py
 ```
 
-###  **Alternativa con Entorno Virtual**
-
-Si prefieres aislar las dependencias Python:
+### Alternativa con Entorno Virtual
 
 ```bash
 chmod +x install.sh
@@ -297,60 +230,38 @@ source venv/bin/activate
 python3 main.py
 ```
 
-> **Nota**: Con venv necesitas activar el entorno (`source venv/bin/activate`) cada vez antes de ejecutar.
-
 ---
 
 ## 🏠 Configuración de Homebridge
 
-La integración con Homebridge requiere un archivo `.env` en la raíz del proyecto:
-
 ```env
-HOMEBRIDGE_HOST=192.168.1.X    # IP de la Raspberry Pi con Homebridge
+HOMEBRIDGE_HOST=192.168.1.X
 HOMEBRIDGE_PORT=8581
 HOMEBRIDGE_USER=admin
 HOMEBRIDGE_PASS=tu_contraseña
 ```
 
-> **Importante**: Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`) para que la API permita acceder y controlar los accesorios.
-
-El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
-
-La ventana Homebridge muestra los accesorios en un grid de 2 columnas con tarjetas adaptativas según el tipo de dispositivo.
+> Activa el **Insecure Mode** en Homebridge para que la API permita acceder a los accesorios.
 
 ---
 
 ## 🕳️ Configuración de Pi-hole
 
-Añade al archivo `.env` existente:
-
 ```env
-PIHOLE_HOST=192.168.1.X        # IP del servidor Pi-hole
-PIHOLE_PORT=80                 # Puerto (80 por defecto)
-PIHOLE_PASSWORD=tu_contraseña  # Contraseña del panel web Pi-hole v6
+PIHOLE_HOST=192.168.1.X
+PIHOLE_PORT=80
+PIHOLE_PASSWORD=tu_contraseña
 ```
 
-> Compatible exclusivamente con **Pi-hole v6**. La API v5 (`api.php` + token) no está soportada.
-
-Si `PIHOLE_PASSWORD` no está configurado, `PiholeMonitor` arranca igualmente pero registra un warning y muestra el badge offline.
+> Compatible exclusivamente con **Pi-hole v6**.
 
 ---
 
 ## 📲 Configuración de Alertas Telegram
 
-Añade al archivo `.env` existente:
-
 ```env
-TELEGRAM_TOKEN=123456789:ABCdefGHI...   # Token del bot (@BotFather)
-TELEGRAM_CHAT_ID=987654321              # ID del chat o canal destino
-```
-
-> Si `TELEGRAM_TOKEN` o `TELEGRAM_CHAT_ID` no están configurados, `AlertService` arranca igualmente pero registra un warning y no envía nada.
-
-Para verificar la configuración desde Python:
-
-```python
-alert_service.send_test()
+TELEGRAM_TOKEN=123456789:ABCdefGHI...
+TELEGRAM_CHAT_ID=987654321
 ```
 
 ### Umbrales por defecto
@@ -365,21 +276,27 @@ alert_service.send_test()
 
 ---
 
-## 󰍜 Menú Principal (23 botones)
+## 󰍜 Menú Principal (26 botones)
 
 ```
 ┌─────────────────────────────────────┐
-│  Control         │  Monitor          │
-│  Ventiladores    │  Placa            │
+│  Control         │  LEDs RGB         │
+│  Ventiladores    │                   │
 ├──────────────────┼───────────────────┤
 │  Monitor         │  Monitor          │
-│  Red             │  USB              │
-├──────────────────┼───────────────────┤
-│  Monitor         │  Lanzadores       │
-│  Disco           │                   │
+│  Placa           │  Red              │
 ├──────────────────┼───────────────────┤
 │  Monitor         │  Monitor          │
-│  Procesos        │  Servicios        │
+│  USB             │  Disco            │
+├──────────────────┼───────────────────┤
+│  Lanzadores      │  Monitor          │
+│                  │  Procesos         │
+├──────────────────┼───────────────────┤
+│  Monitor         │  Servicios        │
+│  Servicios       │  Dashboard        │
+├──────────────────┼───────────────────┤
+│  Gestor          │  Gestor           │
+│  Crontab         │  de Botones       │
 ├──────────────────┼───────────────────┤
 │  Histórico       │  Actualizaciones  │
 │  Datos           │                   │
@@ -394,38 +311,38 @@ alert_service.send_test()
 │  💡 Brillo       │  📊 Resumen       │
 │  Pantalla        │  Sistema          │
 ├──────────────────┼───────────────────┤
-│  💡 LEDs RGB     │  📷 Cámara        │
-│                  │                   │
+│  📷 Cámara       │  Cambiar Tema     │
 ├──────────────────┼───────────────────┤
-│  Cambiar Tema    │  Reiniciar        │
-├──────────────────┼───────────────────┤
-│  Salir           │                   │
+│  Reiniciar       │  Salir            │
 └──────────────────┴───────────────────┘
 ```
 
-### **Las 21 Ventanas:**
+### Las 24 Ventanas
 
 1. **Control Ventiladores** - Configura modos y curvas PWM
-2. **Monitor Placa** - CPU, RAM, temperatura + temperatura chasis + fan duty real *(v3.4)*
-3. **Monitor Red** - Tráfico, speedtest Ookla, interfaces e IPs
-4. **Monitor USB** - Dispositivos y expulsión segura
-5. **Monitor Disco** - Espacio, temperatura NVMe, I/O + SMART extendido *(v3.4)*
-6. **Lanzadores** - Ejecuta scripts con terminal en vivo
-7. **Monitor Procesos** - Gestión avanzada de procesos
-8. **Monitor Servicios** - Control de servicios systemd
-9. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
-10. **Actualizaciones** - Gestión de paquetes del sistema
-11. **Homebridge** - Control de 5 tipos de dispositivos HomeKit
-12. **Visor de Logs** - Visualización y exportación del log del dashboard
-13. **🖧 Red Local** *(v3.2)* - Escáner arp-scan con IP, MAC y fabricante
-14. **🕳 Pi-hole** *(v3.2)* - Estadísticas de bloqueo DNS en tiempo real
-15. **🔒 Gestor VPN** *(v3.3)* - Estado en tiempo real + conectar/desconectar
-16. **🔔 Historial Alertas** *(v3.2)* - Registro persistente de alertas Telegram enviadas
-17. **💡 Brillo Pantalla** *(v3.3)* - Control de brillo DSI con modo ahorro
-18. **📊 Resumen Sistema** *(v3.3)* - Vista unificada de todas las métricas
-19. **💡 LEDs RGB** *(v3.4)* - Control de los 4 LEDs RGB del GPIO Board FNK0100K
-20. **📷 Cámara / Escáner OCR** *(v3.4)* - Captura de fotos + OCR con Tesseract
-21. **Cambiar Tema** - Selecciona entre 15 temas
+2. **LEDs RGB** - Control LEDs RGB GPIO Board con 6 modos *(v3.4)*
+3. **Monitor Placa** - CPU, RAM, temperatura + chasis + fan duty *(v3.4)*
+4. **Monitor Red** - Tráfico, speedtest Ookla, interfaces e IPs
+5. **Monitor USB** - Dispositivos y expulsión segura
+6. **Monitor Disco** - Espacio, temperatura NVMe, I/O + SMART *(v3.4)*
+7. **Lanzadores** - Scripts con terminal en vivo
+8. **Monitor Procesos** - Gestión avanzada de procesos
+9. **Monitor Servicios** - Control de servicios systemd
+10. **Servicios Dashboard** - Activar/desactivar servicios background *(v3.5/v3.6)*
+11. **Gestor Crontab** - Ver/añadir/editar/eliminar entradas cron *(v3.7)*
+12. **Gestor de Botones** - Visibilidad de botones del menú *(v3.6.5)*
+13. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
+14. **Actualizaciones** - Gestión de paquetes del sistema
+15. **Homebridge** - Control de 5 tipos de dispositivos HomeKit
+16. **Visor de Logs** - Visualización y exportación del log del dashboard
+17. **🖧 Red Local** - Escáner arp-scan con IP, MAC y fabricante *(v3.2)*
+18. **🕳 Pi-hole** - Estadísticas de bloqueo DNS en tiempo real *(v3.2)*
+19. **🔒 Gestor VPN** - Estado en tiempo real + conectar/desconectar *(v3.3)*
+20. **🔔 Historial Alertas** - Registro persistente de alertas Telegram *(v3.2)*
+21. **💡 Brillo Pantalla** - Control de brillo DSI con modo ahorro *(v3.3)*
+22. **📊 Resumen Sistema** - Vista unificada de todas las métricas *(v3.3)*
+23. **📷 Cámara / Escáner OCR** - Captura + OCR con Tesseract *(v3.4)*
+24. **Cambiar Tema** - Selecciona entre 15 temas
 
 ---
 
@@ -456,122 +373,116 @@ alert_service.send_test()
 ```
 system_dashboard/
 ├── config/
-│   ├── settings.py                 # Constantes globales, LAUNCHERS y rutas de exports
-│   └── themes.py                   # 15 temas pre-configurados
+│   ├── settings.py                 # Constantes globales
+│   ├── themes.py                   # 15 temas pre-configurados
+│   └── local_settings.py           # Config por máquina (NO en git)
 ├── core/
-│   ├── fan_controller.py           # Control PWM y curvas
-│   ├── fan_auto_service.py         # Servicio background ventiladores
-│   ├── system_monitor.py           # CPU, RAM, temp — caché en background thread
-│   ├── network_monitor.py          # Red, speedtest Ookla CLI, interfaces
-│   ├── network_scanner.py          # Escáner arp-scan (Red Local) — v3.2
-│   ├── disk_monitor.py             # Disco, NVMe, I/O
-│   ├── process_monitor.py          # Gestión de procesos
-│   ├── service_monitor.py          # Servicios systemd — caché 10s, batch is-enabled
-│   ├── update_monitor.py           # Actualizaciones con caché 12h
-│   ├── homebridge_monitor.py       # Integración Homebridge (JWT, sondeo 30s, 5 tipos)
-│   ├── pihole_monitor.py           # Integración Pi-hole v6 (sesión sid, sondeo) — v3.2
-│   ├── alert_service.py            # Alertas Telegram + historial JSON — v3.2
-│   ├── led_service.py              # Control LEDs RGB (escribe led_state.json) — v3.4
-│   ├── hardware_monitor.py         # Lee hardware_state.json de fase1.py — v3.4
-│   ├── audio_alert_service.py      # Alertas sonoras TTS español — v3.4
-│   ├── display_service.py          # Control brillo DSI (sysfs/wlr-randr/xrandr) — v3.3
-│   ├── vpn_monitor.py              # Monitor VPN (tun0/wg0, sondeo 10s) — v3.3
-│   ├── data_logger.py              # SQLite logging
-│   ├── data_analyzer.py            # Análisis histórico
-│   ├── data_collection_service.py  # Recolección automática (singleton)
-│   ├── cleanup_service.py          # Limpieza automática background (singleton)
-│   └── __init__.py
+│   ├── fan_controller.py
+│   ├── fan_auto_service.py
+│   ├── system_monitor.py
+│   ├── network_monitor.py
+│   ├── network_scanner.py
+│   ├── disk_monitor.py
+│   ├── process_monitor.py
+│   ├── service_monitor.py
+│   ├── service_registry.py         # Registro centralizado de servicios (v3.5)
+│   ├── update_monitor.py
+│   ├── homebridge_monitor.py
+│   ├── pihole_monitor.py
+│   ├── alert_service.py
+│   ├── led_service.py
+│   ├── hardware_monitor.py
+│   ├── audio_alert_service.py
+│   ├── display_service.py
+│   ├── vpn_monitor.py
+│   ├── data_logger.py
+│   ├── data_analyzer.py
+│   ├── data_collection_service.py
+│   └── cleanup_service.py
 ├── ui/
-│   ├── main_window.py              # Ventana principal (21 botones + badges)
+│   ├── main_window.py
 │   ├── styles.py                   # make_window_header(), make_futuristic_button(),
-│   │                               # make_homebridge_switch(), StyleManager
+│   │                               # make_homebridge_switch(), make_entry(), StyleManager
+│   ├── window_manager.py           # Gestión de visibilidad de botones
 │   ├── widgets/
-│   │   ├── graphs.py               # Gráficas personalizadas
+│   │   ├── graphs.py
 │   │   └── dialogs.py              # custom_msgbox, confirm_dialog, terminal_dialog
 │   └── windows/
 │       ├── monitor.py, network.py, usb.py, disk.py
 │       ├── process_window.py, service.py, history.py
 │       ├── update.py, fan_control.py
 │       ├── launchers.py, theme_selector.py
-│       ├── homebridge.py           # 5 tarjetas adaptativas por tipo de dispositivo
-│       ├── log_viewer.py           # Visor de logs con filtros y exportación
-│       ├── network_local.py        # Escáner de red local (arp-scan) — v3.2
-│       ├── pihole_window.py        # Estadísticas Pi-hole v6 — v3.2
-│       ├── alert_history.py        # Historial de alertas Telegram — v3.2
-│       ├── vpn_window.py           # Gestor VPN — v3.3
-│       ├── display_window.py       # Control de brillo DSI — v3.3
-│       ├── overview.py             # Resumen del sistema / pantalla reposo — v3.3
-│       ├── led_window.py           # Control LEDs RGB GPIO Board — v3.4
-│       ├── camera_window.py        # Cámara OV5647 + Escáner OCR Tesseract — v3.4
+│       ├── homebridge.py
+│       ├── log_viewer.py
+│       ├── network_local.py
+│       ├── pihole_window.py
+│       ├── alert_history.py
+│       ├── vpn_window.py
+│       ├── display_window.py
+│       ├── overview.py
+│       ├── led_window.py
+│       ├── camera_window.py
+│       ├── services_manager_window.py  # Gestión servicios dashboard (v3.6)
+│       ├── button_manager_window.py    # Visibilidad botones menú (v3.6.5)
+│       ├── crontab_window.py           # Gestor crontab (v3.7)
 │       └── __init__.py
 ├── utils/
-│   ├── file_manager.py             # Gestión de JSON (escritura atómica)
-│   ├── system_utils.py             # Utilidades del sistema
-│   └── logger.py                   # DashboardLogger (rotación 2MB)
+│   ├── file_manager.py
+│   ├── system_utils.py
+│   └── logger.py
 ├── data/                            # Auto-generado al ejecutar
 │   ├── fan_state.json, fan_curve.json, theme_config.json
-│   ├── led_state.json              # Modo y color LEDs (dashboard → fase1.py) — v3.4
-│   ├── hardware_state.json         # Temp chasis + fan duty real (fase1.py → dashboard) — v3.4
-│   ├── alert_history.json          # Historial de alertas (máx. 100) — v3.2
-│   ├── display_state.json          # Brillo de pantalla persistido — v3.3
-│   ├── history.db                  # SQLite histórico
-│   ├── logs/dashboard.log          # Log del sistema
-│   ├── photos/                     # Fotos capturadas con cámara OV5647 — v3.4
-│   ├── scans/                      # Escaneos OCR (.txt + .md) — v3.4
-│   └── exports/                    # Archivos exportados (máx. 10 por tipo)
+│   ├── led_state.json
+│   ├── hardware_state.json
+│   ├── alert_history.json
+│   ├── display_state.json
+│   ├── services.json               # Config servicios activos/inactivos (v3.5)
+│   ├── button_config.json          # Visibilidad botones menú (v3.6.5)
+│   ├── history.db
+│   ├── logs/dashboard.log
+│   ├── photos/
+│   ├── scans/
+│   └── exports/
 │       ├── csv/
 │       ├── logs/
 │       └── screenshots/
 ├── scripts/
-│   ├── sounds/                     # 11 archivos .wav (tono + voz TTS) — v3.4
-│   │   ├── temp_warn.wav, temp_crit.wav, temp_ok.wav
-│   │   ├── cpu_warn.wav,  cpu_crit.wav,  cpu_ok.wav
-│   │   ├── ram_warn.wav,  ram_crit.wav,  ram_ok.wav
-│   │   └── services_crit.wav, services_ok.wav
-│   └── generate_sounds.py          # Genera los 11 audios — v3.4
-├── .env                             # Credenciales Homebridge + Telegram + Pi-hole (NO en git)
-├── .env.example                     # Plantilla de configuración
-├── install_system.sh               # Instalación directa (recomendada)
-├── install.sh                      # Instalación con venv (alternativa)
+│   ├── sounds/                     # 11 archivos .wav
+│   └── generate_sounds.py
+├── .env                             # Credenciales (NO en git)
+├── .env.example
+├── install_system.sh
+├── install.sh
 ├── main.py
 └── requirements.txt
 ```
 
 ---
 
-##  Configuración
+## 🔧 Configuración
 
-### **`config/settings.py`**
+### `config/settings.py`
 
 ```python
-# Posición en pantalla DSI
 DSI_WIDTH = 800
 DSI_HEIGHT = 480
 DSI_X = 0
 DSI_Y = 0
 
-# Scripts personalizados en Lanzadores
 LAUNCHERS = [
     {"label": "Montar NAS",   "script": str(SCRIPTS_DIR / "montarnas.sh")},
     {"label": "Conectar VPN", "script": str(SCRIPTS_DIR / "conectar_vpn.sh")},
-    # Añade tus scripts aquí
 ]
 ```
 
-### **`.env` (Homebridge + Telegram + Pi-hole)**
+### `config/local_settings.py` (por máquina, NO en git)
 
-```env
-HOMEBRIDGE_HOST=192.168.1.X
-HOMEBRIDGE_PORT=8581
-HOMEBRIDGE_USER=admin
-HOMEBRIDGE_PASS=tu_contraseña
-
-TELEGRAM_TOKEN=123456789:ABCdefGHI...
-TELEGRAM_CHAT_ID=987654321
-
-PIHOLE_HOST=192.168.1.X
-PIHOLE_PORT=80
-PIHOLE_PASSWORD=tu_contraseña_pihole
+```python
+# Ejemplo Pi 3B+ con Xvfb
+DSI_X = 0
+DSI_Y = 0
+DSI_WIDTH = 1024
+DSI_HEIGHT = 762
 ```
 
 ---
@@ -579,28 +490,9 @@ PIHOLE_PASSWORD=tu_contraseña_pihole
 ## 📋 Sistema de Logging
 
 ```bash
-# Ver logs en tiempo real
 tail -f data/logs/dashboard.log
-
-# Solo errores
 grep ERROR data/logs/dashboard.log
-
-# Eventos de hoy
 grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
-```
-
-**Niveles:** `DEBUG` (operaciones normales) · `INFO` (eventos importantes) · `WARNING` (degradación) · `ERROR` (fallos)
-
-Todos los servicios background registran su inicio y parada. Al arrancar verás entradas como:
-```
-[SystemMonitor]     Sondeo iniciado (cada 2.0s)
-[ServiceMonitor]    Sondeo iniciado (cada 10s)
-[HomebridgeMonitor] Sondeo iniciado (cada 30s)
-[PiholeMonitor]     Sondeo iniciado (cada 60s)
-[FanAutoService]    Servicio iniciado
-[DataCollection]    Servicio iniciado (cada 5 min)
-[CleanupService]    Servicio iniciado
-[AlertService]      Servicio iniciado (cada 15s)
 ```
 
 ---
@@ -609,14 +501,13 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 - **Uso CPU**: ~5-10% en idle
 - **Uso RAM**: ~100-150 MB
-- **Base de datos**: ~5 MB por 10,000 registros
-- **Actualización UI**: 2 segundos (configurable en `UPDATE_MS`) — solo lectura de caché, sin syscalls bloqueantes
-- **Threads background**: 12 (FanAuto + SystemMonitor + ServiceMonitor + DataCollection + Cleanup + Homebridge + AlertService + PiholeMonitor + NetworkScanner + VpnMonitor + DisplayService(timer) + main)
+- **Actualización UI**: 2 segundos — solo lectura de caché
+- **Threads background**: 14
 - **Log**: máx. 2MB con rotación automática
 
 ---
 
-##  Troubleshooting
+## 🔧 Troubleshooting
 
 | Problema | Solución |
 |----------|----------|
@@ -624,25 +515,20 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 | Temperatura 0 | `sudo sensors-detect --auto && sudo systemctl restart lm-sensors` |
 | NVMe temp 0 | `sudo apt install smartmontools` |
 | Ventiladores no responden | `sudo python3 main.py` |
-| Speedtest falla | Instalar CLI oficial Ookla: ver sección Instalación Manual |
+| Speedtest falla | Instalar CLI oficial Ookla |
 | USB no expulsa | `sudo apt install udisks2` |
-| Homebridge no conecta | Verificar IP/puerto en `.env` y que Insecure Mode esté activo |
-| Badge hb_offline siempre rojo | Comprobar `HOMEBRIDGE_HOST` en `.env` y red entre Pis |
+| Homebridge no conecta | Verificar `.env` y que Insecure Mode esté activo |
 | Red Local no escanea | `sudo apt install arp-scan` y configurar sudoers |
-| Pi-hole no conecta | Verificar `PIHOLE_HOST` y `PIHOLE_PASSWORD` en `.env`; solo compatible con v6 |
-| VPN badge siempre rojo | Verificar que `VPN_INTERFACE` en `vpn_monitor.py` coincide con tu interfaz (`tun0`/`wg0`) |
-| Brillo no disponible | Ejecutar diagnóstico del Paso 0 en `GUIA_BRILLO_DSI.md`; instalar `wlr-randr` si Wayland |
-| LEDs con destellos | Ver `FIX_LED_DESTELLOS.md` — reemplazar `apply_led_state()` en fase1.py |
-| LEDs no responden | Verificar `data/led_state.json` y que fase1.py esté activo |
-| Temperatura chasis N/D | Verificar `data/hardware_state.json` y que fase1.py esté corriendo |
-| Audio no suena | `aplay -l` → verificar dispositivo HDMI; probar `aplay scripts/sounds/temp_crit.wav` |
-| Cámara no encontrada | `sudo apt install rpicam-apps` + `sudo usermod -aG video $(whoami)` + relogin |
-| OCR no detecta texto | Mejorar iluminación; usar resolución 2592×1944; instalar `tesseract-ocr-spa` |
-| SMART muestra N/D | `sudo smartctl -A /dev/nvme0` para verificar; revisar `/etc/sudoers.d/smartctl` |
-| Servicios tardan en aparecer | Normal — ServiceMonitor sondea systemctl cada 10s al arrancar |
-| No puedo escribir en los entries | Asegúrate de usar v3.0+ — el bug de `grab_set` está corregido |
-| Alertas Telegram no llegan | Verificar `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` en `.env`; ejecutar `send_test()` |
-| Historial alertas vacío | Las alertas solo se guardan si Telegram está configurado y el envío tiene éxito |
+| Pi-hole no conecta | Verificar `.env`; solo compatible con v6 |
+| VPN badge siempre rojo | Verificar que la interfaz (`tun0`/`wg0`) coincide en `vpn_monitor.py` |
+| Brillo no disponible | Instalar `wlr-randr` si Wayland |
+| No puedo escribir en entries (VNC) | Verificar que se usa `make_entry()` de `ui/styles.py` |
+| Foco perdido tras inactividad (Wayland) | `gsettings set org.gnome.desktop.session idle-delay 0` |
+| Dashboard no visible por VNC en Pi 5 | Usar `wayvnc --output=DSI-2 0.0.0.0 5901` |
+| LEDs con destellos | Ver `FIX_LED_DESTELLOS.md` |
+| Audio no suena | `aplay -l` → verificar dispositivo HDMI |
+| Cámara no encontrada | `sudo apt install rpicam-apps` + `sudo usermod -aG video $(whoami)` |
+| SMART muestra N/D | `sudo smartctl -A /dev/nvme0` + revisar sudoers |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
@@ -659,93 +545,55 @@ Todos los servicios background registran su inicio y parada. Al arrancar verás 
 
 ## 📊 Estadísticas del Proyecto
 
-| Métrica | v3.3 | v3.4 |
+| Métrica | v3.4 | v3.7 |
 |---------|------|------|
-| Versión | 3.3 | **3.4** |
-| Archivos Python | 53 | **60** |
-| Ventanas | 19 | **21** |
+| Versión | 3.4 | **3.7** |
+| Archivos Python | 60 | **63** |
+| Ventanas | 21 | **24** |
 | Temas | 15 | 15 |
-| Servicios background | 12 | **14** |
+| Servicios background | 14 | 14 |
 | Badges en menú | 12 | 12 |
-| JSONs de estado compartidos | 1 | **3** |
-| Archivos de audio | 0 | **11** |
-| Documentos | 15 | **18** |
+| Documentos | 18 | **18** |
 
 ---
 
 ## Changelog
 
-### **v3.4** - 2026-02-27 ⭐ ACTUAL
-- ✅ **NUEVO**: Control LEDs RGB — `LedService` + `LedWindow` con 6 modos (auto/off/static/follow/breathing/rainbow), sliders RGB, preview en tiempo real. Comunicación via `led_state.json` sin acoplar el dashboard a I2C
-- ✅ **NUEVO**: Temperatura chasis + Fan duty real — `HardwareMonitor` lee `hardware_state.json` escrito por fase1.py cada 5s. Visible en `MonitorWindow` como tarjeta adicional
-- ✅ **NUEVO**: Alertas de audio — `AudioAlertService` con 11 archivos .wav (tono sintético + voz TTS español). Lógica correcta: warn cada 5min, crit cada 30s, ok una vez al recuperarse. 4 métricas independientes
-- ✅ **NUEVO**: Cámara + Escáner OCR — `CameraWindow` con `rpicam-still` (OV5647, Bookworm), OCR Tesseract local, preprocesado PIL, guarda `.txt` y `.md`, scroll con patrón del proyecto
-- ✅ **NUEVO**: NVMe SMART extendido — `DiskMonitor.get_nvme_smart()` + tarjeta en `DiskWindow` con horas de uso, ciclos, apagados bruscos, TB escritos/leídos y % vida útil. Actualización cada 30s
-- ✅ **FIX**: Destellos en LEDs animados — `apply_led_state()` solo escribe I2C cuando modo o color cambia, evitando resetear la animación del firmware en cada tick de 0.5s
-- ✅ **MEJORA**: Menú principal ampliado de 21 a 23 botones
+### **v3.7** - 2026-03-02 ⭐ ACTUAL
+- ✅ **NUEVO**: Gestor Crontab — `CrontabWindow` con ver/añadir/editar/eliminar entradas, selector de usuario (usuario/root), accesos rápidos de programación, preview legible de expresión cron
+- ✅ **FIX**: `grab_release()` garantizado al cerrar popups modales (`terminal_dialog`, `exit_application`) — elimina el bloqueo de foco en toda la app al cerrar diálogos
+- ✅ **FIX**: `make_entry()` en `ui/styles.py` — fuerza foco al widget interno en VNC con `overrideredirect(True)`; usar siempre en lugar de `ctk.CTkEntry()` directamente
+- ✅ **MEJORA**: Soporte dual-Pi sin tocar git — `config/local_settings.py` (en `.gitignore`) permite configuración independiente por máquina
+- ✅ **MEJORA**: Pi 3B+ — pantalla virtual Xvfb en `:1` (1024×762), dashboard aislado del escritorio XFCE, acceso VNC en puerto `5901`
+- ✅ **MEJORA**: Pi 5 Wayland — acceso remoto via `wayvnc --output=DSI-2`, fix idle `gsettings idle-delay 0`
+
+### **v3.6.5** - 2026-02-XX
+- ✅ **NUEVO**: Gestor de Botones — `ButtonManagerWindow` para mostrar/ocultar botones del menú principal con persistencia en `data/button_config.json`
+- ✅ **NUEVO**: `WindowManager` en `ui/window_manager.py` — aplica configuración de visibilidad al arrancar
+
+### **v3.6** - 2026-02-XX
+- ✅ **NUEVO**: Servicios Dashboard — `ServicesManagerWindow` para activar/desactivar servicios background del dashboard desde la UI
+
+### **v3.5** - 2026-02-XX
+- ✅ **NUEVO**: `ServiceRegistry` — registro centralizado de todos los servicios del dashboard, con soporte para activar/desactivar y persistir configuración en `data/services.json`
+
+### **v3.4** - 2026-02-27
+- ✅ Control LEDs RGB, temperatura chasis, alertas audio, cámara OCR, SMART NVMe extendido
 
 ### **v3.3** - 2026-02-27
-- ✅ **NUEVO**: Resumen del Sistema — `OverviewWindow` con grid de 6 tarjetas (CPU, RAM, Temp, Disco, Red, Servicios) + fila Pi-hole, refresco 2s, ideal como pantalla de reposo
-- ✅ **NUEVO**: Control de Brillo DSI — `DisplayService` con detección automática de método (sysfs/wlr-randr/xrandr), slider táctil, modo ahorro por inactividad, persistencia en JSON
-- ✅ **NUEVO**: Gestor VPN — `VpnMonitor` con sondeo 10s via `ip addr show`, badge en menú, conectar/desconectar con terminal en vivo
-- ✅ **MEJORA**: Menú principal ampliado de 18 a 21 botones
+- ✅ Resumen Sistema, control brillo DSI, gestor VPN
 
 ### **v3.2** - 2026-02-27
-- ✅ **NUEVO**: Escáner de Red Local — `NetworkScanner` con arp-scan, IP/MAC/fabricante, auto-refresco 60s, ventana `NetworkLocalWindow`
-- ✅ **NUEVO**: Integración Pi-hole v6 — `PiholeMonitor` con API v6 (sesión sid), estadísticas en tiempo real, badge offline en menú, ventana `PiholeWindow`
-- ✅ **NUEVO**: Historial de Alertas — persistencia en `data/alert_history.json` (máx. 100), ventana `AlertHistoryWindow` con tarjetas coloreadas por nivel
-- ✅ **MEJORA**: Visor de Logs — filtro de módulo migrado de `CTkOptionMenu` a `CTkEntry`
-- ✅ **MEJORA**: Menú principal ampliado de 15 a 18 botones
+- ✅ Escáner red local, Pi-hole v6, historial alertas
 
 ### **v3.1** - 2026-02-26
-- ✅ **NUEVO**: Alertas externas por Telegram — `AlertService` con anti-spam (edge-trigger + sustain 60s), umbrales para temp/CPU/RAM/disco y servicios, sin dependencias nuevas (urllib stdlib)
-- ✅ **NUEVO**: Homebridge extendido — soporte para 5 tipos de dispositivo: switch, luz regulable, termostato, sensor temperatura/humedad, persiana
-- ✅ **NUEVO**: `set_brightness()` y `set_target_temp()` en `HomebridgeMonitor`
-- ✅ **NUEVO**: Tarjetas adaptativas en `HomebridgeWindow` según tipo de dispositivo
-- ✅ **MEJORA**: Diálogo salir — radiobuttons táctiles (30×30px), botones ajustados, layout corregido
+- ✅ Alertas Telegram, Homebridge extendido (5 tipos)
 
 ### **v3.0** - 2026-02-26
-- ✅ **NUEVO**: Visor de Logs — ventana con filtros por nivel, módulo, texto libre e intervalo de fechas/horas
-- ✅ **NUEVO**: Exportación de logs filtrados a `data/exports/logs/`
-- ✅ **NUEVO**: Carpetas organizadas para exports — `data/exports/{csv,logs,screenshots}` (creadas automáticamente al arrancar)
-- ✅ **MEJORA**: Limpieza automática al exportar — no solo en el ciclo de 24h o al pulsar manualmente
-- ✅ **MEJORA**: `CleanupService` gestiona ahora también logs exportados (máx. 10)
-- ✅ **FIX**: Eliminado `grab_set()` en `FanControlWindow` que bloqueaba el teclado en todas las ventanas al cerrarse
+- ✅ Visor de Logs, exports organizados, fix grab_set FanControl
 
-### **v2.9** - 2026-02-24
-- ✅ **MEJORA**: `SystemMonitor` — caché en background thread (cada 2s); la UI nunca llama psutil directamente
-- ✅ **MEJORA**: `ServiceMonitor` — caché en background thread (cada 10s); `is-enabled` en llamada batch en lugar de N subprocesses
-- ✅ **MEJORA**: `_update()` de `MainWindow` solo lee cachés — hilo de UI completamente libre de syscalls bloqueantes
-- ✅ **MEJORA**: `HomebridgeWindow` usa `CTkSwitch` (90×46px) en lugar de botones ON/OFF — más intuitivo y táctil
-- ✅ **MEJORA**: `make_homebridge_switch()` añadida a `ui/styles.py` con soporte de estado disabled (fallo)
-- ✅ **MEJORA**: Todos los servicios background registran inicio y parada en el log (`FanAutoService` incluido)
-
-### **v2.8** - 2026-02-23
-- ✅ **NUEVO**: Integración Homebridge — ventana de control de accesorios HomeKit (enchufes e interruptores)
-- ✅ **NUEVO**: `HomebridgeMonitor` en `core/` — sondeo ligero cada 30s, autenticación JWT con renovación automática
-- ✅ **NUEVO**: 3 badges Homebridge en menú principal (`hb_offline` 🔴, `hb_on` 🟠, `hb_fault` 🔴)
-- ✅ **NUEVO**: Toggle táctil por dispositivo con indicador ● color y ⚠ en StatusFault
-- ✅ **NUEVO**: Configuración por `.env` (credenciales fuera del código)
-
-### **v2.7** - 2026-02-23
-- ✅ **NUEVO**: Header unificado `make_window_header()` en todas las ventanas (título + status + botón ✕ táctil 52×42px)
-- ✅ **NUEVO**: Status dinámico en tiempo real en el header (CPU/RAM/Temp, Disco/NVMe, interfaz/velocidades)
-- ✅ **MEJORA**: Speedtest migrado a CLI oficial de Ookla (`--format=json`), resultados en MB/s reales
-- ✅ **MEJORA**: Botón ✕ táctil optimizado para pantalla DSI sin teclado
-
-### **v2.6** - 2026-02-22
-- ✅ **NUEVO**: 6 badges de notificación visual en menú principal
-- ✅ **NUEVO**: `CleanupService` — limpieza automática background de CSV, PNG y BD
-- ✅ **NUEVO**: Fan control con entries en lugar de sliders
-
-### v2.5.1 - 2026-02-19
-- Logging completo, Ventana Actualizaciones, Fix atexit DataCollectionService
-
-### v2.5 - 2026-02-17
-- Monitor Servicios systemd, Historico SQLite, Boton Reiniciar
-
-### v2.0 - 2026-02-16
-- Monitor Procesos, 15 temas, fix Speedtest
+### v2.x
+- Monitor completo, servicios systemd, histórico SQLite, 15 temas, badges, logging
 
 ### v1.0 - 2025-01
 - Release inicial
@@ -760,8 +608,4 @@ MIT License
 
 ## Agradecimientos
 
-CustomTkinter - psutil - matplotlib - Ookla Speedtest CLI - Homebridge - Pi-hole - Raspberry Pi Foundation
-
----
-
-Dashboard v3.3: Profesional, Unificado, Táctil, Auto-mantenido, conectado a HomeKit y Pi-hole, con Alertas Telegram, Historial, Gestor VPN, Control de Brillo y Pantalla de Resumen — sin bloqueos en UI
+CustomTkinter · psutil · matplotlib · Ookla Speedtest CLI · Homebridge · Pi-hole · Raspberry Pi Foundation

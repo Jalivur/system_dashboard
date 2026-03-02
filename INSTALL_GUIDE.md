@@ -31,8 +31,8 @@ git clone https://github.com/tu-usuario/system-dashboard.git
 cd system-dashboard
 
 # 2. Dar permisos y ejecutar
-chmod +x install.sh
-./install.sh
+chmod +x install_system.sh
+sudo ./install_system.sh
 
 # 3. Ejecutar
 python3 main.py
@@ -41,7 +41,7 @@ python3 main.py
 **El script instalará automáticamente:**
 - ✅ Dependencias del sistema (python3-pip, python3-tk, lm-sensors)
 - ✅ Dependencias Python (customtkinter, psutil, Pillow)
-- ✅ Speedtest-cli (opcional)
+- ✅ CLI oficial de Ookla para speedtest
 - ✅ Configurará sensores
 
 ---
@@ -60,8 +60,9 @@ sudo apt install -y python3 python3-pip python3-venv python3-tk git
 # Instalar lm-sensors para temperatura
 sudo apt install -y lm-sensors
 
-# Opcional: Speedtest
-sudo apt install -y speedtest-cli
+# Instalar CLI oficial de Ookla para speedtest
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo apt-get install speedtest
 
 # Detectar sensores (primera vez)
 sudo sensors-detect --auto
@@ -108,7 +109,6 @@ python3 main.py
 ### **Paso 6: Crear Launcher (Opcional)**
 
 ```bash
-# Para ejecutar sin activar venv manualmente
 chmod +x create_desktop_launcher.sh
 ./create_desktop_launcher.sh
 ```
@@ -131,7 +131,11 @@ sudo ./install_system.sh
 ```bash
 # Instalar dependencias del sistema
 sudo apt update
-sudo apt install -y python3 python3-pip python3-tk lm-sensors speedtest-cli
+sudo apt install -y python3 python3-pip python3-tk lm-sensors
+
+# Instalar CLI oficial de Ookla para speedtest
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo apt-get install speedtest
 
 # Instalar dependencias Python (método según tu sistema)
 ```
@@ -144,14 +148,6 @@ pip install -r requirements.txt
 #### **En sistemas modernos (Ubuntu 23.04+, Debian 12+):**
 ```bash
 pip install -r requirements.txt --break-system-packages
-```
-
-**O usar pipx:**
-```bash
-sudo apt install pipx
-pipx install customtkinter
-pipx install psutil
-pipx install Pillow
 ```
 
 ### **Ejecutar**
@@ -187,12 +183,6 @@ error: externally-managed-environment
    pip install -r requirements.txt --break-system-packages
    ```
 
-3. **Opción 3: Usar pipx**
-   ```bash
-   sudo apt install pipx
-   pipx install customtkinter psutil Pillow
-   ```
-
 ---
 
 ### **Error: ModuleNotFoundError: No module named 'customtkinter'**
@@ -220,20 +210,13 @@ Temp: N/A
 
 **Solución:**
 ```bash
-# Detectar sensores
 sudo sensors-detect --auto
-
-# Reiniciar servicio
 sudo systemctl restart lm-sensors
-
-# Verificar que funciona
 sensors
-# Debería mostrar: coretemp-isa-0000, etc.
 ```
 
 **Si aún no funciona:**
 ```bash
-# Cargar módulos manualmente
 sudo modprobe coretemp
 ```
 
@@ -245,18 +228,12 @@ sudo modprobe coretemp
 
 **Solución:**
 
-1. **Verificar pin:**
-   ```bash
-   gpio readall
-   # Verificar que PWM_PIN=18 corresponde a un pin PWM
-   ```
-
-2. **Probar con sudo** (temporal):
+1. **Probar con sudo** (temporal):
    ```bash
    sudo python3 main.py
    ```
 
-3. **Añadir usuario a grupo gpio** (permanente):
+2. **Añadir usuario a grupo gpio** (permanente):
    ```bash
    sudo usermod -a -G gpio $USER
    # Cerrar sesión y volver a entrar
@@ -275,17 +252,24 @@ sudo apt install -y libgl1-mesa-glx
 
 ---
 
-### **Error: Speedtest no funciona**
+### **Speedtest no funciona**
 
-**Causa**: speedtest-cli no instalado.
+**Causa**: CLI oficial de Ookla no instalada, o instalado el paquete antiguo `speedtest-cli` de Python (incompatible).
 
 **Solución:**
 ```bash
-sudo apt install speedtest-cli
+# Desinstalar el paquete antiguo si estuviera instalado
+sudo apt remove speedtest-cli
+
+# Instalar la CLI oficial de Ookla
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo apt-get install speedtest
 
 # Verificar
-speedtest-cli --version
+speedtest --version
 ```
+
+> ⚠️ El paquete `speedtest-cli` de apt/pip es incompatible. El proyecto usa exclusivamente la CLI oficial de Ookla (comando `speedtest`).
 
 ---
 
@@ -293,11 +277,11 @@ speedtest-cli --version
 
 **Causa**: Posición incorrecta.
 
-**Solución**: Editar `config/settings.py`:
+**Solución**: Editar `config/settings.py` o crear `config/local_settings.py`:
 ```python
-DSI_X = 0  # Cambiar según tu pantalla
+DSI_X = 0
 DSI_Y = 0
-DSI_WIDTH = 800   # Ajustar a tu resolución
+DSI_WIDTH = 800
 DSI_HEIGHT = 480
 ```
 
@@ -312,15 +296,15 @@ python3-pip      # Gestor de paquetes
 python3-venv     # Entornos virtuales (opcional)
 python3-tk       # Tkinter
 lm-sensors       # Lectura de sensores
-speedtest-cli    # Tests de velocidad (opcional)
+speedtest        # CLI oficial de Ookla (NO speedtest-cli)
 git              # Control de versiones
 ```
 
 ### **Dependencias Python:**
 ```
-customtkinter==5.2.0    # UI moderna
-psutil==5.9.5           # Info del sistema
-Pillow==10.0.0          # Procesamiento de imágenes
+customtkinter    # UI moderna
+psutil           # Info del sistema
+Pillow           # Procesamiento de imágenes
 ```
 
 ---
@@ -330,17 +314,9 @@ Pillow==10.0.0          # Procesamiento de imágenes
 ### **GPIO (para ventiladores):**
 
 ```bash
-# Añadir usuario a grupos necesarios
 sudo usermod -a -G gpio,i2c,spi $USER
-
 # Cerrar sesión y volver a entrar
 ```
-
-### **Ejecutar sin sudo:**
-
-El dashboard debería funcionar sin sudo, excepto:
-- Control de ventiladores (requiere acceso GPIO)
-- Algunos scripts en Lanzadores
 
 ---
 
@@ -349,7 +325,6 @@ El dashboard debería funcionar sin sudo, excepto:
 ### **Método 1: systemd**
 
 ```bash
-# Crear servicio
 sudo nano /etc/systemd/system/dashboard.service
 ```
 
@@ -381,7 +356,6 @@ sudo systemctl start dashboard.service
 ### **Método 2: autostart**
 
 ```bash
-# Crear archivo autostart
 mkdir -p ~/.config/autostart
 nano ~/.config/autostart/dashboard.desktop
 ```
@@ -401,8 +375,6 @@ X-GNOME-Autostart-enabled=true
 
 ## 🧪 Verificación de Instalación
 
-### **Test completo:**
-
 ```bash
 # 1. Verificar Python
 python3 --version  # Debe ser >= 3.8
@@ -413,10 +385,10 @@ python3 -c "import psutil; print('psutil OK')"
 python3 -c "import PIL; print('Pillow OK')"
 
 # 3. Verificar sensores
-sensors  # Debe mostrar temperaturas
+sensors
 
-# 4. Verificar speedtest
-speedtest-cli --version
+# 4. Verificar speedtest (CLI oficial Ookla)
+speedtest --version
 
 # 5. Ejecutar dashboard
 python3 main.py
@@ -428,9 +400,9 @@ python3 main.py
 
 1. **Usa el script automático** si es tu primera vez
 2. **Usa venv** si quieres mantener el sistema limpio
-3. **No uses sudo** para instalar paquetes Python (usa venv)
+3. **No instales `speedtest-cli`** — usa siempre la CLI oficial de Ookla (`speedtest`)
 4. **Detecta sensores** la primera vez con `sudo sensors-detect`
-5. **Revisa los logs** si algo falla: `journalctl -xe`
+5. **Revisa los logs** si algo falla: `grep ERROR data/logs/dashboard.log`
 
 ---
 
@@ -446,16 +418,10 @@ python3 main.py
 
 ## 🆘 Ayuda Adicional
 
-**¿Problemas con la instalación?**
-
 1. Revisa esta guía completa
 2. Verifica [QUICKSTART.md](QUICKSTART.md) para problemas comunes
 3. Revisa [README.md](README.md) sección Troubleshooting
-4. Abre un Issue en GitHub con:
-   - Sistema operativo y versión
-   - Versión de Python
-   - Mensaje de error completo
-   - Comando que ejecutaste
+4. Abre un Issue en GitHub con el SO, versión de Python y mensaje de error completo
 
 ---
 
