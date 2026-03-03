@@ -1,5 +1,5 @@
 """
-Ventana de visualización del log del dashboard
+Ventana de visualización del log del dashboard.
 Permite filtrar por nivel, módulo, texto libre e intervalo de tiempo
 y exportar el resultado filtrado a un archivo .log
 """
@@ -15,6 +15,7 @@ from config.settings import (
     DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, DATA_DIR, EXPORTS_LOG_DIR
 )
 from ui.styles import make_window_header, make_futuristic_button, StyleManager
+from ui.widgets.dialogs import custom_msgbox
 from utils.logger import get_logger
 from core.cleanup_service import CleanupService
 
@@ -35,7 +36,7 @@ _PH_DATE   = "YYYY-MM-DD"
 _PH_TIME   = "HH:MM"
 
 LOG_PATTERN = re.compile(
-    r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+Dashboard(?:\.(\S+?))?:\s+(.*)$'
+    r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+Dashboard(?:\.(\S+?))?: (.*)$'
 )
 
 
@@ -52,13 +53,12 @@ class LogViewerWindow(ctk.CTkToplevel):
         self.lift()
         self.after(150, self.focus_set)
 
-        self._all_lines = []
-        self._modules   = []
-        self._loading   = False
+        self._all_lines: list = []
+        self._modules:   list = []
+        self._loading         = False
 
         self._level_var  = ctk.StringVar(value="TODOS")
         self._module_var = ctk.StringVar(value=_PH_MODULE)
-        self._modules    = []  # lista completa de módulos disponibles
         self._search_var = ctk.StringVar(value=_PH_SEARCH)
         self._quick_var  = ctk.StringVar(value="1h")
         self._date_from  = ctk.StringVar(value=_PH_DATE)
@@ -277,7 +277,7 @@ class LogViewerWindow(ctk.CTkToplevel):
                 "module": module, "message": message, "raw": raw}
 
     def _update_modules(self, modules):
-        self._modules = modules  # guardar lista para filtrado parcial
+        self._modules = modules
 
     # ── Filtrado ─────────────────────────────────────────────────────────────
 
@@ -311,7 +311,7 @@ class LogViewerWindow(ctk.CTkToplevel):
         result = []
         for line in self._all_lines:
             if level  != "TODOS" and line["level"]  != level:  continue
-            if module and module not in line["module"].lower():   continue
+            if module and module not in line["module"].lower(): continue
             if search and search not in line["raw"].lower():   continue
             if dt_from and line["ts"] < dt_from:               continue
             if dt_to   and line["ts"] > dt_to:                 continue
@@ -365,13 +365,12 @@ class LogViewerWindow(ctk.CTkToplevel):
         result = []
         for line in self._all_lines:
             if level  != "TODOS" and line["level"]  != level:  continue
-            if module and module not in line["module"].lower():   continue
+            if module and module not in line["module"].lower(): continue
             if search and search not in line["raw"].lower():   continue
             if dt_from and line["ts"] < dt_from:               continue
             if dt_to   and line["ts"] > dt_to:                 continue
             result.append(line["raw"])
 
-        from ui.widgets.dialogs import custom_msgbox
         if not result:
             custom_msgbox(self, "No hay entradas que exportar.", "Exportar")
             return

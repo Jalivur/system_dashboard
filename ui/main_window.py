@@ -16,7 +16,6 @@ from utils.logger import get_logger
 import sys
 import os
 from datetime import datetime
-import psutil
 logger = get_logger(__name__)
 
 
@@ -579,7 +578,7 @@ class MainWindow:
             font=(FONT_FAMILY, FONT_SIZES['xlarge'], "bold")
         ).pack(pady=(10, 10))
 
-        selection_var = ctk.StringVar(value="exit")
+        selection_var = ctk.StringVar(master=selection_window, value="exit")
         options_frame = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_dark'])
         options_frame.pack(fill="x", pady=5, padx=20)
 
@@ -650,18 +649,13 @@ class MainWindow:
     # ── Loop de actualización ─────────────────────────────────────────────────
 
     def _tick_clock(self):
-        """Actualiza el reloj cada segundo y el uptime cada minuto."""
+        """Actualiza el reloj cada segundo y el uptime cada 60 ticks."""
         self._clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
         self._uptime_tick += 1
         if self._uptime_tick == 1 or self._uptime_tick >= 60:
             self._uptime_tick = 1
             try:
-                import time as _time
-                uptime_s = _time.time() - psutil.boot_time()
-                days    = int(uptime_s // 86400)
-                hours   = int((uptime_s % 86400) // 3600)
-                minutes = int((uptime_s % 3600) // 60)
-                uptime_str = f"⏱ {days}d {hours}h" if days > 0 else f"⏱ {hours}h {minutes}m"
+                uptime_str = self.system_monitor.get_current_stats().get("uptime_str", "--")
                 self._uptime_label.configure(text=uptime_str)
             except Exception:
                 pass

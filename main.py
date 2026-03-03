@@ -5,7 +5,6 @@ Punto de entrada principal
 """
 import sys
 import os
-import atexit
 import threading
 import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
@@ -37,20 +36,20 @@ def main():
     root.deiconify()
 
     # ── Instanciar servicios ──────────────────────────────────────────────────
-    system_monitor    = SystemMonitor()
-    fan_controller    = FanController()
-    network_monitor   = NetworkMonitor()
-    disk_monitor      = DiskMonitor()
-    process_monitor   = ProcessMonitor()
-    service_monitor   = ServiceMonitor()
-    update_monitor    = UpdateMonitor()
-    homebridge_monitor = HomebridgeMonitor()
-    network_scanner   = NetworkScanner()
-    pihole_monitor    = PiholeMonitor()
-    display_service   = DisplayService()
-    led_service       = LedService()
-    hardware_monitor  = HardwareMonitor()
-    vpn_monitor       = VpnMonitor()
+    system_monitor      = SystemMonitor()
+    fan_controller      = FanController()
+    network_monitor     = NetworkMonitor()
+    disk_monitor        = DiskMonitor()
+    process_monitor     = ProcessMonitor()
+    service_monitor     = ServiceMonitor()
+    update_monitor      = UpdateMonitor()
+    homebridge_monitor  = HomebridgeMonitor()
+    network_scanner     = NetworkScanner()
+    pihole_monitor      = PiholeMonitor()
+    display_service     = DisplayService()
+    led_service         = LedService()
+    hardware_monitor    = HardwareMonitor()
+    vpn_monitor         = VpnMonitor()
     audio_alert_service = AudioAlertService(system_monitor, service_monitor)
 
     data_service = DataCollectionService(
@@ -90,25 +89,25 @@ def main():
 
     # ── Registrar en el registry y aplicar configuración ─────────────────────
     registry = ServiceRegistry()
-    registry.register("fan_controller",      fan_controller)
-    registry.register("system_monitor",      system_monitor)
-    registry.register("disk_monitor",       disk_monitor)
-    registry.register("hardware_monitor",   hardware_monitor)
-    registry.register("network_monitor",    network_monitor)
-    registry.register("network_scanner",    network_scanner)
-    registry.register("process_monitor",    process_monitor)
-    registry.register("service_monitor",    service_monitor)
-    registry.register("update_monitor",     update_monitor)
-    registry.register("homebridge_monitor", homebridge_monitor)
-    registry.register("pihole_monitor",     pihole_monitor)
-    registry.register("vpn_monitor",        vpn_monitor)
-    registry.register("alert_service",      alert_service)
-    registry.register("audio_alert_service",audio_alert_service)
-    registry.register("data_service",       data_service)
-    registry.register("cleanup_service",    cleanup_service)
-    registry.register("fan_service",        fan_service)
-    registry.register("led_service",        led_service)
-    registry.register("display_service",    display_service)
+    registry.register("fan_controller",       fan_controller)
+    registry.register("system_monitor",       system_monitor)
+    registry.register("disk_monitor",         disk_monitor)
+    registry.register("hardware_monitor",     hardware_monitor)
+    registry.register("network_monitor",      network_monitor)
+    registry.register("network_scanner",      network_scanner)
+    registry.register("process_monitor",      process_monitor)
+    registry.register("service_monitor",      service_monitor)
+    registry.register("update_monitor",       update_monitor)
+    registry.register("homebridge_monitor",   homebridge_monitor)
+    registry.register("pihole_monitor",       pihole_monitor)
+    registry.register("vpn_monitor",          vpn_monitor)
+    registry.register("alert_service",        alert_service)
+    registry.register("audio_alert_service",  audio_alert_service)
+    registry.register("data_service",         data_service)
+    registry.register("cleanup_service",      cleanup_service)
+    registry.register("fan_service",          fan_service)
+    registry.register("led_service",          led_service)
+    registry.register("display_service",      display_service)
 
     # Para los servicios configurados como False en services.json
     registry.apply_config()
@@ -121,7 +120,22 @@ def main():
     ).start()
 
     # ── Cleanup centralizado ──────────────────────────────────────────────────
+    _cleaned = False
+
     def cleanup():
+        nonlocal _cleaned
+        if _cleaned:
+            return
+        _cleaned = True
+
+        # 1. Destruir la ventana primero — libera todos los StringVar/Tkinter
+        #    desde el hilo principal antes de que los threads de fondo hagan GC
+        try:
+            root.destroy()
+        except Exception:
+            pass
+
+        # 2. Parar los servicios de fondo
         fan_service.stop()
         data_service.stop()
         cleanup_service.stop()
@@ -136,8 +150,6 @@ def main():
         hardware_monitor.stop()
         audio_alert_service.stop()
 
-    atexit.register(cleanup)
-
     # ── Crear interfaz ────────────────────────────────────────────────────────
     app = MainWindow(root, registry=registry, update_interval=UPDATE_MS)
 
@@ -146,10 +158,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        try:
-            cleanup()
-        except Exception:
-            pass
+        cleanup()
 
 
 if __name__ == "__main__":

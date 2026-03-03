@@ -22,6 +22,7 @@ _BTN_LABELS = {
     "process_window":   "⚙️ Monitor Procesos",
     "service_window":   "⚙️ Monitor Servicios",
     "services_manager": "⚙️  Servicios Dashboard",
+    "crontab_window":   "🕐  Gestor Crontab",
     "history_window":   "󱘿  Histórico Datos",
     "update_window":    "󰆧  Actualizaciones",
     "homebridge":       "󰟐  Homebridge",
@@ -59,7 +60,6 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.after(150, self.focus_set)
 
-        # switches: {key: CTkSwitch}
         self._switches: dict = {}
 
         self._create_ui()
@@ -73,7 +73,6 @@ class ButtonManagerWindow(ctk.CTkToplevel):
 
         make_window_header(main, title="GESTOR DE BOTONES", on_close=self.destroy)
 
-        # Scroll
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -89,7 +88,6 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
         inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        # ── Descripción ──
         ctk.CTkLabel(
             inner,
             text="Activa o desactiva qué botones aparecen en el menú principal.\n"
@@ -100,12 +98,10 @@ class ButtonManagerWindow(ctk.CTkToplevel):
             justify="left",
         ).pack(anchor="w", padx=14, pady=(6, 10))
 
-        # ── Lista de botones ──
         for key, label in _BTN_LABELS.items():
             enabled = self.registry.ui_enabled(key)
             self._create_row(inner, key, label, enabled)
 
-        # ── Botones inferiores ──
         bottom = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         bottom.pack(fill="x", padx=10, pady=(0, 8))
 
