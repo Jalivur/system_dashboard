@@ -381,10 +381,11 @@ class SystemUtils:
     @staticmethod
     def get_nvme_temp() -> float:
         """
-        Obtiene la temperatura del disco NVMe
-        
+        Obtiene la temperatura del disco NVMe.
+        Solo lee sensores asociados a dispositivos NVMe reales.
+
         Returns:
-            Temperatura en °C o 0.0 si no se puede leer
+            Temperatura en °C o 0.0 si no hay NVMe o no se puede leer
         """
         # Método 1: smartctl
         try:
@@ -408,23 +409,12 @@ class SystemUtils:
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
 
-        # Método 2: sysfs
+        # Método 2: sysfs — solo hwmon asociado a dispositivos NVMe reales
         try:
-            temp_files = [
-                "/sys/class/hwmon/hwmon*/temp1_input",
-                "/sys/block/nvme0n1/device/hwmon/hwmon*/temp1_input"
-            ]
-            
-            for pattern in temp_files:
-                for temp_file in glob.glob(pattern):
-                    with open(temp_file, 'r') as f:
-                        temp_millis = int(f.read().strip())
-                        return temp_millis / 1000.0
-        except FileNotFoundError:
-            logger.debug("[SystemUtils] get_nvme_temp: archivos sysfs no encontrados")
-        except ValueError as e:
-            logger.warning(f"[SystemUtils] get_nvme_temp: error leyendo sysfs: {e}")
-        except PermissionError:
-            logger.warning("[SystemUtils] get_nvme_temp: sin permisos para leer sysfs")
-        
+            for temp_file in glob.glob("/sys/block/nvme*/device/hwmon/hwmon*/temp1_input"):
+                with open(temp_file, 'r') as f:
+                    return int(f.read().strip()) / 1000.0
+        except (FileNotFoundError, ValueError, PermissionError):
+            pass
+
         return 0.0
