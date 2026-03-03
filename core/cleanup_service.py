@@ -28,14 +28,13 @@ class CleanupService:
     _lock = threading.Lock()
 
     # ── Configuración por defecto ─────────────────────────────────────────────
-    DEFAULT_MAX_CSV        = 10      # Máx. archivos CSV a conservar
-    DEFAULT_MAX_PNG        = 10      # Máx. archivos PNG a conservar
-    DEFAULT_MAX_LOG        = 10      # Máx. archivos log exportados a conservar
-    DEFAULT_DB_DAYS        = 30      # Días de datos a conservar en BD
-    DEFAULT_INTERVAL_HOURS = 24      # Cada cuántas horas limpiar
+    DEFAULT_MAX_CSV        = 10
+    DEFAULT_MAX_PNG        = 10
+    DEFAULT_MAX_LOG        = 10
+    DEFAULT_DB_DAYS        = 30
+    DEFAULT_INTERVAL_HOURS = 24
 
     def __new__(cls, *args, **kwargs):
-        """Singleton: solo una instancia"""
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -59,6 +58,7 @@ class CleanupService:
                              Si es None, solo se limpian archivos.
             max_csv:         Número máximo de CSV exportados a conservar.
             max_png:         Número máximo de PNG exportados a conservar.
+            max_log:         Número máximo de logs exportados a conservar.
             db_days:         Días de histórico a conservar en la BD.
             interval_hours:  Horas entre ejecuciones del ciclo de limpieza.
         """
@@ -77,9 +77,8 @@ class CleanupService:
         self._initialized = True
 
         logger.info(
-            f"[CleanupService] Configurado — "
-            f"CSV: {max_csv}, PNG: {max_png}, LOG: {max_log}, "
-            f"BD: {db_days}d, intervalo: {interval_hours}h"
+            "[CleanupService] Configurado — CSV: %d, PNG: %d, LOG: %d, BD: %dd, intervalo: %gh",
+            max_csv, max_png, max_log, db_days, interval_hours
         )
 
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
@@ -89,12 +88,9 @@ class CleanupService:
         if self._running:
             logger.info("[CleanupService] Ya está corriendo")
             return
-
         self._running = True
         self._thread = threading.Thread(
-            target=self._run,
-            daemon=True,
-            name="CleanupService"
+            target=self._run, daemon=True, name="CleanupService"
         )
         self._thread.start()
         logger.info("[CleanupService] Servicio iniciado")
@@ -110,9 +106,7 @@ class CleanupService:
 
     def _run(self):
         """Bucle principal: limpia al arrancar y luego cada interval_hours."""
-        # Primera limpieza inmediata al arrancar
         self._cleanup_cycle()
-
         interval_seconds = self.interval_hours * 3600
         elapsed = 0.0
         while self._running:
@@ -125,9 +119,9 @@ class CleanupService:
     # ── Lógica de limpieza ────────────────────────────────────────────────────
 
     def _cleanup_cycle(self):
+        """Ejecuta un ciclo completo de limpieza."""
         if not self._running:
             return
-        """Ejecuta un ciclo completo de limpieza."""
         logger.info("[CleanupService] Iniciando ciclo de limpieza")
         self.clean_csv()
         self.clean_png()
@@ -137,8 +131,6 @@ class CleanupService:
         logger.info("[CleanupService] Ciclo de limpieza completado")
 
     def clean_csv(self, max_files: int = None) -> int:
-        if not self._running:
-            return
         """
         Elimina los CSV exportados más antiguos que superen el límite.
 
@@ -148,13 +140,13 @@ class CleanupService:
         Returns:
             Número de archivos eliminados.
         """
-        limit = max_files if max_files is not None else self.max_csv
+        if not self._running:
+            return 0
+        limit   = max_files if max_files is not None else self.max_csv
         pattern = os.path.join(str(EXPORTS_CSV_DIR), "history_*.csv")
         return self._trim_files(pattern, limit, "CSV")
 
     def clean_png(self, max_files: int = None) -> int:
-        if not self._running:
-            return
         """
         Elimina los PNG exportados más antiguos que superen el límite.
 
@@ -164,14 +156,13 @@ class CleanupService:
         Returns:
             Número de archivos eliminados.
         """
-        limit = max_files if max_files is not None else self.max_png
+        if not self._running:
+            return 0
+        limit   = max_files if max_files is not None else self.max_png
         pattern = os.path.join(str(EXPORTS_SCR_DIR), "*.png")
         return self._trim_files(pattern, limit, "PNG")
 
-
     def clean_log_exports(self, max_files: int = None) -> int:
-        if not self._running:
-            return
         """
         Elimina los archivos de exportación de logs más antiguos que superen el límite.
 
@@ -181,13 +172,13 @@ class CleanupService:
         Returns:
             Número de archivos eliminados.
         """
-        limit = max_files if max_files is not None else self.max_log
+        if not self._running:
+            return 0
+        limit   = max_files if max_files is not None else self.max_log
         pattern = os.path.join(str(EXPORTS_LOG_DIR), "log_export_*.log")
         return self._trim_files(pattern, limit, "LOG_EXPORT")
 
     def clean_db(self, days: int = None) -> bool:
-        if not self._running:
-            return
         """
         Elimina registros de la BD más antiguos que 'days' días.
 
@@ -197,22 +188,21 @@ class CleanupService:
         Returns:
             True si la limpieza fue exitosa.
         """
+        if not self._running:
+            return False
         if not self.data_logger:
             logger.warning("[CleanupService] No hay data_logger configurado")
             return False
-
         d = days if days is not None else self.db_days
         try:
             self.data_logger.clean_old_data(days=d)
-            logger.info(f"[CleanupService] BD limpiada — registros >'{d}' días eliminados")
+            logger.info("[CleanupService] BD limpiada — registros >%dd eliminados", d)
             return True
         except Exception as e:
-            logger.error(f"[CleanupService] Error limpiando BD: {e}")
+            logger.error("[CleanupService] Error limpiando BD: %s", e)
             return False
 
     def _trim_files(self, pattern: str, max_files: int, label: str) -> int:
-        if not self._running:
-            return
         """
         Elimina los archivos más antiguos que superen max_files.
 
@@ -224,23 +214,25 @@ class CleanupService:
         Returns:
             Número de archivos eliminados.
         """
+        if not self._running:
+            return 0
         try:
-            files = sorted(glob.glob(pattern), key=os.path.getmtime)
+            files     = sorted(glob.glob(pattern), key=os.path.getmtime)
             to_delete = files[:-max_files] if len(files) > max_files else []
             for f in to_delete:
                 try:
                     os.remove(f)
-                    logger.info(f"[CleanupService] {label} eliminado: {os.path.basename(f)}")
+                    logger.info("[CleanupService] %s eliminado: %s", label, os.path.basename(f))
                 except Exception as e:
-                    logger.warning(f"[CleanupService] No se pudo eliminar {f}: {e}")
+                    logger.warning("[CleanupService] No se pudo eliminar %s: %s", f, e)
             if to_delete:
                 logger.info(
-                    f"[CleanupService] {label}: {len(to_delete)} eliminados, "
-                    f"{len(files) - len(to_delete)} conservados"
+                    "[CleanupService] %s: %d eliminados, %d conservados",
+                    label, len(to_delete), len(files) - len(to_delete)
                 )
             return len(to_delete)
         except Exception as e:
-            logger.error(f"[CleanupService] Error en _trim_files ({label}): {e}")
+            logger.error("[CleanupService] Error en _trim_files (%s): %s", label, e)
             return 0
 
     # ── Información y estado ──────────────────────────────────────────────────
@@ -271,7 +263,6 @@ class CleanupService:
     def force_cleanup(self) -> dict:
         """
         Fuerza un ciclo de limpieza inmediato desde fuera del hilo.
-        Útil para llamadas manuales desde la UI.
 
         Returns:
             Diccionario con el número de archivos eliminados y resultado de BD.
@@ -280,12 +271,17 @@ class CleanupService:
         deleted_csv = self.clean_csv()
         deleted_png = self.clean_png()
         deleted_log = self.clean_log_exports()
-        db_ok = self.clean_db() if self.data_logger else False
+        db_ok       = self.clean_db() if self.data_logger else False
         logger.info(
-            f"[CleanupService] Limpieza manual completada — "
-            f"CSV: {deleted_csv}, PNG: {deleted_png}, LOG: {deleted_log}, BD: {db_ok}"
+            "[CleanupService] Limpieza manual completada — CSV: %d, PNG: %d, LOG: %d, BD: %s",
+            deleted_csv, deleted_png, deleted_log, db_ok
         )
-        return {'deleted_csv': deleted_csv, 'deleted_png': deleted_png, 'deleted_log': deleted_log, 'db_ok': db_ok}
+        return {
+            'deleted_csv': deleted_csv,
+            'deleted_png': deleted_png,
+            'deleted_log': deleted_log,
+            'db_ok':       db_ok,
+        }
 
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""

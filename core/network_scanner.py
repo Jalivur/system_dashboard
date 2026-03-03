@@ -14,14 +14,12 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Timeout para arp-scan (segundos)
 ARP_TIMEOUT = 15
 
-# Regex para parsear líneas de arp-scan:
-# Regex actualizado — fabricante con paréntesis opcional
 _ARP_LINE = re.compile(
     r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\t([\da-fA-F:]{17})\t(.*)$'
 )
+
 
 class NetworkScanner:
     """
@@ -35,20 +33,20 @@ class NetworkScanner:
     """
 
     def __init__(self):
-        self._devices: List[Dict] = []
-        self._status  = "idle"     # idle | scanning | done | error
-        self._error   = ""
+        self._devices: List[Dict]       = []
+        self._status                    = "idle"
+        self._error                     = ""
         self._last_scan: Optional[float] = None
-        self._lock    = threading.Lock()
-        self._running = True  # ── AÑADIDO ──
+        self._lock                      = threading.Lock()
+        self._running                   = True
 
-    # ── Gestión de ciclo de vida ──────────────────────────────────────────────
+    # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
-    def start(self) -> None:  # ── AÑADIDO ──
+    def start(self) -> None:
         self._running = True
         logger.info("[NetworkScanner] Iniciado")
 
-    def stop(self) -> None:  # ── AÑADIDO ──
+    def stop(self) -> None:
         self._running = False
         with self._lock:
             self._devices = []
@@ -60,7 +58,7 @@ class NetworkScanner:
 
     def scan(self) -> None:
         """Lanza el escaneo en background. Si ya hay uno en curso, no hace nada."""
-        if not self._running:  # ── AÑADIDO ──
+        if not self._running:
             logger.warning("[NetworkScanner] scan() ignorado — servicio parado")
             return
         with self._lock:
@@ -86,7 +84,7 @@ class NetworkScanner:
             return self._error
 
     def get_last_scan_age(self) -> Optional[float]:
-        """Segundos desde el último escaneo completado. None si nunca se ha escaneado."""
+        """Segundos desde el último escaneo completado. None si nunca se escaneó."""
         with self._lock:
             if self._last_scan is None:
                 return None
@@ -103,9 +101,7 @@ class NetworkScanner:
                     "--ouifile=/usr/share/arp-scan/ieee-oui.txt",
                     "--macfile=/etc/arp-scan/mac-vendor.txt",
                 ],
-                capture_output=True,
-                text=True,
-                timeout=ARP_TIMEOUT,
+                capture_output=True, text=True, timeout=ARP_TIMEOUT,
             )
             if result.returncode != 0:
                 raise RuntimeError(
@@ -113,10 +109,10 @@ class NetworkScanner:
                 )
             devices = self._parse_output(result.stdout)
             with self._lock:
-                self._devices    = devices
-                self._status     = "done"
-                self._last_scan  = time.time()
-                self._error      = ""
+                self._devices   = devices
+                self._status    = "done"
+                self._last_scan = time.time()
+                self._error     = ""
             logger.info("[NetworkScanner] Escaneo completado — %d dispositivos", len(devices))
 
         except subprocess.TimeoutExpired:
@@ -141,7 +137,6 @@ class NetworkScanner:
         devices = []
         for line in output.splitlines():
             line = line.strip()
-            # Ignorar líneas de cabecera, pie y vacías
             if not line:
                 continue
             if line.startswith(('Interface:', 'Starting', 'WARNING', 'Ending')):
@@ -155,15 +150,14 @@ class NetworkScanner:
 
             ip     = m.group(1)
             mac    = m.group(2).upper()
-            vendor = m.group(3).strip().strip('()')  # quita los paréntesis de (Unknown)
+            vendor = m.group(3).strip().strip('()')
             vendor = vendor if vendor and vendor.lower() != 'unknown' else ""
 
-            hostname = self._resolve_hostname(ip)
             devices.append({
                 "ip":       ip,
                 "mac":      mac,
                 "vendor":   vendor,
-                "hostname": hostname,
+                "hostname": self._resolve_hostname(ip),
             })
 
         devices.sort(key=lambda d: tuple(int(x) for x in d["ip"].split(".")))

@@ -6,7 +6,6 @@ import time
 from datetime import datetime
 from core.data_logger import DataLogger
 from utils.file_manager import FileManager
-
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -19,7 +18,6 @@ class DataCollectionService:
     _lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
-        """Implementa singleton thread-safe"""
         if not cls._instance:
             with cls._lock:
                 if not cls._instance:
@@ -28,44 +26,38 @@ class DataCollectionService:
 
     def __init__(self, system_monitor, fan_controller, network_monitor,
                  disk_monitor, update_monitor, interval_minutes: int = 5):
-        # Evitar re-inicialización del singleton
         if hasattr(self, '_initialized'):
             return
 
-        self.system_monitor = system_monitor
-        self.fan_controller = FileManager()
+        self.system_monitor  = system_monitor
+        self.fan_file        = FileManager()   # lee fan_state.json para el PWM
         self.network_monitor = network_monitor
-        self.disk_monitor = disk_monitor
-        self.update_monitor = update_monitor
+        self.disk_monitor    = disk_monitor
+        self.update_monitor  = update_monitor
         self.interval_minutes = interval_minutes
 
-        self.logger = DataLogger()
+        self.logger  = DataLogger()
         self.running = False
-        self.thread = None
-
+        self.thread  = None
 
         self._initialized = True
-
-        # ELIMINADO: atexit.register(self.stop)
-        # El registro del cleanup se hace en main.py junto con fan_service.stop()
-        # para evitar que se dispare durante os.execv() en el reinicio
 
     def start(self):
         """Inicia el servicio de recolección"""
         if self.running:
             logger.info("[DataCollection] Servicio ya está corriendo")
             return
-
         self.running = True
-        self.thread = threading.Thread(target=self._collection_loop, daemon=True)
+        self.thread  = threading.Thread(
+            target=self._collection_loop, daemon=True, name="DataCollection"
+        )
         self.thread.start()
-        logger.info(f"[DataCollection] Servicio iniciado (cada {self.interval_minutes} min)")
+        logger.info("[DataCollection] Servicio iniciado (cada %d min)", self.interval_minutes)
 
     def stop(self):
         """Detiene el servicio"""
         if not self.running:
             return
-
         self.running = False
         if self.thread:
             self.thread.join(timeout=5)
@@ -77,29 +69,29 @@ class DataCollectionService:
             try:
                 self._collect_and_save()
             except Exception as e:
-                logger.error(f"[DataCollection] Error en recolección: {e}")
+                logger.error("[DataCollection] Error en recolección: %s", e)
             time.sleep(self.interval_minutes * 60)
 
     def _collect_and_save(self):
         """Recolecta métricas y las guarda"""
-        system_stats = self.system_monitor.get_current_stats()
+        system_stats  = self.system_monitor.get_current_stats()
         network_stats = self.network_monitor.get_current_stats()
-        disk_stats = self.disk_monitor.get_current_stats()
-        update_stats = self.update_monitor.check_updates()
-        fan_state = self.fan_controller.load_state()
+        disk_stats    = self.disk_monitor.get_current_stats()
+        update_stats  = self.update_monitor.check_updates()
+        fan_state     = self.fan_file.load_state()
 
         metrics = {
-            'cpu_percent': system_stats.get('cpu', 0),
-            'ram_percent': system_stats.get('ram', 0),
-            'ram_used_gb': "{:.2f}".format(system_stats.get('ram_used', 0) / (1024 ** 3)),
-            'temperature': system_stats.get('temp', 0),
+            'cpu_percent':      system_stats.get('cpu', 0),
+            'ram_percent':      system_stats.get('ram', 0),
+            'ram_used_gb':      "{:.2f}".format(system_stats.get('ram_used', 0) / (1024 ** 3)),
+            'temperature':      system_stats.get('temp', 0),
             'disk_used_percent': disk_stats.get('disk_usage', 0),
-            'disk_read_mb': "{:.2f}".format(disk_stats.get('disk_read_mb', 0)),
-            'disk_write_mb': "{:.2f}".format(disk_stats.get('disk_write_mb', 0)),
-            'net_download_mb': "{:.2f}".format(network_stats.get('download_mb', 0)),
-            'net_upload_mb': "{:.2f}".format(network_stats.get('upload_mb', 0)),
-            'fan_pwm': fan_state.get('target_pwm', 0),
-            'fan_mode': fan_state.get('mode', 'unknown'),
+            'disk_read_mb':     "{:.2f}".format(disk_stats.get('disk_read_mb', 0)),
+            'disk_write_mb':    "{:.2f}".format(disk_stats.get('disk_write_mb', 0)),
+            'net_download_mb':  "{:.2f}".format(network_stats.get('download_mb', 0)),
+            'net_upload_mb':    "{:.2f}".format(network_stats.get('upload_mb', 0)),
+            'fan_pwm':          fan_state.get('target_pwm', 0),
+            'fan_mode':         fan_state.get('mode', 'unknown'),
             'updates_available': update_stats.get('pending', 0),
         }
 
@@ -119,17 +111,15 @@ class DataCollectionService:
                 {'cpu': metrics['cpu_percent']}
             )
 
-        logger.info(f"[DataCollection] Métricas guardadas: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(
+            "[DataCollection] Métricas guardadas: %s",
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        )
 
     def force_collection(self):
-        """Fuerza una recolección inmediata (útil para testing)"""
+        """Fuerza una recolección inmediata"""
         self._collect_and_save()
 
     def is_running(self) -> bool:
-        """
-        Verifica si el servicio está corriendo
-        
-        Returns:
-            True si está activo, False si no
-        """
+        """Verifica si el servicio está corriendo"""
         return self.running
