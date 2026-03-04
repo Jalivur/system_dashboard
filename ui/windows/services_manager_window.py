@@ -17,7 +17,7 @@ import threading
 import tkinter as tk
 import customtkinter as ctk
 from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES,
-                              DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y)
+                              DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons)
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from ui.widgets import confirm_dialog
 from utils.logger import get_logger
@@ -30,62 +30,69 @@ _REFRESH_MS = 1500
 class ServicesManagerWindow(ctk.CTkToplevel):
     """Manager total de servicios del dashboard."""
 
-    # Definición completa de todos los servicios gestionables
+    # Definición completa de todos los servicios gestionables.
+    # Iconos construidos desde Icons.* — nunca literales Nerd Font aquí.
     _DEFINITIONS = [
         ("system_monitor",
-         "System Monitor", "🖥️",
+         "System Monitor", Icons.MONITOR_PLACA,
          "CPU, RAM y temperatura dejarán de actualizarse en todas las ventanas."),
         ("disk_monitor",
-         "Disk Monitor", "💾",
+         "Disk Monitor", Icons.MONITOR_DISCO,
          "Uso de disco, lectura y escritura, temperatura y smart dejarán de actualizarse."),
         ("hardware_monitor",
-         "Hardware Monitor", "🌡️",
+         "Hardware Monitor", Icons.HARDWARE_INFO,
          "Temperatura del chasis y fan duty real dejarán de leerse."),
         ("network_monitor",
-         "Network Monitor", "🌐",
+         "Network Monitor", Icons.MONITOR_RED,
          "El tráfico de red dejará de monitorizarse y el speedtest quedará desactivado."),
         ("network_scanner",
-         "Network Scanner", "🖧",
+         "Network Scanner", Icons.RED_LOCAL,
          "El escáner de red local (arp-scan) quedará desactivado."),
         ("process_monitor",
-         "Process Monitor", "⚙️",
+         "Process Monitor", Icons.PROCESOS,
          "El estado de los procesos activos no se actualizará."),
         ("service_monitor",
-         "Service Monitor", "⚙️",
+         "Service Monitor", Icons.SERVICIOS,
          "El estado de los servicios systemd no se actualizará."),
         ("update_monitor",
-         "Update Monitor", "󰆧",
+         "Update Monitor", Icons.ACTUALIZACIONES,
          "La comprobación de actualizaciones pendientes quedará desactivada."),
         ("homebridge_monitor",
-         "Homebridge Monitor", "🏠",
+         "Homebridge Monitor", Icons.HOMEBRIDGE,
          "Homebridge dejará de sondearse y los controles quedarán bloqueados."),
         ("pihole_monitor",
-         "Pi-hole Monitor", "🕳️",
+         "Pi-hole Monitor", Icons.PIHOLE,
          "Pi-hole dejará de sondearse. Los datos mostrados quedarán en cero."),
         ("vpn_monitor",
-         "VPN Monitor", "🔒",
+         "VPN Monitor", Icons.VPN,
          "El estado de la VPN no se actualizará."),
         ("alert_service",
-         "Alert Service (Telegram)", "📲",
+         "Alert Service (Telegram)", Icons.WARNING,
          "Las alertas por Telegram quedarán desactivadas."),
         ("audio_alert_service",
-         "Audio Alert Service", "🔊",
+         "Audio Alert Service", Icons.WARNING,
          "Las alertas de audio quedarán desactivadas."),
         ("data_service",
-         "Data Collection", "📊",
+         "Data Collection", Icons.HISTORICO,
          "No se guardarán datos en el histórico mientras esté parado."),
         ("cleanup_service",
-         "Cleanup Service", "🧹",
+         "Cleanup Service", Icons.TRASH,
          "La limpieza automática de exports y BD quedará pausada."),
         ("fan_service",
-         "Fan Auto Service", "󰈐",
+         "Fan Auto Service", Icons.FAN_CONTROL,
          "El control automático de ventiladores quedará desactivado."),
         ("led_service",
-         "LED Service", "󰟖",
+         "LED Service", Icons.LED_RGB,
          "Los LEDs RGB quedarán apagados y sin control."),
         ("display_service",
-         "Display Service", "󰃟",
+         "Display Service", Icons.BRILLO,
          "El control de brillo y apagado de pantalla quedará desactivado."),
+        ("ssh_monitor",
+         "SSH Monitor", Icons.SSH,
+         "El monitor de sesiones SSH dejará de actualizarse."),
+        ("wifi_monitor",
+         "WiFi Monitor", Icons.WIFI,
+         "El monitor de conexión WiFi dejará de actualizarse."),
     ]
 
     def __init__(self, parent, registry):

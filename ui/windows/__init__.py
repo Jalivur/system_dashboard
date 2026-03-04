@@ -25,10 +25,14 @@ from .services_manager_window import ServicesManagerWindow
 from .button_manager_window import ButtonManagerWindow
 from .log_viewer import LogViewerWindow
 from .crontab_window import CrontabWindow
+from .hardware_info_window import HardwareInfoWindow
+from .ssh_window import SSHWindow
+from .wifi_window import WiFiWindow
+from .config_editor_window import ConfigEditorWindow
 
 __all__ = [
     'FanControlWindow',
-    'MonitorWindow', 
+    'MonitorWindow',
     'NetworkWindow',
     'USBWindow',
     'LaunchersWindow',
@@ -51,4 +55,9 @@ __all__ = [
     'ButtonManagerWindow',
     'LogViewerWindow',
     'CrontabWindow',
+    'HardwareInfoWindow',
+    'SSHWindow',
+    'WiFiWindow',
+    'ConfigEditorWindow',
+    
 ]
