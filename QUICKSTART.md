@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v3.7
+# 🚀 Inicio Rápido - Dashboard v3.8
 
 ---
 
@@ -51,10 +51,11 @@ DSI_HEIGHT = 762
 ```
 
 Este fichero sobreescribe los valores de `config/settings.py` sin tocar el repositorio.
+También puedes editarlo directamente desde la UI con el **Editor de Configuración** *(v3.8)*.
 
 ---
 
-## 🎯 Menú Principal (26 botones)
+## 🎯 Menú Principal (29 botones)
 
 ```
 ┌─────────────────────────────────────┐
@@ -84,6 +85,10 @@ Este fichero sobreescribe los valores de `config/settings.py` sin tocar el repos
 ├──────────────────┼───────────────────┤
 │  📷 Cámara       │  Cambiar Tema     │
 ├──────────────────┼───────────────────┤
+│  Monitor SSH     │  Monitor WiFi     │
+├──────────────────┼───────────────────┤
+│  Editor Config   │  Info Hardware    │
+├──────────────────┼───────────────────┤
 │  Reiniciar       │  Salir            │
 └──────────────────┴───────────────────┘
 ```
@@ -92,7 +97,7 @@ Este fichero sobreescribe los valores de `config/settings.py` sin tocar el repos
 
 ---
 
-## 🖥️ Las 24 Ventanas
+## 🖥️ Las 27 Ventanas
 
 **1. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
 
@@ -142,6 +147,12 @@ Este fichero sobreescribe los valores de `config/settings.py` sin tocar el repos
 
 **24. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
 
+**25. Monitor SSH** *(v3.8)* — Sesiones activas e historial SSH con textos legibles
+
+**26. Monitor WiFi** *(v3.8)* — Señal dBm, calidad, SSID, bitrate, tráfico RX/TX
+
+**27. Editor Config** *(v3.8)* — Edita `local_settings.py` con preview de iconos en tiempo real
+
 ---
 
 ## 🔧 Configuración Básica
@@ -153,6 +164,8 @@ DSI_Y = 0
 DSI_WIDTH = 800
 DSI_HEIGHT = 480
 ```
+
+> También puedes usar el **Editor de Configuración** desde la propia UI *(v3.8)*.
 
 ### Añadir scripts en Lanzadores:
 ```python
@@ -206,6 +219,8 @@ grep ERROR data/logs/dashboard.log
 | Speedtest falla | Instalar CLI Ookla: `sudo apt install speedtest` |
 | USB no expulsa | `sudo apt install udisks2` |
 | Homebridge no conecta | Revisar `.env` y activar Insecure Mode |
+| WiFi no muestra datos | `sudo apt install wireless-tools` |
+| SSH monitor vacío | Verificar que `who` y `last` funcionan en el sistema |
 | No puedo escribir en entries (VNC) | Verificar que se usa `make_entry()` de `ui/styles.py` |
 | Foco perdido tras inactividad (Wayland) | `gsettings set org.gnome.desktop.session idle-delay 0` |
 | Dashboard no visible por VNC en Pi 5 | `wayvnc --output=DSI-2 0.0.0.0 5901` |
@@ -221,4 +236,4 @@ grep ERROR data/logs/dashboard.log
 
 ---
 
-**Dashboard v3.7** 🚀
+**Dashboard v3.8** 🚀

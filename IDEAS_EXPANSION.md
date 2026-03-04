@@ -1,11 +1,39 @@
 # 💡 IDEAS_EXPANSION.md
-## Expansión y Roadmap — Sistema de Monitoreo v3.7
+## Expansión y Roadmap — Sistema de Monitoreo v3.8
 
 ---
 
 ## ✅ Implementado
 
-### v3.7 (actual) — Crontab + Fixes + Multi-Pi
+### v3.8 (actual) — SSH + WiFi + Config Editor + Refactors
+
+- **Monitor SSH** (`SSHMonitor` + `SSHWindow`)
+  - Sesiones activas en tiempo real con IP de origen, usuario y hora de conexión
+  - Historial de sesiones con duración formateada (`1h 30min`, `15 min`)
+  - Textos humanizados: `pts/0` → `Sesión 1`, IPs locales etiquetadas como `(red local)`
+  - Detección de cortes por crash o apagado
+
+- **Monitor WiFi** (`WiFiMonitor` + `WiFiWindow`)
+  - Señal en tiempo real: SSID, dBm, calidad de enlace, bitrate
+  - Barras visuales de señal (▂▄▆█) y gráfica histórica
+  - Tráfico RX/TX con gráficas independientes
+  - Servicio daemon con poll cada 5s
+
+- **Editor de Configuración** (`ConfigEditorWindow`)
+  - Edita `config/local_settings.py` por máquina sin tocar `settings.py`
+  - Parámetros editables: pantalla, tiempos, umbrales CPU/Temp/RAM/Red, parámetros de red
+  - Todos los `Icons.*` editables con preview en tiempo real del nuevo glifo
+  - Carga diferida (lotes con `after()`) — no bloquea la UI al abrir
+  - Merge inteligente: guardar un cambio no sobreescribe los anteriores
+  - Guardar y reiniciar en un solo click
+
+- **Refactor arquitectónico**
+  - `core/crontab_service.py` y `core/camera_service.py` extraídos de UI a `core/`
+  - Separación completa: `core/` sin imports tkinter, `ui/` sin lógica de sistema
+  - Fix `StringVar`/`IntVar` con `master=` explícito — elimina `RuntimeError` al salir
+  - `ServicesManagerWindow` migrada a `Icons.*` — cero literales Nerd Font fuera de `Icons`
+
+### v3.7 — Crontab + Fixes + Multi-Pi
 - **Gestor Crontab** (`CrontabWindow`)
   - Ver, añadir, editar y eliminar entradas del crontab
   - Selector de usuario: usuario / root
@@ -29,12 +57,12 @@
 ### v3.6.5
 - **Gestor de Botones** (`ButtonManagerWindow` + `WindowManager`)
   - Mostrar/ocultar botones del menú principal desde la UI
-  - Persistencia en `data/button_config.json`
+  - Persistencia en `config/services.json` (sección `ui`)
 
 ### v3.6
 - **Servicios Dashboard** (`ServicesManagerWindow`)
   - Activar/desactivar servicios background del dashboard desde la UI
-  - Persistencia en `data/services.json`
+  - Persistencia en `config/services.json` (sección `services`)
 
 ### v3.5
 - **ServiceRegistry** (`core/service_registry.py`)
@@ -70,41 +98,37 @@
 
 ---
 
-## 🔄 Ideas en evaluación para v3.8+
+## 🔄 Ideas en evaluación para v3.9+
 
-### 🖥️ Información del Hardware
-- Modelo de Pi, revisión, memoria total, versión del SO, kernel
-- Ventana estática tipo "Acerca de este equipo"
-- Sin dependencias nuevas — `vcgencmd`, `/proc/cpuinfo`, `uname`
+### 🌐 API REST local
+- Endpoint `/status` que devuelva el estado del sistema en JSON
+- `http.server` de stdlib — sin dependencias nuevas
+- Permitiría integración con otros sistemas de la red
 
-### 🔒 Monitor SSH
-- Leer `/var/log/auth.log` y mostrar intentos fallidos de acceso
-- Badge con contador de intentos en las últimas 24h
-- Lista con IP origen, usuario y timestamp de cada intento
+### 💾 Backup automático de configuración
+- Copiar `data/` a NAS o USB al detectar dispositivo montado
+- Restauración desde la UI
 
-### 📡 Monitor WiFi
-- Intensidad de señal en dBm, calidad, SSID conectado, canal
-- Gráfica histórica de señal
-- Badge si la señal baja de umbral configurable
+### 🖥️ Multi-pantalla / modo kiosk
+- Detectar pantalla HDMI conectada y extender la UI
+- Modo kiosk con rotación automática de vistas
 
-### 📝 Editor de Configuración
-- Editar `config/settings.py`, `config/local_settings.py` y `.env` desde la UI
-- Sin necesidad de SSH para cambios rápidos de configuración
-- Solo las secciones relevantes para el usuario (posición pantalla, launchers, credenciales)
+### 📊 Dashboard web espejo
+- Servir la UI como página HTML desde el propio Pi
+- Sin dependencias de pantalla física
 
 ---
 
 ## 💭 Ideas futuras (backlog)
 
-### API REST local
-- Endpoint `/status` que devuelva el estado del sistema en JSON
-- `http.server` de stdlib
+### Notificaciones push locales
+- Avisos en pantalla sin Telegram (para uso sin internet)
 
-### Backup automático de configuración
-- Copiar `data/` a NAS o USB al detectar dispositivo montado
+### Historial de comandos crontab
+- Log de ejecuciones con resultado (éxito/error)
 
-### Multi-pantalla / modo kiosk
-- Detectar pantalla HDMI conectada y extender la UI
+### Perfiles de configuración
+- Múltiples perfiles de `local_settings.py` intercambiables desde la UI
 
 ---
 
@@ -119,20 +143,21 @@ v3.4  ✅ LEDs RGB + Temp Chasis + Audio + Cámara OCR + SMART
 v3.5  ✅ ServiceRegistry
 v3.6  ✅ ServicesManagerWindow
 v3.6.5 ✅ ButtonManagerWindow
-v3.7  ✅ CrontabWindow + Fixes VNC/Wayland + Multi-Pi  ← ACTUAL
-v3.8  🔄 Info Hardware + Monitor SSH + Monitor WiFi + Editor Config
-v4.0  💭 API REST + Backup + Multi-pantalla?
+v3.7  ✅ CrontabWindow + Fixes VNC/Wayland + Multi-Pi
+v3.8  ✅ Monitor SSH + Monitor WiFi + Editor Config + Refactor core/  ← ACTUAL
+v3.9  💭 API REST + Backup + Multi-pantalla?
 ```
 
 ---
 
-## 📊 Cobertura por módulo (v3.7)
+## 📊 Cobertura por módulo (v3.8)
 
 | Área | Cobertura | Notas |
 |------|-----------|-------|
 | Hardware CPU/RAM/Temp/Disco | ✅ Completa | SystemMonitor + DiskMonitor |
 | NVMe SMART | ✅ Completa | TBW, horas, vida útil, ciclos |
 | Red | ✅ Completa | NetworkMonitor + NetworkScanner |
+| WiFi | ✅ Completa | WiFiMonitor — señal, calidad, tráfico *(v3.8)* |
 | Procesos / Servicios systemd | ✅ Completa | ProcessMonitor + ServiceMonitor |
 | Servicios Dashboard | ✅ Completa | ServiceRegistry + ServicesManagerWindow |
 | Fans | ✅ Completa | FanController + FanAutoService |
@@ -149,8 +174,8 @@ v4.0  💭 API REST + Backup + Multi-pantalla?
 | Temperatura chasis | ✅ Completa | Via fase1.py + hardware_state.json |
 | Fan duty real | ✅ Completa | Via fase1.py + hardware_state.json |
 | Cámara OV5647 | ✅ Completa | rpicam-still + OCR Tesseract |
+| Monitor SSH | ✅ Completa | Sesiones activas + historial humanizado *(v3.8)* |
+| Config por máquina | ✅ Completa | local_settings.py + Editor Config UI *(v3.8)* |
 | Multi-Pi / local_settings | ✅ Completa | Pi 5 Wayland + Pi 3 Xvfb |
-| Info Hardware | ❌ Pendiente | v3.8 
-| Monitor SSH | ❌ Pendiente | v3.8 |
-| Monitor WiFi | ❌ Pendiente | v3.8 |
-| Editor Configuración | ❌ Pendiente | v3.8 |
+| API REST local | ❌ Pendiente | v3.9 |
+| Backup automático | ❌ Pendiente | v3.9 |

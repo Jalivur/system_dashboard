@@ -17,7 +17,7 @@ Guía detallada para instalar el Dashboard en cualquier sistema Linux.
 - Fedora / CentOS / RHEL
 - Arch Linux / Manjaro
 
-**Nota**: En sistemas no-Raspberry Pi, el control de ventiladores PWM puede no funcionar. Todo lo demás funciona perfectamente.
+**Nota**: En sistemas no-Raspberry Pi, el control de ventiladores PWM y el Monitor WiFi pueden no funcionar. Todo lo demás funciona perfectamente.
 
 ---
 
@@ -39,7 +39,7 @@ python3 main.py
 ```
 
 **El script instalará automáticamente:**
-- ✅ Dependencias del sistema (python3-pip, python3-tk, lm-sensors)
+- ✅ Dependencias del sistema (python3-pip, python3-tk, lm-sensors, wireless-tools)
 - ✅ Dependencias Python (customtkinter, psutil, Pillow)
 - ✅ CLI oficial de Ookla para speedtest
 - ✅ Configurará sensores
@@ -59,6 +59,9 @@ sudo apt install -y python3 python3-pip python3-venv python3-tk git
 
 # Instalar lm-sensors para temperatura
 sudo apt install -y lm-sensors
+
+# Instalar wireless-tools para Monitor WiFi
+sudo apt install -y wireless-tools
 
 # Instalar CLI oficial de Ookla para speedtest
 curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
@@ -131,7 +134,7 @@ sudo ./install_system.sh
 ```bash
 # Instalar dependencias del sistema
 sudo apt update
-sudo apt install -y python3 python3-pip python3-tk lm-sensors
+sudo apt install -y python3 python3-pip python3-tk lm-sensors wireless-tools
 
 # Instalar CLI oficial de Ookla para speedtest
 curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
@@ -273,11 +276,38 @@ speedtest --version
 
 ---
 
+### **Monitor WiFi no muestra datos**
+
+**Causa**: `iwconfig` no está instalado o la interfaz no es inalámbrica.
+
+**Solución:**
+```bash
+sudo apt install wireless-tools
+
+# Verificar interfaz WiFi disponible
+iwconfig
+```
+
+---
+
+### **Monitor SSH aparece vacío**
+
+**Causa**: `who` o `last` no están disponibles o no hay sesiones activas.
+
+**Solución:**
+```bash
+# Verificar que funcionan
+who
+last -n 10
+```
+
+---
+
 ### **Error: No se ve la ventana**
 
 **Causa**: Posición incorrecta.
 
-**Solución**: Editar `config/settings.py` o crear `config/local_settings.py`:
+**Solución**: Crear `config/local_settings.py` o usar el **Editor de Configuración** *(v3.8)*:
 ```python
 DSI_X = 0
 DSI_Y = 0
@@ -296,6 +326,7 @@ python3-pip      # Gestor de paquetes
 python3-venv     # Entornos virtuales (opcional)
 python3-tk       # Tkinter
 lm-sensors       # Lectura de sensores
+wireless-tools   # Monitor WiFi (iwconfig)
 speedtest        # CLI oficial de Ookla (NO speedtest-cli)
 git              # Control de versiones
 ```
@@ -305,6 +336,33 @@ git              # Control de versiones
 customtkinter    # UI moderna
 psutil           # Info del sistema
 Pillow           # Procesamiento de imágenes
+matplotlib       # Gráficas históricas
+python-dotenv    # Variables de entorno (.env)
+```
+
+### **Dependencias opcionales por función:**
+
+| Paquete sistema | Función | Obligatorio |
+|----------------|---------|-------------|
+| `lm-sensors` | Temperatura CPU | ✅ Sí |
+| `usbutils` | Listar dispositivos USB | ✅ Sí |
+| `udisks2` | Expulsión segura USB | ✅ Sí |
+| `smartmontools` | Temperatura NVMe + SMART | ✅ Sí |
+| `arp-scan` | Escáner de red local | ✅ Sí |
+| `wireless-tools` | Monitor WiFi (iwconfig) | ⚙️ Solo si usas WiFi |
+| `speedtest` (Ookla CLI) | Speedtest integrado | ⚙️ Opcional |
+| `rpicam-apps` | Cámara OV5647 | ⚙️ Opcional |
+| `tesseract-ocr` | OCR en cámara | ⚙️ Opcional |
+| `espeak-ng` | Alertas audio TTS | ⚙️ Opcional |
+
+### **Sudoers necesarios:**
+
+```bash
+# arp-scan (Red Local)
+echo "$(whoami) ALL=(ALL) NOPASSWD: /usr/sbin/arp-scan" | sudo tee /etc/sudoers.d/arp-scan
+
+# smartctl (SMART NVMe)
+echo "$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/smartctl" | sudo tee /etc/sudoers.d/smartctl
 ```
 
 ---
@@ -315,6 +373,13 @@ Pillow           # Procesamiento de imágenes
 
 ```bash
 sudo usermod -a -G gpio,i2c,spi $USER
+# Cerrar sesión y volver a entrar
+```
+
+### **Cámara:**
+
+```bash
+sudo usermod -aG video $(whoami)
 # Cerrar sesión y volver a entrar
 ```
 
@@ -390,7 +455,10 @@ sensors
 # 4. Verificar speedtest (CLI oficial Ookla)
 speedtest --version
 
-# 5. Ejecutar dashboard
+# 5. Verificar WiFi (si aplica)
+iwconfig
+
+# 6. Ejecutar dashboard
 python3 main.py
 ```
 
@@ -402,7 +470,8 @@ python3 main.py
 2. **Usa venv** si quieres mantener el sistema limpio
 3. **No instales `speedtest-cli`** — usa siempre la CLI oficial de Ookla (`speedtest`)
 4. **Detecta sensores** la primera vez con `sudo sensors-detect`
-5. **Revisa los logs** si algo falla: `grep ERROR data/logs/dashboard.log`
+5. **Instala `wireless-tools`** si vas a usar el Monitor WiFi
+6. **Revisa los logs** si algo falla: `grep ERROR data/logs/dashboard.log`
 
 ---
 
