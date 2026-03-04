@@ -38,6 +38,7 @@ CAMARA              = f"{Icons.CAMARA}  C\u00e1mara"
 TEMA                = f"{Icons.TEMA}  Cambiar Tema"
 SSH                 = f"{Icons.SSH}  Monitor SSH"
 WIFI                = f"{Icons.WIFI}  Monitor WiFi"
+CONFIG              = f"{Icons.CONFIG} Editor Config"
 
 # ── Botones siempre visibles (no controlados por WindowManager) ───────────────
 BOTONES             = f"{Icons.BOTONES}  Gestor de Botones"

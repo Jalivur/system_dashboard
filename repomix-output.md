@@ -32,7 +32,7 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: ui/windows/services_manager_window.py
+- Only files matching these patterns are included: ui/windows/theme_selector.py, ui/windows/display_window.py
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -43,126 +43,296 @@ The content is organized as follows:
 <directory_structure>
 ui/
   windows/
-    services_manager_window.py
+    display_window.py
+    theme_selector.py
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
 
-<file path="ui/windows/services_manager_window.py">
+<file path="ui/windows/theme_selector.py">
 """
-Ventana de gestión total de servicios background del Dashboard.
-
-Permite parar y arrancar cada servicio de forma manual y completa.
-Cuando un servicio está parado:
-  - Su thread interno no corre
-  - Sus métodos de acción devuelven sin hacer nada (ver parches en core/)
-  - Las ventanas asociadas muestran aviso "Servicio detenido"
-
-Recibe el ServiceRegistry completo — muestra todos los servicios registrados
-que aparezcan en _DEFINITIONS.
-
-El botón "Guardar predeterminado" persiste el estado actual al services.json
-para que en el próximo arranque los servicios parados no se inicien.
+Ventana de selección de temas
 """
-import threading
-import tkinter as tk
 import customtkinter as ctk
-from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES,
-                              DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y)
+from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+from config.themes import get_available_themes, get_theme, save_selected_theme, load_selected_theme
+from ui.styles import make_futuristic_button, StyleManager, make_window_header
+from ui.widgets import custom_msgbox, confirm_dialog
+import sys
+import os
+
+class ThemeSelector(ctk.CTkToplevel):
+    """Ventana de selección de temas"""
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        
+        # Configurar ventana
+        self.title("Selector de Temas")
+        self.configure(fg_color=COLORS['bg_medium'])
+        self.overrideredirect(True)
+        self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
+        self.resizable(False, False)
+        
+        # Tema actualmente seleccionado
+        self.current_theme = load_selected_theme()
+        self.selected_theme_var = ctk.StringVar(value=self.current_theme)
+        
+        # Crear interfaz
+        self._create_ui()
+    
+    def _create_ui(self):
+        """Crea la interfaz de usuario"""
+        # Frame principal
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # ── Header unificado ──────────────────────────────────────────────────
+        make_window_header(
+            main,
+            title="SELECTOR DE TEMAS",
+            on_close=self.destroy,
+            status_text="Elige un tema y reinicia el dashboard para aplicarlo",
+        )
+        
+        # Área de scroll
+        scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
+        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Canvas y scrollbar
+        canvas = ctk.CTkCanvas(
+            scroll_container,
+            bg=COLORS['bg_medium'],
+            highlightthickness=0
+        )
+        canvas.pack(side="left", fill="both", expand=True)
+        
+        scrollbar = ctk.CTkScrollbar(
+            scroll_container,
+            orientation="vertical",
+            command=canvas.yview,
+            width=30
+        )
+        scrollbar.pack(side="right", fill="y")
+        StyleManager.style_scrollbar_ctk(scrollbar)
+        
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Frame interno
+        inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH-50)
+        inner.bind("<Configure>",
+                  lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        
+        # Crear tarjetas de temas
+        self._create_theme_cards(inner)
+        
+        # Botones inferiores
+        self._create_bottom_buttons(main)
+    
+    def _create_theme_cards(self, parent):
+        """Crea las tarjetas de cada tema"""
+        themes = get_available_themes()
+        
+        for theme_id, theme_name in themes:
+            theme_data = get_theme(theme_id)
+            colors = theme_data["colors"]
+            
+            # Frame de la tarjeta
+            is_current = (theme_id == self.current_theme)
+            border_color = COLORS['success'] if is_current else COLORS['primary']
+            border_width = 3 if is_current else 2
+            
+            card = ctk.CTkFrame(
+                parent,
+                fg_color=COLORS['bg_dark'],
+                border_width=border_width,
+                border_color=border_color
+            )
+            card.pack(fill="x", pady=8, padx=10)
+            
+            # Radiobutton para seleccionar
+            radio = ctk.CTkRadioButton(
+                card,
+                text=theme_name,
+                variable=self.selected_theme_var,
+                value=theme_id,
+                text_color=COLORS['text'],
+                font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
+                command=lambda: self._on_theme_change()
+            )
+            radio.pack(anchor="w", padx=15, pady=(10, 5))
+            StyleManager.style_radiobutton_ctk(radio)
+            
+            # Indicador de tema actual
+            if is_current:
+                current_label = ctk.CTkLabel(
+                    card,
+                    text="✓ TEMA ACTUAL",
+                    text_color=COLORS['success'],
+                    font=(FONT_FAMILY, 10, "bold")
+                )
+                current_label.pack(anchor="w", padx=15, pady=(0, 5))
+            
+            # Frame de preview de colores
+            preview_frame = ctk.CTkFrame(card, fg_color=COLORS['bg_medium'])
+            preview_frame.pack(fill="x", padx=15, pady=(5, 10))
+            
+            # Mostrar colores principales
+            color_samples = [
+                ("Principal", colors['primary']),
+                ("Secundario", colors['secondary']),
+                ("Éxito", colors['success']),
+                ("Advertencia", colors['warning']),
+                ("Peligro", colors['danger']),
+                ("Fondo oscuro", colors['bg_dark']),
+                ("Fondo medio", colors['bg_medium']),
+                ("Fondo claro", colors['bg_light']),
+                ("Texto", colors['text']),
+                ("Bordes", colors['border'])
+            ]
+            
+            for i, (label, color) in enumerate(color_samples):
+                color_frame = ctk.CTkFrame(preview_frame, fg_color="transparent")
+                color_frame.grid(row=0, column=i, padx=5, pady=5)
+                
+                # Cuadrado de color
+                color_box = ctk.CTkFrame(
+                    color_frame,
+                    width=40,
+                    height=40,
+                    fg_color=color,
+                    border_width=1,
+                    border_color=COLORS['text']
+                )
+                color_box.pack()
+                color_box.pack_propagate(False)
+                
+                # Label
+                color_label = ctk.CTkLabel(
+                    color_frame,
+                    text=label,
+                    text_color=COLORS['text'],
+                    font=(FONT_FAMILY, 9)
+                )
+                color_label.pack(pady=(2, 0))
+    
+    def _create_bottom_buttons(self, parent):
+        """Crea los botones inferiores"""
+        bottom = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
+        bottom.pack(fill="x", pady=10, padx=10)
+        
+        # Botón aplicar
+        apply_btn = make_futuristic_button(
+            bottom,
+            text="Aplicar y Reiniciar",
+            command=self._apply_theme,
+            width=20,
+            height=6
+        )
+        apply_btn.pack(side="right", padx=5)
+    
+    def _on_theme_change(self):
+        """Callback cuando se selecciona un tema"""
+        # Simplemente actualiza la variable, no aplica aún
+        pass
+    
+    def _apply_theme(self):
+        """Aplica el tema seleccionado y reinicia la aplicación"""
+        selected = self.selected_theme_var.get()
+        
+        if selected == self.current_theme:
+            custom_msgbox(
+                self,
+                "Este tema ya está activo.\nNo es necesario reiniciar.",
+                "Tema Actual"
+            )
+            return
+        
+        # Guardar tema seleccionado
+        save_selected_theme(selected)
+        
+        # Mostrar confirmación y reiniciar
+        theme_name = get_theme(selected)["name"]
+        
+
+        
+        def do_restart():
+            """Reinicia la aplicación"""
+            
+            
+            # Cerrar ventana de temas
+            self.destroy()
+            
+            # Obtener el script principal
+            python = sys.executable
+            script = os.path.abspath(sys.argv[0])
+            
+            # Cerrar aplicación actual
+            self.master.quit()
+            self.master.destroy()
+            
+            # Reiniciar con os.execv (reemplaza el proceso actual)
+            os.execv(python, [python, script] + sys.argv[1:])
+        
+        # Confirmar antes de reiniciar
+        confirm_dialog(
+            parent=self,
+            text=f"Tema '{theme_name}' guardado.\n\n¿Reiniciar ahora para aplicar los cambios?",
+            title="🔄 Aplicar Tema",
+            on_confirm=do_restart,
+            on_cancel=self.destroy
+        )
+</file>
+
+<file path="ui/windows/display_window.py">
+"""
+Ventana de control de brillo de la pantalla.
+Hardware: Freenove FNK0100K — Raspberry Pi 5.
+"""
+import customtkinter as ctk
+from config.settings import (
+    COLORS, FONT_FAMILY, FONT_SIZES,
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
+)
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
-from ui.widgets import confirm_dialog
 from utils.logger import get_logger
+from core.display_service import BRIGHTNESS_MIN, BRIGHTNESS_MAX
 
 logger = get_logger(__name__)
 
-_REFRESH_MS = 1500
+QUICK_LEVELS = [
+    ("🌑 10%",   10),
+    ("🌒 30%",   30),
+    ("🌓 60%",   60),
+    ("🌕 100%", 100),
+]
 
 
-class ServicesManagerWindow(ctk.CTkToplevel):
-    """Manager total de servicios del dashboard."""
+class DisplayWindow(ctk.CTkToplevel):
+    """Ventana de control de brillo de pantalla."""
 
-    # Definición completa de todos los servicios gestionables
-    _DEFINITIONS = [
-        ("system_monitor",
-         "System Monitor", "🖥️",
-         "CPU, RAM y temperatura dejarán de actualizarse en todas las ventanas."),
-        ("disk_monitor",
-         "Disk Monitor", "💾",
-         "Uso de disco, lectura y escritura, temperatura y smart dejarán de actualizarse."),
-        ("hardware_monitor",
-         "Hardware Monitor", "🌡️",
-         "Temperatura del chasis y fan duty real dejarán de leerse."),
-        ("network_monitor",
-         "Network Monitor", "🌐",
-         "El tráfico de red dejará de monitorizarse y el speedtest quedará desactivado."),
-        ("network_scanner",
-         "Network Scanner", "🖧",
-         "El escáner de red local (arp-scan) quedará desactivado."),
-        ("process_monitor",
-         "Process Monitor", "⚙️",
-         "El estado de los procesos activos no se actualizará."),
-        ("service_monitor",
-         "Service Monitor", "⚙️",
-         "El estado de los servicios systemd no se actualizará."),
-        ("update_monitor",
-         "Update Monitor", "󰆧",
-         "La comprobación de actualizaciones pendientes quedará desactivada."),
-        ("homebridge_monitor",
-         "Homebridge Monitor", "🏠",
-         "Homebridge dejará de sondearse y los controles quedarán bloqueados."),
-        ("pihole_monitor",
-         "Pi-hole Monitor", "🕳️",
-         "Pi-hole dejará de sondearse. Los datos mostrados quedarán en cero."),
-        ("vpn_monitor",
-         "VPN Monitor", "🔒",
-         "El estado de la VPN no se actualizará."),
-        ("alert_service",
-         "Alert Service (Telegram)", "📲",
-         "Las alertas por Telegram quedarán desactivadas."),
-        ("audio_alert_service",
-         "Audio Alert Service", "🔊",
-         "Las alertas de audio quedarán desactivadas."),
-        ("data_service",
-         "Data Collection", "📊",
-         "No se guardarán datos en el histórico mientras esté parado."),
-        ("cleanup_service",
-         "Cleanup Service", "🧹",
-         "La limpieza automática de exports y BD quedará pausada."),
-        ("fan_service",
-         "Fan Auto Service", "󰈐",
-         "El control automático de ventiladores quedará desactivado."),
-        ("led_service",
-         "LED Service", "󰟖",
-         "Los LEDs RGB quedarán apagados y sin control."),
-        ("display_service",
-         "Display Service", "󰃟",
-         "El control de brillo y apagado de pantalla quedará desactivado."),
-    ]
-
-    def __init__(self, parent, registry):
+    def __init__(self, parent, display_service):
         super().__init__(parent)
-        self.title("Gestión de Servicios")
+        self.display_service = display_service
+
+        self.title("Control de Pantalla")
         self.configure(fg_color=COLORS['bg_medium'])
         self.overrideredirect(True)
         self.geometry(f"{DSI_WIDTH}x{DSI_HEIGHT}+{DSI_X}+{DSI_Y}")
         self.resizable(False, False)
         self.transient(parent)
         self.after(150, self.focus_set)
-        self.lift()
 
-        self._registry = registry
-        # Solo mostrar servicios que estén registrados en el registry
-        self._services = registry.get_all()
-        self._defs = [(k, lbl, emj, warn)
-                      for k, lbl, emj, warn in self._DEFINITIONS
-                      if k in self._services]
-        self._rows: dict = {}
-        self._busy: set  = set()
+        self._slider_var = ctk.IntVar(value=self.display_service.get_brightness())
+        self._banner_shown = False
+        self._inner = None
 
         self._create_ui()
-        self._refresh_loop()
-        logger.info("[ServicesManagerWindow] Ventana abierta")
+        self._update()
+        logger.info("[DisplayWindow] Ventana abierta (método: %s)",
+                    self.display_service.get_method())
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
@@ -170,186 +340,213 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
-        make_window_header(main, title="GESTIÓN DE SERVICIOS", on_close=self.destroy)
-
+        self._header = make_window_header(
+            main,
+            title="CONTROL DE PANTALLA",
+            on_close=self.destroy,
+        )
+        # Area de scroll
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
 
-        canvas = ctk.CTkCanvas(scroll_container, bg=COLORS['bg_medium'], highlightthickness=0)
+        canvas = ctk.CTkCanvas(
+            scroll_container,
+            bg=COLORS['bg_medium'],
+            highlightthickness=0,
+        )
         canvas.pack(side="left", fill="both", expand=True)
 
-        scrollbar = ctk.CTkScrollbar(scroll_container, orientation="vertical",
-                                     command=canvas.yview, width=30)
+        scrollbar = ctk.CTkScrollbar(
+            scroll_container,
+            orientation="vertical",
+            command=canvas.yview,
+            width=30,
+        )
         scrollbar.pack(side="right", fill="y")
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
         inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
         canvas.create_window((0, 0), window=inner, anchor="nw", width=DSI_WIDTH - 50)
-        inner.bind("<Configure>",
-                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        self._inner = inner
 
-        # Cabecera columnas
-        hdr = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
-        hdr.pack(fill="x", padx=8, pady=(6, 4))
-        hdr.grid_columnconfigure(1, weight=1)
-        for col, text in enumerate(["", "Servicio", "Estado", ""]):
-            ctk.CTkLabel(hdr, text=text,
-                         font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
-                         text_color=COLORS['text_dim'],
-                         ).grid(row=0, column=col, padx=(12, 4), pady=6, sticky="w")
+        self._build_content(inner)
 
-        for key, label, emoji, warn in self._defs:
-            self._create_row(inner, key, label, emoji, warn)
-
-        # Botones globales
-        footer = ctk.CTkFrame(inner, fg_color="transparent")
-        footer.pack(fill="x", padx=8, pady=(8, 6))
-        make_futuristic_button(footer, text="⏹  Parar todos",
-                               command=self._stop_all,
-                               width=13, height=6, font_size=13,
-                               ).pack(side="left", padx=(0, 6))
-        make_futuristic_button(footer, text="▶  Iniciar todos",
-                               command=self._start_all,
-                               width=13, height=6, font_size=13,
-                               ).pack(side="left", padx=(0, 6))
-        make_futuristic_button(footer, text="💾  Guardar predeterminado",
-                               command=self._save_defaults,
-                               width=18, height=6, font_size=13,
-                               ).pack(side="left")
-
-    def _create_row(self, parent, key, label, emoji, warn):
-        row_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
-        row_frame.pack(fill="x", padx=8, pady=3)
-        row_frame.grid_columnconfigure(1, weight=1)
-
-        IND = 14
-        ind_canvas = tk.Canvas(row_frame, width=IND, height=IND,
-                               bg=COLORS['bg_dark'], highlightthickness=0, bd=0)
-        ind_canvas.grid(row=0, column=0, padx=(12, 6), pady=14)
-        oval = ind_canvas.create_oval(1, 1, IND - 1, IND - 1,
-                                      fill=COLORS['text_dim'], outline="")
-
-        ctk.CTkLabel(row_frame,
-                     text=f"{emoji}  {label}",
-                     font=(FONT_FAMILY, FONT_SIZES['medium'], "bold"),
-                     text_color=COLORS['text'], anchor="w",
-                     ).grid(row=0, column=1, padx=(4, 8), pady=12, sticky="w")
-
-        lbl_status = ctk.CTkLabel(row_frame, text="…",
-                                  font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
-                                  text_color=COLORS['text_dim'],
-                                  width=80, anchor="center")
-        lbl_status.grid(row=0, column=2, padx=4, pady=12)
-
-        btn = make_futuristic_button(row_frame, text="",
-                                     command=lambda k=key, w=warn: self._toggle(k, w),
-                                     width=12, height=6, font_size=13)
-        btn.grid(row=0, column=3, padx=(4, 12), pady=8)
-
-        self._rows[key] = {"canvas": ind_canvas, "oval": oval,
-                           "lbl_status": lbl_status, "btn": btn}
-
-    # ── Estado ────────────────────────────────────────────────────────────────
-
-    def _is_running(self, key: str) -> bool:
-        svc = self._services.get(key)
-        if svc is None:
-            return False
-        if hasattr(svc, "is_running"):
-            return svc.is_running()
-        return getattr(svc, "_running", False)
-
-    def _update_row(self, key: str):
-        if key not in self._rows:
+    def _build_content(self, inner):
+        """Construye el contenido real de la ventana."""
+        # ── Sin método disponible ──
+        if not self.display_service.is_available():
+            ctk.CTkLabel(
+                inner,
+                text=(
+                    "⚠️ Brillo no disponible\n\n"
+                    "No se encontró /sys/class/backlight/ ni wlr-randr.\n\n"
+                    "Consulta GUIA_BRILLO_DSI.md → Paso 0\n"
+                    "para diagnosticar tu sistema."
+                ),
+                font=(FONT_FAMILY, FONT_SIZES['medium']),
+                text_color=COLORS.get('warning', '#ffaa00'),
+                justify="center",
+            ).pack(expand=True)
             return
-        row  = self._rows[key]
-        busy = key in self._busy
-        if busy:
-            row["lbl_status"].configure(text="…", text_color=COLORS['text_dim'])
-            row["canvas"].itemconfigure(row["oval"], fill=COLORS['text_dim'])
-            row["btn"].configure(state="disabled", text="…")
-            return
-        running = self._is_running(key)
-        color   = COLORS['primary'] if running else COLORS['danger']
-        row["canvas"].itemconfigure(row["oval"], fill=color)
-        row["lbl_status"].configure(
-            text="ACTIVO" if running else "PARADO", text_color=color)
-        row["btn"].configure(
-            state="normal",
-            text="⏹ Parar"  if running else "▶ Iniciar",
-            fg_color=COLORS['danger'] if running else COLORS['primary'])
 
-    def _refresh_loop(self):
+        # ── Info método activo ──
+        method = self.display_service.get_method()
+        ctk.CTkLabel(
+            inner,
+            text=f"Método activo: {method}",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'],
+            anchor="w",
+        ).pack(fill="x", padx=14, pady=(4, 0))
+
+        # ── Tarjeta brillo actual + slider ──
+        card = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        card.pack(fill="x", padx=10, pady=(6, 4))
+
+        ctk.CTkLabel(
+            card, text="Brillo",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'],
+        ).pack(pady=(10, 0))
+
+        self._brightness_label = ctk.CTkLabel(
+            card, text="--",
+            font=(FONT_FAMILY, FONT_SIZES['xxlarge'], "bold"),
+            text_color=COLORS['primary'],
+        )
+        self._brightness_label.pack()
+
+        ctk.CTkSlider(
+            card,
+            from_=BRIGHTNESS_MIN, to=BRIGHTNESS_MAX,
+            variable=self._slider_var,
+            command=self._on_slider,
+            width=680, height=36,
+            button_length=40,
+            progress_color=COLORS['primary'],
+            button_color=COLORS['primary'],
+            button_hover_color=COLORS['secondary'],
+        ).pack(padx=20, pady=(4, 14))
+
+        # ── Niveles rápidos ──
+        quick = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        quick.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkLabel(
+            quick, text="Niveles rápidos",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'],
+        ).pack(pady=(8, 4))
+
+        row = ctk.CTkFrame(quick, fg_color="transparent")
+        row.pack(pady=(0, 10))
+        for label, value in QUICK_LEVELS:
+            make_futuristic_button(
+                row, text=label,
+                command=lambda v=value: self._set_quick(v),
+                width=14, height=8, font_size=14,
+            ).pack(side="left", padx=6)
+
+        # ── ON / OFF ──
+        toggle = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        toggle.pack(fill="x", padx=10, pady=4)
+
+        tog_row = ctk.CTkFrame(toggle, fg_color="transparent")
+        tog_row.pack(pady=10)
+
+        make_futuristic_button(
+            tog_row, text="🌕 Encender",
+            command=self._screen_on,
+            width=16, height=8, font_size=16,
+        ).pack(side="left", padx=10)
+
+        make_futuristic_button(
+            tog_row, text="🌑 Apagar",
+            command=self._screen_off,
+            width=16, height=8, font_size=16,
+        ).pack(side="left", padx=10)
+
+        # ── Modo ahorro ──
+        dim = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        dim.pack(fill="x", padx=10, pady=4)
+
+        dim_row = ctk.CTkFrame(dim, fg_color="transparent")
+        dim_row.pack(fill="x", padx=12, pady=10)
+
+        ctk.CTkLabel(
+            dim_row,
+            text="Dim automático  (2 min → 20%  |  4 min → apagado):",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'],
+        ).pack(side="left", padx=(0, 10))
+
+        self._dim_switch = ctk.CTkSwitch(
+            dim_row, text="",
+            command=self._toggle_dim,
+            width=60, height=30,
+            switch_width=60, switch_height=30,
+            progress_color=COLORS['primary'],
+        )
+        self._dim_switch.pack(side="left")
+
+        self._refresh()
+
+    # ── Loop de actualización con banner ──────────────────────────────────────
+
+    def _update(self):
         if not self.winfo_exists():
             return
-        for key in self._rows:
-            self._update_row(key)
-        self.after(_REFRESH_MS, self._refresh_loop)
 
-    # ── Acciones ──────────────────────────────────────────────────────────────
+        if not self.display_service._running:
+            if not self._banner_shown:
+                for w in self._inner.winfo_children():
+                    w.destroy()
+                StyleManager.show_service_stopped_banner(self._inner, "Display Service")
+                self._banner_shown = True
+        else:
+            if self._banner_shown:
+                self._banner_shown = False
+                for w in self._inner.winfo_children():
+                    w.destroy()
+                self._build_content(self._inner)
 
-    def _toggle(self, key: str, warn: str):
-        if key in self._busy:
+        self.after(UPDATE_MS, self._update)
+
+    # ── Callbacks ─────────────────────────────────────────────────────────────
+
+    def _on_slider(self, value):
+        self.display_service.set_brightness(int(value))
+        self._refresh()
+
+    def _set_quick(self, value):
+        self.display_service.set_brightness(value)
+        self._slider_var.set(value)
+        self._refresh()
+
+    def _screen_on(self):
+        self.display_service.screen_on()
+        self._refresh()
+
+    def _screen_off(self):
+        self.display_service.screen_off()
+        self._refresh()
+
+    def _toggle_dim(self):
+        if self._dim_switch.get():
+            self.display_service.enable_dim_on_idle()
+        else:
+            self.display_service.disable_dim_on_idle()
+
+    def _refresh(self):
+        if not self.display_service.is_available():
             return
-        running = self._is_running(key)
-        action  = "parar" if running else "arrancar"
-        msg     = f"¿Seguro que quieres {action} «{key}»?"
-        if running and warn:
-            msg += f"\n\n⚠️  {warn}"
-        confirm_dialog(parent=self, text=msg,
-                       on_confirm=lambda: self._execute(key, stop=running))
-
-    def _execute(self, key: str, stop: bool):
-        self._busy.add(key)
-        self._update_row(key)
-
-        def _run():
-            svc = self._services[key]
-            try:
-                if stop:
-                    logger.info("[ServicesManagerWindow] stop → %s", key)
-                    svc.stop()
-                else:
-                    logger.info("[ServicesManagerWindow] start → %s", key)
-                    svc.start()
-            except Exception as e:
-                logger.error("[ServicesManagerWindow] Error %s %s: %s",
-                             "stop" if stop else "start", key, e)
-            finally:
-                self._busy.discard(key)
-                if self.winfo_exists():
-                    self.after(0, self._update_row, key)
-
-        threading.Thread(target=_run, daemon=True,
-                         name=f"SvcMgr-{key}").start()
-
-    def _stop_all(self):
-        keys = [k for k in self._rows if self._is_running(k)]
-        if not keys:
+        if not hasattr(self, "_brightness_label"):
             return
-        names = "\n".join(f"  • {k}" for k in keys)
-        confirm_dialog(
-            parent=self,
-            text=f"⚠️  Esto parará {len(keys)} servicios:\n\n{names}\n\n¿Continuar?",
-            on_confirm=lambda: [self._execute(k, stop=True) for k in keys])
-
-    def _start_all(self):
-        keys = [k for k in self._rows if not self._is_running(k)]
-        if not keys:
-            return
-        confirm_dialog(
-            parent=self,
-            text=f"¿Arrancar los {len(keys)} servicios parados?",
-            on_confirm=lambda: [self._execute(k, stop=False) for k in keys])
-
-    def _save_defaults(self):
-        """Persiste el estado actual al services.json como configuración de arranque."""
-        confirm_dialog(
-            parent=self,
-            text="💾 ¿Guardar el estado actual como configuración de arranque?\n\n"
-                 "Los servicios PARADOS no arrancarán en el próximo inicio.",
-            on_confirm=self._registry.save_config)
+        pct = self.display_service.get_brightness()
+        self._brightness_label.configure(text=f"{pct}%")
+        self._slider_var.set(pct)
 </file>
 
 </files>

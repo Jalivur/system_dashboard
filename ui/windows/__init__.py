@@ -27,7 +27,8 @@ from .log_viewer import LogViewerWindow
 from .crontab_window import CrontabWindow
 from .hardware_info_window import HardwareInfoWindow
 from .ssh_window import SSHWindow
-from .wifi_window import WiFiWindow 
+from .wifi_window import WiFiWindow
+from .config_editor_window import ConfigEditorWindow
 
 __all__ = [
     'FanControlWindow',
@@ -57,6 +58,6 @@ __all__ = [
     'HardwareInfoWindow',
     'SSHWindow',
     'WiFiWindow',
-    
+    'ConfigEditorWindow',
     
 ]

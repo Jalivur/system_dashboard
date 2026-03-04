@@ -44,6 +44,7 @@ _DEFAULT_CONFIG = {
         "led_service":         True,
         "display_service":     True,
         "ssh_monitor":         True,
+        "wifi_monitor":        True
     },
     "ui": {
         "hardware_info":    True,
@@ -70,6 +71,9 @@ _DEFAULT_CONFIG = {
         "camera_window":    True,
         "theme_selector":   True,
         "ssh_window":       True,
+        "wifi_window":      True,
+        "config_editor_window": True
+        
     }
 }
 

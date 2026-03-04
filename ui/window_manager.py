@@ -50,7 +50,8 @@ class WindowManager:
         "camera_window":    BL.CAMARA,
         "theme_selector":   BL.TEMA,
         "ssh_window":       BL.SSH,
-        "wifi_window":      BL.WIFI
+        "wifi_window":      BL.WIFI,
+        "config_editor_windo":    BL.CONFIG,
     }
 
     _ALWAYS_VISIBLE = [

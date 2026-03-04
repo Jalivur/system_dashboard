@@ -10,7 +10,7 @@ from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindo
                         HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow,
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
                         LedWindow, CameraWindow, ServicesManagerWindow, LogViewerWindow, ButtonManagerWindow, CrontabWindow,
-                        HardwareInfoWindow, SSHWindow, WiFiWindow)
+                        HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow)
 from ui.widgets import confirm_dialog, terminal_dialog
 from ui.window_manager import WindowManager
 from utils.system_utils import SystemUtils
@@ -82,7 +82,8 @@ class MainWindow:
         self.services_manager_window = None
         self.button_manager_window   = None
         self.ssh_window              = None
-        self.wifi_window              = None
+        self.wifi_window             = None
+        self.config_editor_window    = None
 
         self._uptime_tick = 0
 
@@ -194,6 +195,7 @@ class MainWindow:
             (BL.TEMA,              self.open_theme_selector,   []),
             (BL.SSH,               self.open_ssh_window,       []),
             (BL.WIFI,              self.open_wifi_window,      []),
+            (BL.CONFIG,          self.opent_config_editor_window, []),
             (BL.REINICIAR,         self.restart_application,   []),
             (BL.SALIR,             self.exit_application,      []),
         ]
@@ -533,6 +535,15 @@ class MainWindow:
             self.wifi_window.bind("<Destroy>", lambda e: self._btn_idle(BL.WIFI))
         else:
             self.wifi_window.lift()
+            
+    def opent_config_editor_window(self):
+        if self.config_editor_window is None or not self.config_editor_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Editor de Configuracion")
+            self._btn_active(BL.CONFIG)
+            self.config_editor_window = ConfigEditorWindow(self.root)
+            self.config_editor_window.bind("<Destroy>", lambda e: self._btn_idle(BL.CONFIG))
+        else:
+            self.config_editor_window.lift()
 
     # ── Salir / Reiniciar ─────────────────────────────────────────────────────
 

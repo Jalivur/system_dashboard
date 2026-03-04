@@ -108,6 +108,7 @@ class Icons:
     TEMA                = "\U000f050e"          # 󰔎
     REINICIAR           = "\U000f0453"          # 󰑓
     SALIR               = "\U000f0fc5"          # 󰿅
+    CONFIG              = "\ueb52"
 
     # Header principal
     UPTIME              = "\u23f1"             # ⏱
