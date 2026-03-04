@@ -119,7 +119,7 @@ class Icons:
     # Misc
     DEGREE              = "\u00b0"             # °
     
-    SSH                 = "\U000f0143"         # 
+    SSH                 = "\U000F08C0"         # 
     # Lanzadores
     NAS                 = "\U000F08F3"         # 󰣳
     MONTAR              = "\U000F0318"         # 󰌘

@@ -37,6 +37,7 @@ RESUMEN             = f"{Icons.RESUMEN}  Resumen Sistema"
 CAMARA              = f"{Icons.CAMARA}  C\u00e1mara"
 TEMA                = f"{Icons.TEMA}  Cambiar Tema"
 SSH                 = f"{Icons.SSH}  Monitor SSH"
+
 # ── Botones siempre visibles (no controlados por WindowManager) ───────────────
 BOTONES             = f"{Icons.BOTONES}  Gestor de Botones"
 REINICIAR           = f"{Icons.REINICIAR} Reiniciar"

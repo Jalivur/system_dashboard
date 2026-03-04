@@ -11,6 +11,7 @@ from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindo
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
                         LedWindow, CameraWindow, ServicesManagerWindow, LogViewerWindow, ButtonManagerWindow, CrontabWindow,
                         HardwareInfoWindow)
+from ui.windows.ssh_window import SSHWindow
 from ui.widgets import confirm_dialog, terminal_dialog
 from ui.window_manager import WindowManager
 from utils.system_utils import SystemUtils
@@ -50,6 +51,7 @@ class MainWindow:
         self.led_service         = registry.get("led_service")
         self.hardware_monitor    = registry.get("hardware_monitor")
         self.audio_alert_service = registry.get("audio_alert_service")
+        self.ssh_monitor         = registry.get("ssh_monitor")
 
         self._badges    = {}
         self._menu_btns = {}
@@ -79,6 +81,7 @@ class MainWindow:
         self.camera_window           = None
         self.services_manager_window = None
         self.button_manager_window   = None
+        self.ssh_window              = None
 
         self._uptime_tick = 0
 
@@ -188,6 +191,7 @@ class MainWindow:
             (BL.RESUMEN,           self.open_overview,         []),
             (BL.CAMARA,            self.open_camera_window,    []),
             (BL.TEMA,              self.open_theme_selector,   []),
+            (BL.SSH,               self.open_ssh_window,       []),
             (BL.REINICIAR,         self.restart_application,   []),
             (BL.SALIR,             self.exit_application,      []),
         ]
@@ -508,6 +512,15 @@ class MainWindow:
             self.theme_window.bind("<Destroy>", lambda e: self._btn_idle(BL.TEMA))
         else:
             self.theme_window.lift()
+
+    def open_ssh_window(self):
+        if self.ssh_window is None or not self.ssh_window.winfo_exists():
+            logger.debug("[MainWindow] Abriendo: Monitor SSH")
+            self._btn_active(BL.SSH)
+            self.ssh_window = SSHWindow(self.root, self.ssh_monitor)
+            self.ssh_window.bind("<Destroy>", lambda e: self._btn_idle(BL.SSH))
+        else:
+            self.ssh_window.lift()
 
     # ── Salir / Reiniciar ─────────────────────────────────────────────────────
 

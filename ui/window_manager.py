@@ -49,6 +49,7 @@ class WindowManager:
         "overview":         BL.RESUMEN,
         "camera_window":    BL.CAMARA,
         "theme_selector":   BL.TEMA,
+        "ssh_window":       BL.SSH,
     }
 
     _ALWAYS_VISIBLE = [

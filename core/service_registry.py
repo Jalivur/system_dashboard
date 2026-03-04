@@ -43,6 +43,7 @@ _DEFAULT_CONFIG = {
         "fan_service":         True,
         "led_service":         True,
         "display_service":     True,
+        "ssh_monitor":         True,
     },
     "ui": {
         "hardware_info":    True,
@@ -68,6 +69,7 @@ _DEFAULT_CONFIG = {
         "overview":         True,
         "camera_window":    True,
         "theme_selector":   True,
+        "ssh_window":       True,
     }
 }
 

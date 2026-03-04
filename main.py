@@ -10,7 +10,8 @@ import customtkinter as ctk
 from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor,
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
-                  PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService)
+                  PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService,
+                  SSHMonitor)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from core.service_registry import ServiceRegistry
@@ -51,6 +52,7 @@ def main():
     hardware_monitor    = HardwareMonitor()
     vpn_monitor         = VpnMonitor()
     audio_alert_service = AudioAlertService(system_monitor, service_monitor)
+    ssh_monitor         = SSHMonitor()
 
     data_service = DataCollectionService(
         system_monitor=system_monitor,
@@ -86,6 +88,7 @@ def main():
     alert_service.start()
     cleanup_service.start()
     fan_service.start()
+    ssh_monitor.start()
 
     # ── Registrar en el registry y aplicar configuración ─────────────────────
     registry = ServiceRegistry()
@@ -108,7 +111,7 @@ def main():
     registry.register("fan_service",          fan_service)
     registry.register("led_service",          led_service)
     registry.register("display_service",      display_service)
-
+    registry.register("ssh_monitor",          ssh_monitor)
     # Para los servicios configurados como False en services.json
     registry.apply_config()
 

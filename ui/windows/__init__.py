@@ -26,6 +26,7 @@ from .button_manager_window import ButtonManagerWindow
 from .log_viewer import LogViewerWindow
 from .crontab_window import CrontabWindow
 from .hardware_info_window import HardwareInfoWindow
+from .ssh_window import SSHWindow
 
 __all__ = [
     'FanControlWindow',
@@ -53,4 +54,6 @@ __all__ = [
     'LogViewerWindow',
     'CrontabWindow',
     'HardwareInfoWindow',
+    'SSHWindow',
+    
 ]
