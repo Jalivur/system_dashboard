@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v3.8
+# 🚀 Inicio Rápido - Dashboard v4.0
 
 ---
 
@@ -40,7 +40,7 @@ python3 main.py
 
 ## 🖥️ Config por máquina (multi-Pi)
 
-Si tienes varias Pi con configuraciones distintas, crea `config/local_settings.py` (está en `.gitignore`, no se sube a git):
+Si tienes varias Pi con configuraciones distintas, crea `config/local_settings.py` (en `.gitignore`, no se sube a git):
 
 ```python
 # Ejemplo Pi 3B+ con Xvfb
@@ -50,48 +50,24 @@ DSI_WIDTH = 1024
 DSI_HEIGHT = 762
 ```
 
-Este fichero sobreescribe los valores de `config/settings.py` sin tocar el repositorio.
-También puedes editarlo directamente desde la UI con el **Editor de Configuración** *(v3.8)*.
+También puedes editarlo directamente desde la UI con el **Editor de Configuración**.
 
 ---
 
-## 🎯 Menú Principal (29 botones)
+## 🗂️ Menú por Pestañas (v4.0)
 
-```
-┌─────────────────────────────────────┐
-│  Control         │  LEDs RGB         │
-│  Ventiladores    │                   │
-├──────────────────┼───────────────────┤
-│  Monitor Placa   │  Monitor Red      │
-├──────────────────┼───────────────────┤
-│  Monitor USB     │  Monitor Disco    │
-├──────────────────┼───────────────────┤
-│  Lanzadores      │  Monitor Procesos │
-├──────────────────┼───────────────────┤
-│  Monitor         │  Servicios        │
-│  Servicios       │  Dashboard        │
-├──────────────────┼───────────────────┤
-│  Gestor Crontab  │  Gestor Botones   │
-├──────────────────┼───────────────────┤
-│  Histórico Datos │  Actualizaciones  │
-├──────────────────┼───────────────────┤
-│  Homebridge      │  Visor de Logs    │
-├──────────────────┼───────────────────┤
-│  🖧 Red Local    │  🕳 Pi-hole       │
-├──────────────────┼───────────────────┤
-│  🔒 Gestor VPN  │  🔔 Historial     │
-├──────────────────┼───────────────────┤
-│  💡 Brillo       │  📊 Resumen       │
-├──────────────────┼───────────────────┤
-│  📷 Cámara       │  Cambiar Tema     │
-├──────────────────┼───────────────────┤
-│  Monitor SSH     │  Monitor WiFi     │
-├──────────────────┼───────────────────┤
-│  Editor Config   │  Info Hardware    │
-├──────────────────┼───────────────────┤
-│  Reiniciar       │  Salir            │
-└──────────────────┴───────────────────┘
-```
+El menú está organizado en **6 pestañas con scroll horizontal táctil**. Cada pestaña agrupa los botones por categoría:
+
+| Pestaña | Botones |
+|---------|---------|
+| **Sistema** | Resumen, Monitor Placa, Control Ventiladores, LEDs RGB, Brillo, Cámara, Lanzadores |
+| **Red** | Monitor Red, Red Local, Pi-hole, VPN, Homebridge, Monitor WiFi |
+| **Hardware** | Info Hardware, Monitor Disco, Monitor USB |
+| **Servicios** | Monitor Servicios, Servicios Dashboard, Monitor Procesos, Gestor Crontab, Actualizaciones |
+| **Registros** | Visor Logs, Histórico Datos, Historial Alertas, Monitor SSH |
+| **Config** | Editor Config, Cambiar Tema, Gestor Botones |
+
+El **footer** (Gestor Botones, Reiniciar, Salir) es siempre visible independientemente de la pestaña activa.
 
 > Puedes ocultar botones que no uses con el **Gestor de Botones**.
 
@@ -99,29 +75,29 @@ También puedes editarlo directamente desde la UI con el **Editor de Configuraci
 
 ## 🖥️ Las 27 Ventanas
 
-**1. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
+**1. Info Hardware** — Modelo, revision, SoC, RAM, almacenamiento, uptime
 
-**2. LEDs RGB** — 6 modos (auto, apagado, color fijo, secuencial, respiración, arcoíris)
+**2. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
 
-**3. Monitor Placa** — CPU, RAM, temperatura, temperatura chasis, fan duty real
+**3. LEDs RGB** — 6 modos (auto, apagado, color fijo, secuencial, respiración, arcoíris)
 
-**4. Monitor Red** — Download/Upload, speedtest Ookla, lista de IPs
+**4. Monitor Placa** — CPU, RAM, temperatura, temperatura chasis, fan duty real
 
-**5. Monitor USB** — Dispositivos conectados, expulsión segura
+**5. Monitor Red** — Download/Upload, speedtest Ookla, lista de IPs
 
-**6. Monitor Disco** — Espacio, temperatura NVMe, velocidad I/O, SMART extendido
+**6. Monitor USB** — Dispositivos conectados, expulsión segura
 
-**7. Lanzadores** — Scripts personalizados con terminal en vivo
+**7. Monitor Disco** — Espacio, temperatura NVMe, velocidad I/O, SMART extendido
 
-**8. Monitor Procesos** — Top 20 procesos, búsqueda, matar procesos
+**8. Lanzadores** — Scripts personalizados con terminal en vivo
 
-**9. Monitor Servicios** — Start/Stop/Restart systemd, ver logs
+**9. Monitor Procesos** — Top 20 procesos, búsqueda, matar procesos
 
-**10. Servicios Dashboard** — Activar/desactivar servicios background del dashboard
+**10. Monitor Servicios** — Start/Stop/Restart systemd, ver logs
 
-**11. Gestor Crontab** — Ver/añadir/editar/eliminar entradas del crontab por usuario
+**11. Servicios Dashboard** — Activar/desactivar servicios background del dashboard
 
-**12. Gestor de Botones** — Mostrar/ocultar botones del menú principal
+**12. Gestor Crontab** — Ver/añadir/editar/eliminar entradas del crontab por usuario
 
 **13. Histórico Datos** — 8 gráficas CPU/RAM/Temp/Red/Disco/PWM en 24h, 7d, 30d
 
@@ -131,41 +107,40 @@ También puedes editarlo directamente desde la UI con el **Editor de Configuraci
 
 **16. Visor de Logs** — Filtros por nivel, módulo, texto e intervalo; exportación
 
-**17. 🖧 Red Local** — Escáner arp-scan con IP, MAC y fabricante
+**17. Red Local** — Escáner arp-scan con IP, MAC y fabricante
 
-**18. 🕳 Pi-hole** — Estadísticas de bloqueo DNS en tiempo real (solo v6)
+**18. Pi-hole** — Estadísticas de bloqueo DNS en tiempo real (solo v6)
 
-**19. 🔒 Gestor VPN** — Estado, badge en menú, conectar/desconectar
+**19. Gestor VPN** — Estado, badge en menú, conectar/desconectar
 
-**20. 🔔 Historial Alertas** — Registro persistente de alertas Telegram enviadas
+**20. Historial Alertas** — Registro persistente de alertas Telegram enviadas
 
-**21. 💡 Brillo Pantalla** — Control brillo DSI, modo ahorro, encendido/apagado
+**21. Brillo Pantalla** — Control brillo DSI, modo ahorro, encendido/apagado
 
-**22. 📊 Resumen Sistema** — Vista unificada de todas las métricas (ideal como reposo)
+**22. Resumen Sistema** — Vista unificada de todas las métricas (ideal como reposo)
 
-**23. 📷 Cámara / Escáner OCR** — Foto con OV5647 + OCR Tesseract local
+**23. Cámara / Escáner OCR** — Foto con OV5647 + OCR Tesseract local
 
 **24. Cambiar Tema** — 15 temas (Cyberpunk, Matrix, Dracula, Nord...)
 
-**25. Monitor SSH** *(v3.8)* — Sesiones activas e historial SSH con textos legibles
+**25. Monitor SSH** — Sesiones activas e historial SSH con textos legibles
 
-**26. Monitor WiFi** *(v3.8)* — Señal dBm, calidad, SSID, bitrate, tráfico RX/TX
+**26. Monitor WiFi** — Señal dBm, calidad, SSID, bitrate, tráfico RX/TX
 
-**27. Editor Config** *(v3.8)* — Edita `local_settings.py` con preview de iconos en tiempo real
+**27. Editor Config** — Edita `local_settings.py` con preview de iconos en tiempo real
 
 ---
 
 ## 🔧 Configuración Básica
 
-### Ajustar posición en pantalla (`config/settings.py`):
+### Ajustar posición en pantalla:
+Edita `config/settings.py` o usa el **Editor de Configuración** directamente desde la UI:
 ```python
 DSI_X = 0
 DSI_Y = 0
 DSI_WIDTH = 800
 DSI_HEIGHT = 480
 ```
-
-> También puedes usar el **Editor de Configuración** desde la propia UI *(v3.8)*.
 
 ### Añadir scripts en Lanzadores:
 ```python
@@ -185,7 +160,7 @@ HOMEBRIDGE_USER=admin
 HOMEBRIDGE_PASS=tu_contraseña
 ```
 
-> Activa el **Insecure Mode** en Homebridge (`homebridge-config-ui-x → Configuración → Homebridge`).
+> Activa el **Insecure Mode** en Homebridge.
 
 ---
 
@@ -195,8 +170,6 @@ HOMEBRIDGE_PASS=tu_contraseña
 TELEGRAM_TOKEN=123456789:ABCdefGHI...
 TELEGRAM_CHAT_ID=987654321
 ```
-
-Las alertas se envían cuando temp/CPU/RAM/disco superan umbrales durante 60s sostenidos (anti-spam). También avisa si hay servicios FAILED.
 
 ---
 
@@ -236,4 +209,4 @@ grep ERROR data/logs/dashboard.log
 
 ---
 
-**Dashboard v3.8** 🚀
+**Dashboard v4.0** 🚀
