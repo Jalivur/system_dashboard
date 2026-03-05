@@ -127,14 +127,112 @@ class Icons:
     PLAY                = "\uf04b"
     PLUS                = "\uf067"
     PENCIL              = "\uf01f"
+    DOWN                = "\uf063"
+    UP                  = "\uf062"
     SSH                 = "\U000F08C0"         # 
     WIFI                = "\U000F05A9"         #
+    TAP                 = "\U000F0741"
+    ETHERNET            = "\U000F0200"
     # Lanzadores
     NAS                 = "\U000F08F3"         # 󰣳
     MONTAR              = "\U000F0318"         # 󰌘
     DESMONTAR           = "\U000F0319"         # 󰌙
     UPDATE_SCRIPT       = "\U000F06B0"         # 󰚰
     SHUTDOWN            = "\U000F0159"         # 󰅙
+
+    # Pestañas del menú principal
+    TAB_SISTEMA         = "\U000f0697"          # 󰚗  (mismo que MONITOR_PLACA)
+    TAB_RED             = "\U0001f310"          # 🌐
+    TAB_HARDWARE        = "\U0001f5a5\ufe0f"    # 🖥️
+    TAB_SERVICIOS       = "\u2699\ufe0f"        # ⚙️
+    TAB_REGISTROS       = "\U000f163f"          # 󱘿
+    TAB_CONFIG          = "\ueb52"              # (mismo que CONFIG)
+
+
+# ── Menú principal por pestañas ───────────────────────────────────────────────
+
+class UI:
+    """
+    Configuración visual del menú principal.
+    MENU_COLUMNS: número de columnas del grid de botones (ajustable sin tocar lógica).
+    MENU_TABS: definición de pestañas — lista de (clave, icono, label, [button_labels_keys]).
+    Los button_labels_keys deben coincidir exactamente con los atributos de config.button_labels.
+    """
+    MENU_COLUMNS = 2
+
+    # Cada entrada: (clave_tab, icono, label_visible, [claves BL en orden])
+    # Las claves BL se resuelven en main_window._create_menu_buttons()
+    MENU_TABS = [
+        (
+            "sistema",
+            Icons.TAB_SISTEMA,
+            "Sistema",
+            [
+                "RESUMEN",
+                "MONITOR_PLACA",
+                "MONITOR_DISCO",
+                "MONITOR_USB",
+                "PROCESOS",
+                "ACTUALIZACIONES",
+            ],
+        ),
+        (
+            "red",
+            Icons.TAB_RED,
+            "Red",
+            [
+                "MONITOR_RED",
+                "RED_LOCAL",
+                "WIFI",
+                "SSH",
+                "PIHOLE",
+                "VPN",
+            ],
+        ),
+        (
+            "hardware",
+            Icons.TAB_HARDWARE,
+            "Hardware",
+            [
+                "HARDWARE_INFO",
+                "FAN_CONTROL",
+                "LED_RGB",
+                "BRILLO",
+                "CAMARA",
+            ],
+        ),
+        (
+            "servicios",
+            Icons.TAB_SERVICIOS,
+            "Servicios",
+            [
+                "SERVICIOS",
+                "SERVICIOS_DASH",
+                "CRONTAB",
+                "HOMEBRIDGE",
+                "LANZADORES",
+            ],
+        ),
+        (
+            "registros",
+            Icons.TAB_REGISTROS,
+            "Registros",
+            [
+                "HISTORICO",
+                "HISTORIAL_ALERTAS",
+                "VISOR_LOGS",
+            ],
+        ),
+        (
+            "config",
+            Icons.TAB_CONFIG,
+            "Config",
+            [
+                "CONFIG",
+                "TEMA",
+            ],
+        ),
+    ]
 
 
 # Lanzadores de scripts
