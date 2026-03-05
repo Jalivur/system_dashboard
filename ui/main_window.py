@@ -5,6 +5,7 @@ import tkinter as tk
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_X, DSI_Y, SCRIPTS_DIR, Icons
 import config.button_labels as BL
+from config.settings import UI as UICfg
 from ui.styles import StyleManager, make_futuristic_button
 from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindow, ProcessWindow, ServiceWindow,
                         HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow,
@@ -13,6 +14,7 @@ from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindo
                         HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow)
 from ui.widgets import confirm_dialog, terminal_dialog
 from ui.window_manager import WindowManager
+from ui.window_lifecycle import WindowLifecycleManager
 from utils.system_utils import SystemUtils
 from utils.logger import get_logger
 import sys
@@ -26,10 +28,10 @@ class MainWindow:
     """Ventana principal del dashboard"""
 
     def __init__(self, root, registry, update_interval=2000):
-        self.root = root
-        self.registry = registry
+        self.root            = root
+        self.registry        = registry
         self.update_interval = update_interval
-        self.system_utils = SystemUtils()
+        self.system_utils    = SystemUtils()
 
         self.system_monitor      = registry.get("system_monitor")
         self.fan_controller      = registry.get("fan_controller")
@@ -53,49 +55,24 @@ class MainWindow:
         self.ssh_monitor         = registry.get("ssh_monitor")
         self.wifi_monitor        = registry.get("wifi_monitor")
 
-        self._badges    = {}
-        self._menu_btns = {}
-
-        self.hardware_info_window    = None
-        self.fan_window              = None
-        self.monitor_window          = None
-        self.network_window          = None
-        self.usb_window              = None
-        self.launchers_window        = None
-        self.disk_window             = None
-        self.process_window          = None
-        self.service_window          = None
-        self.crontab_window          = None
-        self.history_window          = None
-        self.update_window           = None
-        self.theme_window            = None
-        self.homebridge_window       = None
-        self.log_viewer_window       = None
-        self.network_local_window    = None
-        self.pihole_window           = None
-        self.alert_history_window    = None
-        self.display_window          = None
-        self.vpn_window              = None
-        self.overview_window         = None
-        self.led_window              = None
-        self.camera_window           = None
-        self.services_manager_window = None
-        self.button_manager_window   = None
-        self.ssh_window              = None
-        self.wifi_window             = None
-        self.config_editor_window    = None
-
-        self._uptime_tick = 0
+        self._badges       = {}
+        self._menu_btns    = {}
+        self._uptime_tick  = 0
+        self._active_tab   = UICfg.MENU_TABS[0][0]
+        self._tab_buttons  = {}
 
         logger.info(f"[MainWindow] Dashboard iniciado en {self.system_utils.get_hostname()}")
 
         self._create_ui()
         self._start_update_loop()
 
+    # ── Construcción de la UI ─────────────────────────────────────────────────
+
     def _create_ui(self):
         main_frame = ctk.CTkFrame(self.root, fg_color=COLORS['bg_medium'])
         main_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
+        # ── Header ───────────────────────────────────────────────────────────
         header_bar = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_dark'], height=56)
         header_bar.pack(fill="x", padx=5, pady=(5, 0))
         header_bar.pack_propagate(False)
@@ -138,15 +115,16 @@ class MainWindow:
         ctk.CTkFrame(main_frame, fg_color=COLORS['border'], height=1,
                      corner_radius=0).pack(fill="x", padx=5, pady=(0, 4))
 
-        menu_container = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_medium'])
-        menu_container.pack(fill="both", expand=True, padx=5, pady=5)
+        # ── Zona scrollable (pestañas + botones + footer) ─────────────────────
+        scroll_container = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_medium'])
+        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
 
         self.menu_canvas = ctk.CTkCanvas(
-            menu_container, bg=COLORS['bg_medium'], highlightthickness=0)
+            scroll_container, bg=COLORS['bg_medium'], highlightthickness=0)
         self.menu_canvas.pack(side="left", fill="both", expand=True)
 
         menu_scrollbar = ctk.CTkScrollbar(
-            menu_container, orientation="vertical",
+            scroll_container, orientation="vertical",
             command=self.menu_canvas.yview, width=30)
         menu_scrollbar.pack(side="right", fill="y")
 
@@ -154,66 +132,297 @@ class MainWindow:
         self.menu_canvas.configure(yscrollcommand=menu_scrollbar.set)
 
         self.menu_inner = ctk.CTkFrame(self.menu_canvas, fg_color=COLORS['bg_medium'])
-        self.menu_canvas.create_window(
+        self._canvas_window_id = self.menu_canvas.create_window(
             (0, 0), window=self.menu_inner, anchor="nw", width=DSI_WIDTH - 50)
         self.menu_inner.bind(
             "<Configure>",
             lambda e: self.menu_canvas.configure(
                 scrollregion=self.menu_canvas.bbox("all")))
 
-        self._create_menu_buttons()
+        # ── Pestañas con scroll horizontal ───────────────────────────────────
+        _TAB_BTN_WIDTH  = 130   # ancho fijo táctil por pestaña (px)
+        _TAB_BTN_HEIGHT = 44    # alto fijo táctil
 
+        tab_wrapper = ctk.CTkFrame(self.menu_inner, fg_color=COLORS['bg_dark'],
+                                   corner_radius=8)
+        tab_wrapper.pack(fill="x", padx=8, pady=(8, 0))
+
+        self._tab_canvas = tk.Canvas(
+            tab_wrapper,
+            bg=COLORS['bg_dark'],
+            highlightthickness=0,
+            height=_TAB_BTN_HEIGHT + 8,
+        )
+        self._tab_canvas.pack(fill="x", expand=True)
+
+        tab_scrollbar = ctk.CTkScrollbar(
+            tab_wrapper,
+            orientation="horizontal",
+            command=self._tab_canvas.xview,
+            height=30,
+        )
+        tab_scrollbar.pack(fill="x", padx=4, pady=(0, 4))
+        StyleManager.style_scrollbar_ctk(tab_scrollbar)
+        self._tab_canvas.configure(xscrollcommand=tab_scrollbar.set)
+
+        self._tab_inner = ctk.CTkFrame(self._tab_canvas, fg_color=COLORS['bg_dark'])
+        self._tab_canvas_win = self._tab_canvas.create_window(
+            (0, 0), window=self._tab_inner, anchor="nw")
+        self._tab_inner.bind(
+            "<Configure>",
+            lambda e: self._tab_canvas.configure(
+                scrollregion=self._tab_canvas.bbox("all")))
+
+        for key, icon, label, _ in UICfg.MENU_TABS:
+            btn = ctk.CTkButton(
+                self._tab_inner,
+                text=f"{icon}  {label}",
+                font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
+                fg_color=COLORS['bg_dark'],
+                text_color=COLORS['text_dim'],
+                hover_color=COLORS['bg_light'],
+                corner_radius=6,
+                width=_TAB_BTN_WIDTH,
+                height=_TAB_BTN_HEIGHT,
+                command=lambda k=key: self._switch_tab(k),
+            )
+            btn.pack(side="left", padx=4, pady=4)
+            self._tab_buttons[key] = btn
+
+        # ── Área de botones de la pestaña activa ──────────────────────────────
+        self._btn_area = ctk.CTkFrame(self.menu_inner, fg_color=COLORS['bg_medium'])
+        self._btn_area.pack(fill="both", expand=True, padx=4, pady=4)
+
+        # ── Footer (Gestor de Botones + Reiniciar + Salir) ────────────────────
+        footer = ctk.CTkFrame(self.menu_inner, fg_color=COLORS['bg_dark'],
+                              corner_radius=8)
+        footer.pack(fill="x", padx=8, pady=(4, 8))
+
+        btn_gestor = make_futuristic_button(
+            footer, BL.BOTONES, command=lambda: self._wlm.open("button_manager"),
+            font_size=FONT_SIZES['small'], width=20, height=10)
+        btn_gestor.pack(side="left", padx=8, pady=8, expand=True, fill="x")
+        self._menu_btns[BL.BOTONES] = btn_gestor
+
+        btn_reiniciar = make_futuristic_button(
+            footer, BL.REINICIAR, command=self.restart_application,
+            font_size=FONT_SIZES['small'], width=20, height=10)
+        btn_reiniciar.pack(side="left", padx=4, pady=8, expand=True, fill="x")
+
+        btn_salir = make_futuristic_button(
+            footer, BL.SALIR, command=self.exit_application,
+            font_size=FONT_SIZES['small'], width=20, height=10)
+        btn_salir.pack(side="left", padx=(4, 8), pady=8, expand=True, fill="x")
+
+        # ── Ciclo de vida de ventanas hijas ───────────────────────────────────
+        self._wlm = WindowLifecycleManager(
+            on_btn_active=self._btn_active,
+            on_btn_idle=self._btn_idle,
+        )
+        self._register_windows()
+
+        # ── Mapa de botones con sus badges ────────────────────────────────────
+        self._buttons_meta = self._build_buttons_meta()
+
+        # ── WindowManager — visibilidad de botones por JSON ───────────────────
         self._wm = WindowManager(self.registry, self._menu_btns)
-        self._wm.apply_config()
+        self._wm.set_rerender_callback(lambda: self._switch_tab(self._active_tab))
 
-    def _create_menu_buttons(self):
-        buttons_config = [
-            (BL.HARDWARE_INFO,     self.open_hardware_info,       []),
-            (BL.FAN_CONTROL,       self.open_fan_control,         ["temp_fan"]),
-            (BL.LED_RGB,           self.open_led_window,          []),
-            (BL.MONITOR_PLACA,     self.open_monitor_window,      ["temp_monitor", "cpu", "ram"]),
-            (BL.MONITOR_RED,       self.open_network_window,      []),
-            (BL.MONITOR_USB,       self.open_usb_window,          []),
-            (BL.MONITOR_DISCO,     self.open_disk_window,         ["disk"]),
-            (BL.LANZADORES,        self.open_launchers,           []),
-            (BL.PROCESOS,          self.open_process_window,      []),
-            (BL.SERVICIOS,         self.open_service_window,      ["services"]),
-            (BL.SERVICIOS_DASH,    self.open_services_manager,    []),
-            (BL.CRONTAB,           self.open_crontab_window,      []),
-            (BL.BOTONES,           self.open_button_manager,      []),
-            (BL.HISTORICO,         self.open_history_window,      []),
-            (BL.ACTUALIZACIONES,   self.open_update_window,       ["updates"]),
-            (BL.HOMEBRIDGE,        self.open_homebridge,          ["hb_offline", "hb_on", "hb_fault"]),
-            (BL.VISOR_LOGS,        self.open_log_viewer,          []),
-            (BL.RED_LOCAL,         self.open_network_local,       []),
-            (BL.PIHOLE,            self.open_pihole,              ["pihole_offline"]),
-            (BL.VPN,               self.open_vpn_window,          ["vpn_offline"]),
-            (BL.HISTORIAL_ALERTAS, self.open_alert_history,       []),
-            (BL.BRILLO,            self.open_display_window,      []),
-            (BL.RESUMEN,           self.open_overview,            []),
-            (BL.CAMARA,            self.open_camera_window,       []),
-            (BL.TEMA,              self.open_theme_selector,      []),
-            (BL.SSH,               self.open_ssh_window,          []),
-            (BL.WIFI,              self.open_wifi_window,         []),
-            (BL.CONFIG,            self.open_config_editor_window, []),
-            (BL.REINICIAR,         self.restart_application,      []),
-            (BL.SALIR,             self.exit_application,         []),
-        ]
+        # ── Render inicial ────────────────────────────────────────────────────
+        self._switch_tab(self._active_tab)
 
-        columns = 2
-        for i, (text, command, badge_keys) in enumerate(buttons_config):
-            row = i // columns
-            col = i % columns
+    # ── Registro de ventanas hijas ────────────────────────────────────────────
+
+    def _register_windows(self):
+        r    = self._wlm.register   # alias local para legibilidad
+        root = self.root
+
+        r("hardware_info",    BL.HARDWARE_INFO,
+            lambda: HardwareInfoWindow(root, self.system_monitor))
+        r("fan_control",      BL.FAN_CONTROL,
+            lambda: FanControlWindow(root, self.fan_controller, self.system_monitor,
+                                     fan_service=self.fan_service),
+            badge_keys=["temp_fan"])
+        r("led_window",       BL.LED_RGB,
+            lambda: LedWindow(root, self.led_service))
+        r("monitor_window",   BL.MONITOR_PLACA,
+            lambda: MonitorWindow(root, self.system_monitor, self.hardware_monitor),
+            badge_keys=["temp_monitor", "cpu", "ram"])
+        r("network_window",   BL.MONITOR_RED,
+            lambda: NetworkWindow(root, network_monitor=self.network_monitor))
+        r("usb_window",       BL.MONITOR_USB,
+            lambda: USBWindow(root))
+        r("disk_window",      BL.MONITOR_DISCO,
+            lambda: DiskWindow(root, self.disk_monitor),
+            badge_keys=["disk"])
+        r("launchers",        BL.LANZADORES,
+            lambda: LaunchersWindow(root))
+        r("process_window",   BL.PROCESOS,
+            lambda: ProcessWindow(root, self.process_monitor))
+        r("service_window",   BL.SERVICIOS,
+            lambda: ServiceWindow(root, self.service_monitor),
+            badge_keys=["services"])
+        r("services_manager", BL.SERVICIOS_DASH,
+            lambda: ServicesManagerWindow(root, registry=self.registry))
+        r("crontab_window",   BL.CRONTAB,
+            lambda: CrontabWindow(root))
+        r("history_window",   BL.HISTORICO,
+            lambda: HistoryWindow(root, self.cleanup_service))
+        r("update_window",    BL.ACTUALIZACIONES,
+            lambda: UpdatesWindow(root, self.update_monitor),
+            badge_keys=["updates"])
+        r("homebridge",       BL.HOMEBRIDGE,
+            lambda: HomebridgeWindow(root, self.homebridge_monitor),
+            badge_keys=["hb_offline", "hb_on", "hb_fault"])
+        r("log_viewer",       BL.VISOR_LOGS,
+            lambda: LogViewerWindow(root))
+        r("network_local",    BL.RED_LOCAL,
+            lambda: NetworkLocalWindow(root, network_scanner=self.network_scanner))
+        r("pihole",           BL.PIHOLE,
+            lambda: PiholeWindow(root, self.pihole_monitor),
+            badge_keys=["pihole_offline"])
+        r("vpn_window",       BL.VPN,
+            lambda: VpnWindow(root, self.vpn_monitor),
+            badge_keys=["vpn_offline"])
+        r("alert_history",    BL.HISTORIAL_ALERTAS,
+            lambda: AlertHistoryWindow(root, self.alert_service))
+        r("display_window",   BL.BRILLO,
+            lambda: DisplayWindow(root, self.display_service))
+        r("overview",         BL.RESUMEN,
+            lambda: OverviewWindow(root,
+                system_monitor=self.system_monitor,
+                service_monitor=self.service_monitor,
+                pihole_monitor=self.pihole_monitor,
+                network_monitor=self.network_monitor,
+                disk_monitor=self.disk_monitor))
+        r("camera_window",    BL.CAMARA,
+            lambda: CameraWindow(root))
+        r("theme_selector",   BL.TEMA,
+            lambda: ThemeSelector(root))
+        r("ssh_window",       BL.SSH,
+            lambda: SSHWindow(root, self.ssh_monitor))
+        r("wifi_window",      BL.WIFI,
+            lambda: WiFiWindow(root, self.wifi_monitor))
+        r("config_editor_window", BL.CONFIG,
+            lambda: ConfigEditorWindow(root))
+        r("button_manager",   BL.BOTONES,
+            lambda: ButtonManagerWindow(root,
+                registry=self.registry, window_manager=self._wm))
+
+    # ── Mapa de botones: label → (command, [badge_keys]) ─────────────────────
+
+    def _build_buttons_meta(self):
+        return {
+            BL.HARDWARE_INFO:     (lambda: self._wlm.open("hardware_info"),        []),
+            BL.FAN_CONTROL:       (lambda: self._wlm.open("fan_control"),          ["temp_fan"]),
+            BL.LED_RGB:           (lambda: self._wlm.open("led_window"),           []),
+            BL.MONITOR_PLACA:     (lambda: self._wlm.open("monitor_window"),       ["temp_monitor", "cpu", "ram"]),
+            BL.MONITOR_RED:       (lambda: self._wlm.open("network_window"),       []),
+            BL.MONITOR_USB:       (lambda: self._wlm.open("usb_window"),           []),
+            BL.MONITOR_DISCO:     (lambda: self._wlm.open("disk_window"),          ["disk"]),
+            BL.LANZADORES:        (lambda: self._wlm.open("launchers"),            []),
+            BL.PROCESOS:          (lambda: self._wlm.open("process_window"),       []),
+            BL.SERVICIOS:         (lambda: self._wlm.open("service_window"),       ["services"]),
+            BL.SERVICIOS_DASH:    (lambda: self._wlm.open("services_manager"),     []),
+            BL.CRONTAB:           (lambda: self._wlm.open("crontab_window"),       []),
+            BL.HISTORICO:         (lambda: self._wlm.open("history_window"),       []),
+            BL.ACTUALIZACIONES:   (lambda: self._wlm.open("update_window"),        ["updates"]),
+            BL.HOMEBRIDGE:        (lambda: self._wlm.open("homebridge"),           ["hb_offline", "hb_on", "hb_fault"]),
+            BL.VISOR_LOGS:        (lambda: self._wlm.open("log_viewer"),           []),
+            BL.RED_LOCAL:         (lambda: self._wlm.open("network_local"),        []),
+            BL.PIHOLE:            (lambda: self._wlm.open("pihole"),               ["pihole_offline"]),
+            BL.VPN:               (lambda: self._wlm.open("vpn_window"),           ["vpn_offline"]),
+            BL.HISTORIAL_ALERTAS: (lambda: self._wlm.open("alert_history"),        []),
+            BL.BRILLO:            (lambda: self._wlm.open("display_window"),       []),
+            BL.RESUMEN:           (lambda: self._wlm.open("overview"),             []),
+            BL.CAMARA:            (lambda: self._wlm.open("camera_window"),        []),
+            BL.TEMA:              (lambda: self._wlm.open("theme_selector"),       []),
+            BL.SSH:               (lambda: self._wlm.open("ssh_window"),           []),
+            BL.WIFI:              (lambda: self._wlm.open("wifi_window"),          []),
+            BL.CONFIG:            (lambda: self._wlm.open("config_editor_window"), []),
+        }
+
+    # ── Cambio de pestaña ─────────────────────────────────────────────────────
+
+    # Mapa inverso BL label → clave JSON, para consultar ui_enabled en _switch_tab
+    _BL_TO_KEY = {v: k for k, v in {
+        "hardware_info":        BL.HARDWARE_INFO,
+        "fan_control":          BL.FAN_CONTROL,
+        "led_window":           BL.LED_RGB,
+        "monitor_window":       BL.MONITOR_PLACA,
+        "network_window":       BL.MONITOR_RED,
+        "usb_window":           BL.MONITOR_USB,
+        "disk_window":          BL.MONITOR_DISCO,
+        "launchers":            BL.LANZADORES,
+        "process_window":       BL.PROCESOS,
+        "service_window":       BL.SERVICIOS,
+        "services_manager":     BL.SERVICIOS_DASH,
+        "crontab_window":       BL.CRONTAB,
+        "history_window":       BL.HISTORICO,
+        "update_window":        BL.ACTUALIZACIONES,
+        "homebridge":           BL.HOMEBRIDGE,
+        "log_viewer":           BL.VISOR_LOGS,
+        "network_local":        BL.RED_LOCAL,
+        "pihole":               BL.PIHOLE,
+        "vpn_window":           BL.VPN,
+        "alert_history":        BL.HISTORIAL_ALERTAS,
+        "display_window":       BL.BRILLO,
+        "overview":             BL.RESUMEN,
+        "camera_window":        BL.CAMARA,
+        "theme_selector":       BL.TEMA,
+        "ssh_window":           BL.SSH,
+        "wifi_window":          BL.WIFI,
+        "config_editor_window": BL.CONFIG,
+    }.items()}
+
+    def _switch_tab(self, key):
+        self._active_tab = key
+
+        # Actualizar estilos de las pestañas
+        for k, btn in self._tab_buttons.items():
+            if k == key:
+                btn.configure(fg_color=COLORS['primary'], text_color=COLORS['bg_dark'])
+            else:
+                btn.configure(fg_color=COLORS['bg_dark'], text_color=COLORS['text_dim'])
+
+        # Destruir botones del área anterior
+        for widget in self._btn_area.winfo_children():
+            widget.destroy()
+
+        # Obtener claves BL de la pestaña activa
+        bl_keys = next(
+            (bl for tab_key, _, _, bl in UICfg.MENU_TABS if tab_key == key), [])
+
+        columns  = UICfg.MENU_COLUMNS
+        grid_pos = 0
+        for bl_key in bl_keys:
+            label = getattr(BL, bl_key, None)
+            if label is None:
+                logger.warning(f"[MainWindow] BL.{bl_key} no existe — omitido")
+                continue
+            json_key = self._BL_TO_KEY.get(label)
+            if json_key is not None and not self.registry.ui_enabled(json_key):
+                continue
+            meta = self._buttons_meta.get(label)
+            if meta is None:
+                logger.warning(f"[MainWindow] Sin meta para '{label}' — omitido")
+                continue
+            command, badge_keys = meta
             btn = make_futuristic_button(
-                self.menu_inner, text, command=command,
+                self._btn_area, label, command=command,
                 font_size=FONT_SIZES['large'], width=30, height=15)
-            btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
-            self._menu_btns[text] = btn
-            for j, key in enumerate(badge_keys):
-                self._create_badge(btn, key, offset_index=j)
+            btn.grid(row=grid_pos // columns, column=grid_pos % columns,
+                     padx=10, pady=10, sticky="nsew")
+            self._menu_btns[label] = btn
+            for j, bkey in enumerate(badge_keys):
+                self._create_badge(btn, bkey, offset_index=j)
+            grid_pos += 1
 
         for c in range(columns):
-            self.menu_inner.grid_columnconfigure(c, weight=1)
+            self._btn_area.grid_columnconfigure(c, weight=1)
+
+        self._btn_area.update_idletasks()
+        self.menu_canvas.configure(scrollregion=self.menu_canvas.bbox("all"))
 
     # ── Badges ────────────────────────────────────────────────────────────────
 
@@ -286,265 +495,6 @@ class MainWindow:
         canvas.itemconfigure(txt, fill=txt_color)
         canvas.place(relx=1.0, rely=0.0, anchor="ne", x=x_offset, y=6)
 
-    # ── Apertura de ventanas ──────────────────────────────────────────────────
-
-    def open_hardware_info(self):
-        if self.hardware_info_window is None or not self.hardware_info_window.winfo_exists():
-            self._btn_active(BL.HARDWARE_INFO)
-            self.hardware_info_window = HardwareInfoWindow(self.root, self.system_monitor)
-            self.hardware_info_window.bind("<Destroy>", lambda e: self._btn_idle(BL.HARDWARE_INFO))
-        else:
-            self.hardware_info_window.lift()
-
-    def open_fan_control(self):
-        if self.fan_window is None or not self.fan_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Control Ventiladores")
-            self._btn_active(BL.FAN_CONTROL)
-            self.fan_window = FanControlWindow(self.root, self.fan_controller, self.system_monitor, fan_service=self.fan_service)
-            self.fan_window.bind("<Destroy>", lambda e: self._btn_idle(BL.FAN_CONTROL))
-        else:
-            self.fan_window.lift()
-
-    def open_led_window(self):
-        if self.led_window is None or not self.led_window.winfo_exists():
-            self._btn_active(BL.LED_RGB)
-            self.led_window = LedWindow(self.root, self.led_service)
-            self.led_window.bind("<Destroy>", lambda e: self._btn_idle(BL.LED_RGB))
-        else:
-            self.led_window.lift()
-
-    def open_monitor_window(self):
-        if self.monitor_window is None or not self.monitor_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor Placa")
-            self._btn_active(BL.MONITOR_PLACA)
-            self.monitor_window = MonitorWindow(self.root, self.system_monitor, self.hardware_monitor)
-            self.monitor_window.bind("<Destroy>", lambda e: self._btn_idle(BL.MONITOR_PLACA))
-        else:
-            self.monitor_window.lift()
-
-    def open_network_window(self):
-        if self.network_window is None or not self.network_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor Red")
-            self._btn_active(BL.MONITOR_RED)
-            self.network_window = NetworkWindow(self.root, network_monitor=self.network_monitor)
-            self.network_window.bind("<Destroy>", lambda e: self._btn_idle(BL.MONITOR_RED))
-        else:
-            self.network_window.lift()
-
-    def open_usb_window(self):
-        if self.usb_window is None or not self.usb_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor USB")
-            self._btn_active(BL.MONITOR_USB)
-            self.usb_window = USBWindow(self.root)
-            self.usb_window.bind("<Destroy>", lambda e: self._btn_idle(BL.MONITOR_USB))
-        else:
-            self.usb_window.lift()
-
-    def open_disk_window(self):
-        if self.disk_window is None or not self.disk_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor Disco")
-            self._btn_active(BL.MONITOR_DISCO)
-            self.disk_window = DiskWindow(self.root, self.disk_monitor)
-            self.disk_window.bind("<Destroy>", lambda e: self._btn_idle(BL.MONITOR_DISCO))
-        else:
-            self.disk_window.lift()
-
-    def open_launchers(self):
-        if self.launchers_window is None or not self.launchers_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Lanzadores")
-            self._btn_active(BL.LANZADORES)
-            self.launchers_window = LaunchersWindow(self.root)
-            self.launchers_window.bind("<Destroy>", lambda e: self._btn_idle(BL.LANZADORES))
-        else:
-            self.launchers_window.lift()
-
-    def open_process_window(self):
-        if self.process_window is None or not self.process_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor Procesos")
-            self._btn_active(BL.PROCESOS)
-            self.process_window = ProcessWindow(self.root, self.process_monitor)
-            self.process_window.bind("<Destroy>", lambda e: self._btn_idle(BL.PROCESOS))
-        else:
-            self.process_window.lift()
-
-    def open_service_window(self):
-        if self.service_window is None or not self.service_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor Servicios")
-            self._btn_active(BL.SERVICIOS)
-            self.service_window = ServiceWindow(self.root, self.service_monitor)
-            self.service_window.bind("<Destroy>", lambda e: self._btn_idle(BL.SERVICIOS))
-        else:
-            self.service_window.lift()
-
-    def open_services_manager(self):
-        if self.services_manager_window is None or not self.services_manager_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Servicios Dashboard")
-            self._btn_active(BL.SERVICIOS_DASH)
-            self.services_manager_window = ServicesManagerWindow(self.root, registry=self.registry)
-            self.services_manager_window.bind("<Destroy>", lambda e: self._btn_idle(BL.SERVICIOS_DASH))
-        else:
-            self.services_manager_window.lift()
-
-    def open_crontab_window(self):
-        if self.crontab_window is None or not self.crontab_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Gestor Crontab")
-            self._btn_active(BL.CRONTAB)
-            self.crontab_window = CrontabWindow(self.root)
-            self.crontab_window.bind("<Destroy>", lambda e: self._btn_idle(BL.CRONTAB))
-        else:
-            self.crontab_window.lift()
-
-    def open_button_manager(self):
-        if self.button_manager_window is None or not self.button_manager_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Gestor de Botones")
-            self._btn_active(BL.BOTONES)
-            self.button_manager_window = ButtonManagerWindow(self.root, registry=self.registry, window_manager=self._wm)
-            self.button_manager_window.bind("<Destroy>", lambda e: self._btn_idle(BL.BOTONES))
-        else:
-            self.button_manager_window.lift()
-
-    def open_history_window(self):
-        if self.history_window is None or not self.history_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Historico Datos")
-            self._btn_active(BL.HISTORICO)
-            self.history_window = HistoryWindow(self.root, self.cleanup_service)
-            self.history_window.bind("<Destroy>", lambda e: self._btn_idle(BL.HISTORICO))
-        else:
-            self.history_window.lift()
-
-    def open_update_window(self):
-        if self.update_window is None or not self.update_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Actualizaciones")
-            self._btn_active(BL.ACTUALIZACIONES)
-            self.update_window = UpdatesWindow(self.root, self.update_monitor)
-            self.update_window.bind("<Destroy>", lambda e: self._btn_idle(BL.ACTUALIZACIONES))
-        else:
-            self.update_window.lift()
-
-    def open_homebridge(self):
-        if self.homebridge_window is None or not self.homebridge_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Homebridge")
-            self._btn_active(BL.HOMEBRIDGE)
-            self.homebridge_window = HomebridgeWindow(self.root, self.homebridge_monitor)
-            self.homebridge_window.bind("<Destroy>", lambda e: self._btn_idle(BL.HOMEBRIDGE))
-        else:
-            self.homebridge_window.lift()
-
-    def open_log_viewer(self):
-        if self.log_viewer_window is None or not self.log_viewer_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Visor de Logs")
-            self._btn_active(BL.VISOR_LOGS)
-            self.log_viewer_window = LogViewerWindow(self.root)
-            self.log_viewer_window.bind("<Destroy>", lambda e: self._btn_idle(BL.VISOR_LOGS))
-        else:
-            self.log_viewer_window.lift()
-
-    def open_network_local(self):
-        if self.network_local_window is None or not self.network_local_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Red Local")
-            self._btn_active(BL.RED_LOCAL)
-            self.network_local_window = NetworkLocalWindow(self.root, network_scanner=self.network_scanner)
-            self.network_local_window.bind("<Destroy>", lambda e: self._btn_idle(BL.RED_LOCAL))
-        else:
-            self.network_local_window.lift()
-
-    def open_pihole(self):
-        if self.pihole_window is None or not self.pihole_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Pi-hole")
-            self._btn_active(BL.PIHOLE)
-            self.pihole_window = PiholeWindow(self.root, self.pihole_monitor)
-            self.pihole_window.bind("<Destroy>", lambda e: self._btn_idle(BL.PIHOLE))
-        else:
-            self.pihole_window.lift()
-
-    def open_vpn_window(self):
-        if self.vpn_window is None or not self.vpn_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Gestor VPN")
-            self._btn_active(BL.VPN)
-            self.vpn_window = VpnWindow(self.root, self.vpn_monitor)
-            self.vpn_window.bind("<Destroy>", lambda e: self._btn_idle(BL.VPN))
-        else:
-            self.vpn_window.lift()
-
-    def open_alert_history(self):
-        if self.alert_history_window is None or not self.alert_history_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Historial Alertas")
-            self._btn_active(BL.HISTORIAL_ALERTAS)
-            self.alert_history_window = AlertHistoryWindow(self.root, self.alert_service)
-            self.alert_history_window.bind("<Destroy>", lambda e: self._btn_idle(BL.HISTORIAL_ALERTAS))
-        else:
-            self.alert_history_window.lift()
-
-    def open_display_window(self):
-        if self.display_window is None or not self.display_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Brillo Pantalla")
-            self._btn_active(BL.BRILLO)
-            self.display_window = DisplayWindow(self.root, self.display_service)
-            self.display_window.bind("<Destroy>", lambda e: self._btn_idle(BL.BRILLO))
-        else:
-            self.display_window.lift()
-
-    def open_overview(self):
-        if self.overview_window is None or not self.overview_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Resumen Sistema")
-            self._btn_active(BL.RESUMEN)
-            self.overview_window = OverviewWindow(
-                self.root,
-                system_monitor=self.system_monitor,
-                service_monitor=self.service_monitor,
-                pihole_monitor=self.pihole_monitor,
-                network_monitor=self.network_monitor,
-                disk_monitor=self.disk_monitor,
-            )
-            self.overview_window.bind("<Destroy>", lambda e: self._btn_idle(BL.RESUMEN))
-        else:
-            self.overview_window.lift()
-
-    def open_camera_window(self):
-        if self.camera_window is None or not self.camera_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Camara y OCR")
-            self._btn_active(BL.CAMARA)
-            self.camera_window = CameraWindow(self.root)
-            self.camera_window.bind("<Destroy>", lambda e: self._btn_idle(BL.CAMARA))
-        else:
-            self.camera_window.lift()
-
-    def open_theme_selector(self):
-        if self.theme_window is None or not self.theme_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Cambiar Tema")
-            self._btn_active(BL.TEMA)
-            self.theme_window = ThemeSelector(self.root)
-            self.theme_window.bind("<Destroy>", lambda e: self._btn_idle(BL.TEMA))
-        else:
-            self.theme_window.lift()
-
-    def open_ssh_window(self):
-        if self.ssh_window is None or not self.ssh_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor SSH")
-            self._btn_active(BL.SSH)
-            self.ssh_window = SSHWindow(self.root, self.ssh_monitor)
-            self.ssh_window.bind("<Destroy>", lambda e: self._btn_idle(BL.SSH))
-        else:
-            self.ssh_window.lift()
-
-    def open_wifi_window(self):
-        if self.wifi_window is None or not self.wifi_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Monitor WiFi")
-            self._btn_active(BL.WIFI)
-            self.wifi_window = WiFiWindow(self.root, self.wifi_monitor)
-            self.wifi_window.bind("<Destroy>", lambda e: self._btn_idle(BL.WIFI))
-        else:
-            self.wifi_window.lift()
-
-    def open_config_editor_window(self):
-        if self.config_editor_window is None or not self.config_editor_window.winfo_exists():
-            logger.debug("[MainWindow] Abriendo: Editor de Configuracion")
-            self._btn_active(BL.CONFIG)
-            self.config_editor_window = ConfigEditorWindow(self.root)
-            self.config_editor_window.bind("<Destroy>", lambda e: self._btn_idle(BL.CONFIG))
-        else:
-            self.config_editor_window.lift()
-
     # ── Salir / Reiniciar ─────────────────────────────────────────────────────
 
     def exit_application(self):
@@ -567,7 +517,7 @@ class MainWindow:
 
         ctk.CTkLabel(
             main_frame,
-            text=f"{Icons.WARNING} \u00bfQu\u00e9 deseas hacer?",
+            text=f"{Icons.WARNING} ¿Qué deseas hacer?",
             text_color=COLORS['secondary'],
             font=(FONT_FAMILY, FONT_SIZES['xlarge'], "bold")
         ).pack(pady=(10, 10))
@@ -577,7 +527,7 @@ class MainWindow:
         options_frame.pack(fill="x", pady=5, padx=20)
 
         exit_radio = ctk.CTkRadioButton(
-            options_frame, text="  Salir de la aplicaci\u00f3n",
+            options_frame, text="  Salir de la aplicación",
             variable=selection_var, value="exit",
             text_color=COLORS['text'], font=(FONT_FAMILY, FONT_SIZES['medium']))
         exit_radio.pack(anchor="w", padx=20, pady=12)
@@ -605,7 +555,7 @@ class MainWindow:
                     self.root.destroy()
                 confirm_dialog(
                     parent=self.root,
-                    text="\u00bfConfirmar salir de la aplicaci\u00f3n?",
+                    text="¿Confirmar salir de la aplicación?",
                     title=" Confirmar Salida", on_confirm=do_exit, on_cancel=None)
             else:
                 def do_shutdown():
@@ -615,7 +565,7 @@ class MainWindow:
                                     title=f"{Icons.POWER_OFF}  APAGANDO SISTEMA...")
                 confirm_dialog(
                     parent=self.root,
-                    text=f"{Icons.WARNING} \u00bfConfirmar APAGAR el sistema?\n\nEsta acci\u00f3n apagar\u00e1 completamente el equipo.",
+                    text=f"{Icons.WARNING} ¿Confirmar APAGAR el sistema?\n\nEsta acción apagará completamente el equipo.",
                     title=" Confirmar Apagado", on_confirm=do_shutdown, on_cancel=None)
 
         def on_cancel():
@@ -638,11 +588,11 @@ class MainWindow:
                      [sys.executable, os.path.abspath(sys.argv[0])] + sys.argv[1:])
         confirm_dialog(
             parent=self.root,
-            text="\u00bfReiniciar el dashboard?\n\nSe aplicar\u00e1n los cambios realizados.",
+            text="¿Reiniciar el dashboard?\n\nSe aplicarán los cambios realizados.",
             title=f"{Icons.REINICIAR} Reiniciar Dashboard",
             on_confirm=do_restart, on_cancel=None)
 
-    # ── Loop de actualizacion ─────────────────────────────────────────────────
+    # ── Loop de actualización ─────────────────────────────────────────────────
 
     def _tick_clock(self):
         self._clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
@@ -661,7 +611,7 @@ class MainWindow:
         self._update()
 
     def _update(self):
-        """Actualiza los badges del menu. Solo lee caches — nunca bloquea la UI."""
+        """Actualiza los badges del menú. Solo lee caches — nunca bloquea la UI."""
         try:
             pending = self.update_monitor.cached_result.get('pending', 0)
             self._update_badge("updates", pending)
