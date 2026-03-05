@@ -7,6 +7,7 @@ import customtkinter as ctk
 import config.button_labels as BL
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
+from ui.widgets import custom_msgbox
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -14,34 +15,33 @@ logger = get_logger(__name__)
 # Fuente única de verdad: clave JSON → constante BL.*
 # El orden determina cómo aparecen en la lista.
 _BTN_LABELS = {
-    "hardware_info":    BL.HARDWARE_INFO,
-    "fan_control":      BL.FAN_CONTROL,
-    "led_window":       BL.LED_RGB,
-    "monitor_window":   BL.MONITOR_PLACA,
-    "network_window":   BL.MONITOR_RED,
-    "usb_window":       BL.MONITOR_USB,
-    "disk_window":      BL.MONITOR_DISCO,
-    "launchers":        BL.LANZADORES,
-    "process_window":   BL.PROCESOS,
-    "service_window":   BL.SERVICIOS,
-    "services_manager": BL.SERVICIOS_DASH,
-    "crontab_window":   BL.CRONTAB,
-    "history_window":   BL.HISTORICO,
-    "update_window":    BL.ACTUALIZACIONES,
-    "homebridge":       BL.HOMEBRIDGE,
-    "log_viewer":       BL.VISOR_LOGS,
-    "network_local":    BL.RED_LOCAL,
-    "pihole":           BL.PIHOLE,
-    "vpn_window":       BL.VPN,
-    "ssh_window":       BL.SSH,
-    "wifi_window":      BL.WIFI,
-    "alert_history":    BL.HISTORIAL_ALERTAS,
-    "display_window":   BL.BRILLO,
-    "overview":         BL.RESUMEN,
-    "camera_window":    BL.CAMARA,
-    "theme_selector":   BL.TEMA,
+    "hardware_info":        BL.HARDWARE_INFO,
+    "fan_control":          BL.FAN_CONTROL,
+    "led_window":           BL.LED_RGB,
+    "monitor_window":       BL.MONITOR_PLACA,
+    "network_window":       BL.MONITOR_RED,
+    "usb_window":           BL.MONITOR_USB,
+    "disk_window":          BL.MONITOR_DISCO,
+    "launchers":            BL.LANZADORES,
+    "process_window":       BL.PROCESOS,
+    "service_window":       BL.SERVICIOS,
+    "services_manager":     BL.SERVICIOS_DASH,
+    "crontab_window":       BL.CRONTAB,
+    "history_window":       BL.HISTORICO,
+    "update_window":        BL.ACTUALIZACIONES,
+    "homebridge":           BL.HOMEBRIDGE,
+    "log_viewer":           BL.VISOR_LOGS,
+    "network_local":        BL.RED_LOCAL,
+    "pihole":               BL.PIHOLE,
+    "vpn_window":           BL.VPN,
+    "ssh_window":           BL.SSH,
+    "wifi_window":          BL.WIFI,
+    "alert_history":        BL.HISTORIAL_ALERTAS,
+    "display_window":       BL.BRILLO,
+    "overview":             BL.RESUMEN,
+    "camera_window":        BL.CAMARA,
+    "theme_selector":       BL.TEMA,
     "config_editor_window": BL.CONFIG,
-    
 }
 
 
@@ -190,3 +190,10 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         """Persiste el estado actual al JSON via registry.save_config()."""
         self.registry.save_config()
         logger.info("[ButtonManagerWindow] Configuración de botones guardada")
+        custom_msgbox(
+            parent=self,
+            text=f"{Icons.SAVE}  Configuración guardada\n\n"
+                 f"{Icons.CHECK}  Los botones activos se aplicarán\n"
+                 f"     al reiniciar el dashboard.",
+            title="Guardado",
+        )
