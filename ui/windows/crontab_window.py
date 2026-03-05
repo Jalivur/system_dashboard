@@ -6,7 +6,7 @@ para el usuario actual (jalivur) o root.
 import customtkinter as ctk
 from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
-    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons
 )
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from ui.widgets import custom_msgbox, confirm_dialog
@@ -80,7 +80,7 @@ class CrontabWindow(ctk.CTkToplevel):
             rb.pack(side="left", padx=10, pady=8)
 
         make_futuristic_button(
-            top_bar, text="＋ Nueva entrada",
+            top_bar, text=f"{Icons.PLUS} Nueva entrada",
             command=self._open_new_form,
             width=16, height=6, font_size=14,
         ).pack(side="right", padx=10, pady=6)
@@ -187,13 +187,13 @@ class CrontabWindow(ctk.CTkToplevel):
         btn_row.pack(fill="x", padx=10, pady=(2, 10))
 
         make_futuristic_button(
-            btn_row, text="💾 Guardar",
+            btn_row, text=f"{Icons.SAVE} Guardar",
             command=self._save_entry,
             width=12, height=6, font_size=14,
         ).pack(side="left", padx=4)
 
         make_futuristic_button(
-            btn_row, text="✕ Cancelar",
+            btn_row, text=f"{Icons.CROSS} Cancelar",
             command=self._close_form,
             width=12, height=6, font_size=14,
         ).pack(side="left", padx=4)
@@ -319,7 +319,7 @@ class CrontabWindow(ctk.CTkToplevel):
         confirm_dialog(
             parent=self,
             text=f"¿Eliminar esta entrada?\n\n{raw}",
-            title="🗑 Confirmar",
+            title=f"{Icons.TRASH} Confirmar",
             on_confirm=do_delete,
         )
 
@@ -401,13 +401,13 @@ class CrontabWindow(ctk.CTkToplevel):
         btn_frame.grid(row=0, column=2, padx=8, pady=6)
 
         make_futuristic_button(
-            btn_frame, text="✏️",
+            btn_frame, text=Icons.PENCIL,
             command=lambda i=index: self._open_edit_form(i),
             width=5, height=5, font_size=14,
         ).pack(side="left", padx=3)
 
         make_futuristic_button(
-            btn_frame, text="🗑",
+            btn_frame, text=Icons.TRASH,
             command=lambda i=index: self._delete_entry(i),
             width=5, height=5, font_size=14,
         ).pack(side="left", padx=3)

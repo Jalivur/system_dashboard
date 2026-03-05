@@ -120,7 +120,13 @@ class Icons:
     # Misc
     DEGREE              = "\u00b0"             # °
     TRASH               = "\uea81"
-    
+    CHECK               = "\uf42e"
+    CROSS               = "\uf00d"
+    SAVE                = "\uf0c7"
+    STOP                = "\uf04d"
+    PLAY                = "\uf04b"
+    PLUS                = "\uf067"
+    PENCIL              = "\uf01f"
     SSH                 = "\U000F08C0"         # 
     WIFI                = "\U000F05A9"         #
     # Lanzadores

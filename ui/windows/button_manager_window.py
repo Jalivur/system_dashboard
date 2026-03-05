@@ -5,7 +5,7 @@ Los cambios son inmediatos en la UI y se persisten con "Guardar predeterminado".
 """
 import customtkinter as ctk
 import config.button_labels as BL
-from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y
+from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from utils.logger import get_logger
 
@@ -40,6 +40,8 @@ _BTN_LABELS = {
     "overview":         BL.RESUMEN,
     "camera_window":    BL.CAMARA,
     "theme_selector":   BL.TEMA,
+    "config_editor_window": BL.CONFIG,
+    
 }
 
 
@@ -112,21 +114,21 @@ class ButtonManagerWindow(ctk.CTkToplevel):
 
         make_futuristic_button(
             bottom,
-            text="💾 Guardar predeterminado",
+            text=f"{Icons.SAVE} Guardar predeterminado",
             command=self._save,
             width=28, height=8, font_size=15,
         ).pack(side="left", padx=5)
 
         make_futuristic_button(
             bottom,
-            text="✓ Activar todos",
+            text=f"{Icons.CHECK} Activar todos",
             command=self._enable_all,
             width=18, height=8, font_size=15,
         ).pack(side="left", padx=5)
 
         make_futuristic_button(
             bottom,
-            text="✕ Desactivar todos",
+            text=f"{Icons.CROSS} Desactivar todos",
             command=self._disable_all,
             width=18, height=8, font_size=15,
         ).pack(side="left", padx=5)

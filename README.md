@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.7
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v3.8
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR y SMART extendido de NVMe.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR, SMART extendido de NVMe, monitor WiFi, monitor SSH y editor de configuración local.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-3.7-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-3.8-orange.svg)]()
 
 ---
 
@@ -35,6 +35,26 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Lista de IPs**: Todas las interfaces con iconos por tipo
 - **Speedtest integrado**: CLI oficial de Ookla (JSON nativo, resultados en MB/s reales)
 - **Status en header**: interfaz activa + velocidades actuales
+
+### 󰖩 **Monitor WiFi** *(v3.8)*
+- **Señal en tiempo real**: dBm, calidad de enlace, SSID, bitrate
+- **Barras visuales** de señal (▂▄▆█) y gráfica histórica
+- **Tráfico WiFi**: RX/TX con gráficas independientes
+- Servicio daemon `WiFiMonitor` en `core/wifi_monitor.py`
+
+### **Monitor SSH** *(v3.8)*
+- **Sesiones activas**: lista en tiempo real con IP de origen y hora de conexión
+- **Historial de sesiones**: con duración formateada y detección de cortes
+- **Textos legibles**: `pts/0` → `Sesión 1`, IPs locales etiquetadas, duraciones en `1h 30min`
+- Servicio daemon `SSHMonitor` en `core/ssh_monitor.py`
+
+### 🔧 **Editor de Configuración** *(v3.8)*
+- **Edita `local_settings.py`** por máquina sin tocar `settings.py`
+- **Parámetros editables**: pantalla (DSI_X/Y), tiempos, umbrales CPU/Temp/RAM/Red, parámetros de red
+- **Iconos editables**: todos los `Icons.*` con preview en tiempo real del nuevo glifo
+- **Carga diferida**: sección de iconos se construye en lotes para no bloquear la UI
+- **Merge inteligente**: guardar un cambio no sobreescribe los anteriores
+- **Guardar y reiniciar** en un solo click
 
 ### 🖧 **Escáner de Red Local**
 - **Escaneo con arp-scan**: Detecta todos los dispositivos activos en la red local
@@ -77,11 +97,11 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 ### ⚙️ **Servicios Dashboard** *(v3.5/v3.6)*
 - **ServiceRegistry**: registro centralizado de todos los servicios del dashboard
 - **ServicesManagerWindow**: activar/desactivar servicios background desde la UI
-- **Persistencia**: configuración guardada en `data/services.json`
+- **Persistencia**: configuración guardada en `config/services.json`
 
 ### 🔧 **Gestor de Botones del Menú** *(v3.6.5)*
 - **ButtonManagerWindow**: mostrar/ocultar botones del menú principal
-- **Persistencia**: configuración guardada en `data/button_config.json`
+- **Persistencia**: configuración guardada en `config/services.json` (sección `ui`)
 - Ideal para simplificar el menú en cada máquina según sus capacidades
 
 ### 🕐 **Gestor de Crontab** *(v3.7)*
@@ -154,6 +174,7 @@ except ImportError:
     pass
 ```
 `config/local_settings.py` está en `.gitignore` — cada máquina tiene el suyo.
+El **Editor de Configuración** genera y mantiene este fichero desde la propia UI.
 
 ### Pi 5 (pantalla DSI física + Wayland)
 - Compositor: **labwc** sobre Wayland
@@ -193,7 +214,7 @@ python3 main.py
 ```bash
 # 1. Dependencias del sistema
 sudo apt-get update
-sudo apt-get install -y lm-sensors usbutils udisks2 smartmontools arp-scan
+sudo apt-get install -y lm-sensors usbutils udisks2 smartmontools arp-scan wireless-tools
 
 # 2. CLI oficial de Ookla (speedtest)
 curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
@@ -268,81 +289,91 @@ TELEGRAM_CHAT_ID=987654321
 
 | Métrica  | Aviso (🟠) | Crítico (🔴) |
 |----------|-----------|------------|
-| Temperatura | 60°C | 70°C |
-| CPU | 85% | 95% |
-| RAM | 85% | 95% |
-| Disco | 85% | 95% |
+| Temperatura | 60°C | 75°C |
+| CPU | 60% | 85% |
+| RAM | 65% | 85% |
+| Disco | — | — |
 | Servicios | — | cualquier FAILED |
+
+> Los umbrales son editables desde el **Editor de Configuración** sin reiniciar git.
 
 ---
 
-## 󰍜 Menú Principal (26 botones)
+## 󰍜 Menú Principal (29 botones)
 
 ```
 ┌─────────────────────────────────────┐
-│  Control         │  LEDs RGB         │
-│  Ventiladores    │                   │
+│  Info Hardware   │  Control          │
+│                  │  Ventiladores     │
+├──────────────────┼───────────────────┤
+│  LEDs RGB        │  Monitor          │
+│                  │  Placa            │
 ├──────────────────┼───────────────────┤
 │  Monitor         │  Monitor          │
-│  Placa           │  Red              │
+│  Red             │  USB              │
+├──────────────────┼───────────────────┤
+│  Monitor         │  Lanzadores       │
+│  Disco           │                   │
 ├──────────────────┼───────────────────┤
 │  Monitor         │  Monitor          │
-│  USB             │  Disco            │
+│  Procesos        │  Servicios        │
 ├──────────────────┼───────────────────┤
-│  Lanzadores      │  Monitor          │
-│                  │  Procesos         │
+│  Servicios       │  Gestor           │
+│  Dashboard       │  Crontab          │
 ├──────────────────┼───────────────────┤
-│  Monitor         │  Servicios        │
-│  Servicios       │  Dashboard        │
+│  Gestor          │  Histórico        │
+│  de Botones      │  Datos            │
 ├──────────────────┼───────────────────┤
-│  Gestor          │  Gestor           │
-│  Crontab         │  de Botones       │
+│  Actualizaciones │  Homebridge       │
 ├──────────────────┼───────────────────┤
-│  Histórico       │  Actualizaciones  │
-│  Datos           │                   │
+│  Visor de Logs   │  🖧 Red Local     │
 ├──────────────────┼───────────────────┤
-│  Homebridge      │  Visor de Logs    │
+│  🕳 Pi-hole      │  🔒 Gestor VPN   │
 ├──────────────────┼───────────────────┤
-│  🖧 Red Local    │  🕳 Pi-hole       │
+│  🔔 Historial    │  💡 Brillo        │
+│  Alertas         │  Pantalla         │
 ├──────────────────┼───────────────────┤
-│  🔒 Gestor VPN  │  🔔 Historial     │
-│                  │  Alertas          │
+│  📊 Resumen      │  📷 Cámara        │
+│  Sistema         │                   │
 ├──────────────────┼───────────────────┤
-│  💡 Brillo       │  📊 Resumen       │
-│  Pantalla        │  Sistema          │
+│  Cambiar Tema    │   Monitor SSH     │
 ├──────────────────┼───────────────────┤
-│  📷 Cámara       │  Cambiar Tema     │
+│  󰖩 Monitor WiFi │  🔧 Editor Config  │
 ├──────────────────┼───────────────────┤
 │  Reiniciar       │  Salir            │
 └──────────────────┴───────────────────┘
 ```
 
-### Las 24 Ventanas
+### Las 27 Ventanas
 
-1. **Control Ventiladores** - Configura modos y curvas PWM
-2. **LEDs RGB** - Control LEDs RGB GPIO Board con 6 modos *(v3.4)*
-3. **Monitor Placa** - CPU, RAM, temperatura + chasis + fan duty *(v3.4)*
-4. **Monitor Red** - Tráfico, speedtest Ookla, interfaces e IPs
-5. **Monitor USB** - Dispositivos y expulsión segura
-6. **Monitor Disco** - Espacio, temperatura NVMe, I/O + SMART *(v3.4)*
-7. **Lanzadores** - Scripts con terminal en vivo
-8. **Monitor Procesos** - Gestión avanzada de procesos
-9. **Monitor Servicios** - Control de servicios systemd
-10. **Servicios Dashboard** - Activar/desactivar servicios background *(v3.5/v3.6)*
-11. **Gestor Crontab** - Ver/añadir/editar/eliminar entradas cron *(v3.7)*
-12. **Gestor de Botones** - Visibilidad de botones del menú *(v3.6.5)*
-13. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
-14. **Actualizaciones** - Gestión de paquetes del sistema
-15. **Homebridge** - Control de 5 tipos de dispositivos HomeKit
-16. **Visor de Logs** - Visualización y exportación del log del dashboard
-17. **🖧 Red Local** - Escáner arp-scan con IP, MAC y fabricante *(v3.2)*
-18. **🕳 Pi-hole** - Estadísticas de bloqueo DNS en tiempo real *(v3.2)*
-19. **🔒 Gestor VPN** - Estado en tiempo real + conectar/desconectar *(v3.3)*
-20. **🔔 Historial Alertas** - Registro persistente de alertas Telegram *(v3.2)*
-21. **💡 Brillo Pantalla** - Control de brillo DSI con modo ahorro *(v3.3)*
-22. **📊 Resumen Sistema** - Vista unificada de todas las métricas *(v3.3)*
-23. **📷 Cámara / Escáner OCR** - Captura + OCR con Tesseract *(v3.4)*
-24. **Cambiar Tema** - Selecciona entre 15 temas
+1. **Info Hardware** - Información detallada del hardware
+2. **Control Ventiladores** - Configura modos y curvas PWM
+3. **LEDs RGB** - Control LEDs RGB GPIO Board con 6 modos *(v3.4)*
+4. **Monitor Placa** - CPU, RAM, temperatura + chasis + fan duty *(v3.4)*
+5. **Monitor Red** - Tráfico, speedtest Ookla, interfaces e IPs
+6. **Monitor USB** - Dispositivos y expulsión segura
+7. **Monitor Disco** - Espacio, temperatura NVMe, I/O + SMART *(v3.4)*
+8. **Lanzadores** - Scripts con terminal en vivo
+9. **Monitor Procesos** - Gestión avanzada de procesos
+10. **Monitor Servicios** - Control de servicios systemd
+11. **Servicios Dashboard** - Activar/desactivar servicios background *(v3.5/v3.6)*
+12. **Gestor Crontab** - Ver/añadir/editar/eliminar entradas cron *(v3.7)*
+13. **Gestor de Botones** - Visibilidad de botones del menú *(v3.6.5)*
+14. **Histórico Datos** - Visualización de métricas históricas con exportación CSV
+15. **Actualizaciones** - Gestión de paquetes del sistema
+16. **Homebridge** - Control de 5 tipos de dispositivos HomeKit
+17. **Visor de Logs** - Visualización y exportación del log del dashboard
+18. **🖧 Red Local** - Escáner arp-scan con IP, MAC y fabricante *(v3.2)*
+19. **🕳 Pi-hole** - Estadísticas de bloqueo DNS en tiempo real *(v3.2)*
+20. **🔒 Gestor VPN** - Estado en tiempo real + conectar/desconectar *(v3.3)*
+21. **🔔 Historial Alertas** - Registro persistente de alertas Telegram *(v3.2)*
+22. **💡 Brillo Pantalla** - Control de brillo DSI con modo ahorro *(v3.3)*
+23. **📊 Resumen Sistema** - Vista unificada de todas las métricas *(v3.3)*
+24. **📷 Cámara / Escáner OCR** - Captura + OCR con Tesseract *(v3.4)*
+25. **Cambiar Tema** - Selecciona entre 15 temas
+26. **Monitor SSH** - Sesiones activas e historial SSH *(v3.8)*
+27. **Monitor WiFi** - Señal, calidad, tráfico WiFi *(v3.8)*
+28. **Editor Config** - Edita `local_settings.py` desde la UI *(v3.8)*
 
 ---
 
@@ -373,9 +404,11 @@ TELEGRAM_CHAT_ID=987654321
 ```
 system_dashboard/
 ├── config/
-│   ├── settings.py                 # Constantes globales
+│   ├── settings.py                 # Constantes globales + clase Icons
+│   ├── button_labels.py            # Labels de botones (fuente única de verdad)
 │   ├── themes.py                   # 15 temas pre-configurados
-│   └── local_settings.py           # Config por máquina (NO en git)
+│   ├── services.json               # Config servicios y UI (auto-generado, en .gitignore)
+│   └── local_settings.py           # Overrides por máquina (en .gitignore)
 ├── core/
 │   ├── fan_controller.py
 │   ├── fan_auto_service.py
@@ -395,6 +428,10 @@ system_dashboard/
 │   ├── audio_alert_service.py
 │   ├── display_service.py
 │   ├── vpn_monitor.py
+│   ├── crontab_service.py          # Servicio crontab (v3.7)
+│   ├── camera_service.py           # Servicio cámara/OCR (v3.7)
+│   ├── ssh_monitor.py              # Monitor sesiones SSH (v3.8)
+│   ├── wifi_monitor.py             # Monitor conexión WiFi (v3.8)
 │   ├── data_logger.py
 │   ├── data_analyzer.py
 │   ├── data_collection_service.py
@@ -425,6 +462,9 @@ system_dashboard/
 │       ├── services_manager_window.py  # Gestión servicios dashboard (v3.6)
 │       ├── button_manager_window.py    # Visibilidad botones menú (v3.6.5)
 │       ├── crontab_window.py           # Gestor crontab (v3.7)
+│       ├── ssh_window.py               # Monitor SSH (v3.8)
+│       ├── wifi_window.py              # Monitor WiFi (v3.8)
+│       ├── config_editor_window.py     # Editor configuración local (v3.8)
 │       └── __init__.py
 ├── utils/
 │   ├── file_manager.py
@@ -436,8 +476,6 @@ system_dashboard/
 │   ├── hardware_state.json
 │   ├── alert_history.json
 │   ├── display_state.json
-│   ├── services.json               # Config servicios activos/inactivos (v3.5)
-│   ├── button_config.json          # Visibilidad botones menú (v3.6.5)
 │   ├── history.db
 │   ├── logs/dashboard.log
 │   ├── photos/
@@ -469,13 +507,17 @@ DSI_HEIGHT = 480
 DSI_X = 0
 DSI_Y = 0
 
-LAUNCHERS = [
-    {"label": "Montar NAS",   "script": str(SCRIPTS_DIR / "montarnas.sh")},
-    {"label": "Conectar VPN", "script": str(SCRIPTS_DIR / "conectar_vpn.sh")},
-]
+CPU_WARN = 60
+CPU_CRIT = 85
+TEMP_WARN = 60
+TEMP_CRIT = 75
+RAM_WARN = 65
+RAM_CRIT = 85
 ```
 
 ### `config/local_settings.py` (por máquina, NO en git)
+
+Generado y mantenido por el **Editor de Configuración**. Ejemplo manual:
 
 ```python
 # Ejemplo Pi 3B+ con Xvfb
@@ -483,7 +525,18 @@ DSI_X = 0
 DSI_Y = 0
 DSI_WIDTH = 1024
 DSI_HEIGHT = 762
+
+# Override de icono
+from config.settings import Icons
+Icons.WIFI = "\U000F05A9"
 ```
+
+### `config/services.json` (auto-generado, NO en git)
+
+Controla qué servicios arrancan y qué botones son visibles. Se gestiona desde **Servicios Dashboard** y **Gestor de Botones**. Secciones:
+
+- `"services"`: `true`/`false` por cada servicio background
+- `"ui"`: `true`/`false` por cada botón del menú
 
 ---
 
@@ -502,7 +555,7 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 - **Uso CPU**: ~5-10% en idle
 - **Uso RAM**: ~100-150 MB
 - **Actualización UI**: 2 segundos — solo lectura de caché
-- **Threads background**: 14
+- **Threads background**: 16
 - **Log**: máx. 2MB con rotación automática
 
 ---
@@ -529,6 +582,8 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 | Audio no suena | `aplay -l` → verificar dispositivo HDMI |
 | Cámara no encontrada | `sudo apt install rpicam-apps` + `sudo usermod -aG video $(whoami)` |
 | SMART muestra N/D | `sudo smartctl -A /dev/nvme0` + revisar sudoers |
+| WiFi no muestra datos | Verificar que `iwconfig` está disponible (`sudo apt install wireless-tools`) |
+| SSH monitor vacío | Verificar que `who` y `last` funcionan en el sistema |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
 
 ---
@@ -545,37 +600,45 @@ grep "$(date +%Y-%m-%d)" data/logs/dashboard.log
 
 ## 📊 Estadísticas del Proyecto
 
-| Métrica | v3.4 | v3.7 |
+| Métrica | v3.7 | v3.8 |
 |---------|------|------|
-| Versión | 3.4 | **3.7** |
-| Archivos Python | 60 | **63** |
-| Ventanas | 21 | **24** |
+| Versión | 3.7 | **3.8** |
+| Archivos Python | 63 | **68** |
+| Ventanas | 24 | **27** |
 | Temas | 15 | 15 |
-| Servicios background | 14 | 14 |
+| Servicios background | 14 | **16** |
 | Badges en menú | 12 | 12 |
-| Documentos | 9 | **9** |
+| Documentos | 9 | 9 |
 
 ---
 
 ## Changelog
 
-### **v3.7** - 2026-03-02 ⭐ ACTUAL
+### **v3.8** - 2026-03-XX ⭐ ACTUAL
+- ✅ **NUEVO**: Monitor WiFi — `WiFiMonitor` (core) + `WiFiWindow` (ui): señal dBm, calidad, SSID, bitrate, tráfico RX/TX, gráficas históricas
+- ✅ **NUEVO**: Monitor SSH — `SSHMonitor` (core) + `SSHWindow` (ui): sesiones activas con IP/hora, historial con duración legible, textos humanizados (`pts/0` → `Sesión 1`)
+- ✅ **NUEVO**: Editor de Configuración — `ConfigEditorWindow`: edita `local_settings.py` por máquina desde la UI, parámetros numéricos + iconos con preview en tiempo real, merge inteligente, guardar y reiniciar
+- ✅ **REFACTOR**: `crontab_service.py` y `camera_service.py` extraídos de UI a `core/` — separación arquitectónica completa
+- ✅ **FIX**: `RuntimeError` al salir — `StringVar`/`IntVar` instanciados con `master=` explícito en `main_window.py`, `homebridge.py` y `main.py`
+- ✅ **MEJORA**: `ServicesManagerWindow` — iconos migrados a `Icons.*`, entradas SSH y WiFi añadidas a `_DEFINITIONS`
+- ✅ **MEJORA**: `services.json` — nuevas entradas `ssh_monitor`, `wifi_monitor` en `services`; `ssh_window`, `wifi_window`, `config_editor_window` en `ui`
+
+### **v3.7** - 2026-03-02
 - ✅ **NUEVO**: Gestor Crontab — `CrontabWindow` con ver/añadir/editar/eliminar entradas, selector de usuario (usuario/root), accesos rápidos de programación, preview legible de expresión cron
-- ✅ **FIX**: `grab_release()` garantizado al cerrar popups modales (`terminal_dialog`, `exit_application`) — elimina el bloqueo de foco en toda la app al cerrar diálogos
-- ✅ **FIX**: `make_entry()` en `ui/styles.py` — fuerza foco al widget interno en VNC con `overrideredirect(True)`; usar siempre en lugar de `ctk.CTkEntry()` directamente
-- ✅ **MEJORA**: Soporte dual-Pi sin tocar git — `config/local_settings.py` (en `.gitignore`) permite configuración independiente por máquina
-- ✅ **MEJORA**: Pi 3B+ — pantalla virtual Xvfb en `:1` (1024×762), dashboard aislado del escritorio XFCE, acceso VNC en puerto `5901`
-- ✅ **MEJORA**: Pi 5 Wayland — acceso remoto via `wayvnc --output=DSI-2`, fix idle `gsettings idle-delay 0`
+- ✅ **FIX**: `grab_release()` garantizado al cerrar popups modales
+- ✅ **FIX**: `make_entry()` en `ui/styles.py` — fuerza foco al widget interno en VNC
+- ✅ **MEJORA**: Soporte dual-Pi sin tocar git — `config/local_settings.py`
+- ✅ **MEJORA**: Pi 3B+ Xvfb + Pi 5 Wayland documentados
 
 ### **v3.6.5** - 2026-02-XX
-- ✅ **NUEVO**: Gestor de Botones — `ButtonManagerWindow` para mostrar/ocultar botones del menú principal con persistencia en `data/button_config.json`
-- ✅ **NUEVO**: `WindowManager` en `ui/window_manager.py` — aplica configuración de visibilidad al arrancar
+- ✅ **NUEVO**: Gestor de Botones — `ButtonManagerWindow`
+- ✅ **NUEVO**: `WindowManager` en `ui/window_manager.py`
 
 ### **v3.6** - 2026-02-XX
-- ✅ **NUEVO**: Servicios Dashboard — `ServicesManagerWindow` para activar/desactivar servicios background del dashboard desde la UI
+- ✅ **NUEVO**: Servicios Dashboard — `ServicesManagerWindow`
 
 ### **v3.5** - 2026-02-XX
-- ✅ **NUEVO**: `ServiceRegistry` — registro centralizado de todos los servicios del dashboard, con soporte para activar/desactivar y persistir configuración en `data/services.json`
+- ✅ **NUEVO**: `ServiceRegistry` — registro centralizado de servicios
 
 ### **v3.4** - 2026-02-27
 - ✅ Control LEDs RGB, temperatura chasis, alertas audio, cámara OCR, SMART NVMe extendido

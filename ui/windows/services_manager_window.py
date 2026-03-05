@@ -160,15 +160,15 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         # Botones globales
         footer = ctk.CTkFrame(inner, fg_color="transparent")
         footer.pack(fill="x", padx=8, pady=(8, 6))
-        make_futuristic_button(footer, text="⏹  Parar todos",
+        make_futuristic_button(footer, text=f"{Icons.STOP} Parar todos",
                                command=self._stop_all,
                                width=13, height=6, font_size=13,
                                ).pack(side="left", padx=(0, 6))
-        make_futuristic_button(footer, text="▶  Iniciar todos",
+        make_futuristic_button(footer, text=f"{Icons.PLAY}  Iniciar todos",
                                command=self._start_all,
                                width=13, height=6, font_size=13,
                                ).pack(side="left", padx=(0, 6))
-        make_futuristic_button(footer, text="💾  Guardar predeterminado",
+        make_futuristic_button(footer, text=f"{Icons.SAVE}  Guardar predeterminado",
                                command=self._save_defaults,
                                width=18, height=6, font_size=13,
                                ).pack(side="left")

@@ -168,36 +168,36 @@ class MainWindow:
 
     def _create_menu_buttons(self):
         buttons_config = [
-            (BL.HARDWARE_INFO,     self.open_hardware_info,    []),
-            (BL.FAN_CONTROL,       self.open_fan_control,      ["temp_fan"]),
-            (BL.LED_RGB,           self.open_led_window,       []),
-            (BL.MONITOR_PLACA,     self.open_monitor_window,   ["temp_monitor", "cpu", "ram"]),
-            (BL.MONITOR_RED,       self.open_network_window,   []),
-            (BL.MONITOR_USB,       self.open_usb_window,       []),
-            (BL.MONITOR_DISCO,     self.open_disk_window,      ["disk"]),
-            (BL.LANZADORES,        self.open_launchers,        []),
-            (BL.PROCESOS,          self.open_process_window,   []),
-            (BL.SERVICIOS,         self.open_service_window,   ["services"]),
-            (BL.SERVICIOS_DASH,    self.open_services_manager, []),
-            (BL.CRONTAB,           self.open_crontab_window,   []),
-            (BL.BOTONES,           self.open_button_manager,   []),
-            (BL.HISTORICO,         self.open_history_window,   []),
-            (BL.ACTUALIZACIONES,   self.open_update_window,    ["updates"]),
-            (BL.HOMEBRIDGE,        self.open_homebridge,       ["hb_offline", "hb_on", "hb_fault"]),
-            (BL.VISOR_LOGS,        self.open_log_viewer,       []),
-            (BL.RED_LOCAL,         self.open_network_local,    []),
-            (BL.PIHOLE,            self.open_pihole,           ["pihole_offline"]),
-            (BL.VPN,               self.open_vpn_window,       ["vpn_offline"]),
-            (BL.HISTORIAL_ALERTAS, self.open_alert_history,    []),
-            (BL.BRILLO,            self.open_display_window,   []),
-            (BL.RESUMEN,           self.open_overview,         []),
-            (BL.CAMARA,            self.open_camera_window,    []),
-            (BL.TEMA,              self.open_theme_selector,   []),
-            (BL.SSH,               self.open_ssh_window,       []),
-            (BL.WIFI,              self.open_wifi_window,      []),
-            (BL.CONFIG,          self.opent_config_editor_window, []),
-            (BL.REINICIAR,         self.restart_application,   []),
-            (BL.SALIR,             self.exit_application,      []),
+            (BL.HARDWARE_INFO,     self.open_hardware_info,       []),
+            (BL.FAN_CONTROL,       self.open_fan_control,         ["temp_fan"]),
+            (BL.LED_RGB,           self.open_led_window,          []),
+            (BL.MONITOR_PLACA,     self.open_monitor_window,      ["temp_monitor", "cpu", "ram"]),
+            (BL.MONITOR_RED,       self.open_network_window,      []),
+            (BL.MONITOR_USB,       self.open_usb_window,          []),
+            (BL.MONITOR_DISCO,     self.open_disk_window,         ["disk"]),
+            (BL.LANZADORES,        self.open_launchers,           []),
+            (BL.PROCESOS,          self.open_process_window,      []),
+            (BL.SERVICIOS,         self.open_service_window,      ["services"]),
+            (BL.SERVICIOS_DASH,    self.open_services_manager,    []),
+            (BL.CRONTAB,           self.open_crontab_window,      []),
+            (BL.BOTONES,           self.open_button_manager,      []),
+            (BL.HISTORICO,         self.open_history_window,      []),
+            (BL.ACTUALIZACIONES,   self.open_update_window,       ["updates"]),
+            (BL.HOMEBRIDGE,        self.open_homebridge,          ["hb_offline", "hb_on", "hb_fault"]),
+            (BL.VISOR_LOGS,        self.open_log_viewer,          []),
+            (BL.RED_LOCAL,         self.open_network_local,       []),
+            (BL.PIHOLE,            self.open_pihole,              ["pihole_offline"]),
+            (BL.VPN,               self.open_vpn_window,          ["vpn_offline"]),
+            (BL.HISTORIAL_ALERTAS, self.open_alert_history,       []),
+            (BL.BRILLO,            self.open_display_window,      []),
+            (BL.RESUMEN,           self.open_overview,            []),
+            (BL.CAMARA,            self.open_camera_window,       []),
+            (BL.TEMA,              self.open_theme_selector,      []),
+            (BL.SSH,               self.open_ssh_window,          []),
+            (BL.WIFI,              self.open_wifi_window,         []),
+            (BL.CONFIG,            self.open_config_editor_window, []),
+            (BL.REINICIAR,         self.restart_application,      []),
+            (BL.SALIR,             self.exit_application,         []),
         ]
 
         columns = 2
@@ -526,7 +526,7 @@ class MainWindow:
             self.ssh_window.bind("<Destroy>", lambda e: self._btn_idle(BL.SSH))
         else:
             self.ssh_window.lift()
-            
+
     def open_wifi_window(self):
         if self.wifi_window is None or not self.wifi_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Monitor WiFi")
@@ -535,8 +535,8 @@ class MainWindow:
             self.wifi_window.bind("<Destroy>", lambda e: self._btn_idle(BL.WIFI))
         else:
             self.wifi_window.lift()
-            
-    def opent_config_editor_window(self):
+
+    def open_config_editor_window(self):
         if self.config_editor_window is None or not self.config_editor_window.winfo_exists():
             logger.debug("[MainWindow] Abriendo: Editor de Configuracion")
             self._btn_active(BL.CONFIG)
