@@ -3,7 +3,7 @@ Ventana de monitoreo de red
 """
 import customtkinter as ctk
 from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH,
-                             DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS, NET_INTERFACE)
+                             DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS, NET_INTERFACE, Icons)
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets import GraphWidget
 from utils.system_utils import SystemUtils
@@ -39,7 +39,7 @@ class NetworkWindow(ctk.CTkToplevel):
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
         self._header = make_window_header(
-            main, title="MONITOR DE RED", on_close=self.destroy,
+            main, title=f"{Icons.MONITOR_RED} MONITOR DE RED", on_close=self.destroy,
             status_text="Detectando interfaz...")
 
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
@@ -71,8 +71,8 @@ class NetworkWindow(ctk.CTkToplevel):
         grid.grid_columnconfigure(0, weight=1)
         grid.grid_columnconfigure(1, weight=1)
 
-        self._create_traffic_cell(grid, 0, 0, "DESCARGA", "download")
-        self._create_traffic_cell(grid, 0, 1, "SUBIDA",   "upload")
+        self._create_traffic_cell(grid, 0, 0, f"{Icons.DOWN} DESCARGA", "download")
+        self._create_traffic_cell(grid, 0, 1, f"{Icons.UP} SUBIDA",   "upload")
         self._create_interfaces_cell(grid, 1, 0)
         self._create_speedtest_cell(grid,  1, 1)
 
@@ -118,14 +118,14 @@ class NetworkWindow(ctk.CTkToplevel):
                      ).pack(anchor="w", padx=8, pady=(6, 4))
 
         self.speedtest_result = ctk.CTkLabel(
-            cell, text="Pulsa 'Test' para\ncomenzar",
+            cell, text=f"{Icons.TAP} Pulsa {Icons.PLAY} para\ncomenzar",
             text_color=COLORS['text'],
             font=(FONT_FAMILY, FONT_SIZES['small']),
             justify="left", wraplength=_COL_W - 20)
         self.speedtest_result.pack(anchor="w", padx=8, pady=(0, 4))
 
         self.speedtest_btn = make_futuristic_button(
-            cell, text="Ejecutar Test", command=self._run_speedtest, width=15, height=5)
+            cell, text=f"{Icons.PLAY} Ejecutar Test", command=self._run_speedtest, width=15, height=5)
         self.speedtest_btn.pack(pady=(0, 8))
 
     # ── Interfaces ───────────────────────────────────────────────────────────
@@ -143,11 +143,11 @@ class NetworkWindow(ctk.CTkToplevel):
 
         for iface, ip in sorted(interfaces.items()):
             if iface.startswith('tun'):
-                color, icon = COLORS['success'], "🔒"
+                color, icon = COLORS['success'], Icons.VPN
             elif iface.startswith(('eth', 'enp')):
-                color, icon = COLORS['primary'], "🌐"
+                color, icon = COLORS['primary'], Icons.ETHERNET
             elif iface.startswith(('wlan', 'wlp')):
-                color, icon = COLORS['warning'], "\uf0eb"
+                color, icon = COLORS['warning'], Icons.WIFI
             else:
                 color, icon = COLORS['text'], "•"
 
@@ -174,7 +174,7 @@ class NetworkWindow(ctk.CTkToplevel):
         status = result['status']
         if status == 'idle':
             self.speedtest_result.configure(
-                text="Pulsa 'Test' para\ncomenzar", text_color=COLORS['text'])
+                text=f"{Icons.TAP} Pulsa {Icons.PLAY} para\ncomenzar", text_color=COLORS['text'])
             self.speedtest_btn.configure(state="normal")
         elif status == 'running':
             self.speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
@@ -200,7 +200,7 @@ class NetworkWindow(ctk.CTkToplevel):
 
         if not self.network_monitor._running:
             if not self._banner_shown:
-                StyleManager.show_service_stopped_banner(self._inner, "Monitor de Red")
+                StyleManager.show_service_stopped_banner(self._inner, f"{Icons.MONITOR_RED} Monitor de Red")
                 self._banner_shown = True
             self.after(UPDATE_MS, self._update)
             return
@@ -219,7 +219,7 @@ class NetworkWindow(ctk.CTkToplevel):
         history = self.network_monitor.get_history()
 
         self._header.status_label.configure(
-            text=f"{stats['interface']}  ·  ↓{stats['download_mb']:.2f}  ↑{stats['upload_mb']:.2f} MB/s")
+            text=f"{stats['interface']}  · {Icons.DOWN} {stats['download_mb']:.2f} {Icons.UP} {stats['upload_mb']:.2f} MB/s")
 
         dl_color = self.network_monitor.net_color(stats['download_mb'])
         self.widgets['download_label'].configure(text_color=dl_color)

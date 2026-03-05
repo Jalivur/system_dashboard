@@ -127,8 +127,12 @@ class Icons:
     PLAY                = "\uf04b"
     PLUS                = "\uf067"
     PENCIL              = "\uf01f"
+    DOWN                = "\uf063"
+    UP                  = "\uf062"
     SSH                 = "\U000F08C0"         # 
     WIFI                = "\U000F05A9"         #
+    TAP                 = "\U000F0741"
+    ETHERNET            = "\U000F0200"
     # Lanzadores
     NAS                 = "\U000F08F3"         # 󰣳
     MONTAR              = "\U000F0318"         # 󰌘
