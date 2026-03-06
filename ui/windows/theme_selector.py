@@ -24,7 +24,7 @@ class ThemeSelector(ctk.CTkToplevel):
         
         # Tema actualmente seleccionado
         self.current_theme = load_selected_theme()
-        self.selected_theme_var = ctk.StringVar(value=self.current_theme)
+        self.selected_theme_var = ctk.StringVar(master=self, value=self.current_theme)
         
         # Crear interfaz
         self._create_ui()
