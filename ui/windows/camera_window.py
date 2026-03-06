@@ -203,7 +203,7 @@ class CameraWindow(ctk.CTkToplevel):
                      font=(FONT_FAMILY, FONT_SIZES['small']),
                      text_color=COLORS['text_dim']).pack(side="left", padx=(16, 4))
 
-        self._lang_var = ctk.StringVar(value="spa")
+        self._lang_var = ctk.StringVar(master=self, value="spa")
         ctk.CTkOptionMenu(
             row, variable=self._lang_var,
             values=["spa", "eng", "spa+eng"],

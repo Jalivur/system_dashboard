@@ -82,7 +82,7 @@ class StyleManager:
         )
     
     @staticmethod
-    def style_slider_ctk(slider: ctk.CTkSlider, color: str = None) -> None:
+    def style_slider_ctk(slider: ctk.CTkSlider, color: str = None, height=30) -> None:
         """
         Aplica estilo a slider de customtkinter
         
@@ -96,7 +96,7 @@ class StyleManager:
             progress_color=color,
             button_color=color,
             button_hover_color=COLORS['secondary'],
-            height=30
+            height=height
         )
     
     @staticmethod

@@ -11,7 +11,7 @@ from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor,
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
                   PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService,
-                  SSHMonitor, WiFiMonitor)
+                  SSHMonitor, WiFiMonitor, AudioService)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from core.service_registry import ServiceRegistry
@@ -54,6 +54,7 @@ def main():
     audio_alert_service = AudioAlertService(system_monitor, service_monitor)
     ssh_monitor         = SSHMonitor()
     wifi_monitor        = WiFiMonitor()
+    audio_service       = AudioService()
 
     data_service = DataCollectionService(
         system_monitor=system_monitor,
@@ -115,6 +116,7 @@ def main():
     registry.register("display_service",      display_service)
     registry.register("ssh_monitor",          ssh_monitor)
     registry.register("wifi_monitor",         wifi_monitor)
+    registry.register("audio_service",        audio_service)
     # Para los servicios configurados como False en services.json
     registry.apply_config()
 

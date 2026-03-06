@@ -93,6 +93,9 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         ("wifi_monitor",
          "WiFi Monitor", Icons.WIFI,
          "El monitor de conexión WiFi dejará de actualizarse."),
+        ("audio_service",                              
+         "Audio Service", Icons.AUDIO,
+         "El control de volumen y mute via amixer quedará desactivado."),
     ]
 
     def __init__(self, parent, registry):

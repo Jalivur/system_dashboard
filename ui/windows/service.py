@@ -16,8 +16,8 @@ class ServiceWindow(ctk.CTkToplevel):
 
         self.service_monitor = service_monitor
 
-        self.search_var    = ctk.StringVar()
-        self.filter_var    = ctk.StringVar(value="all")
+        self.search_var    = ctk.StringVar(master=self)
+        self.filter_var    = ctk.StringVar(master=self, value="all")
         self.update_paused = False
         self.update_job    = None
 

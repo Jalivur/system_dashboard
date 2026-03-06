@@ -63,6 +63,7 @@ class WindowManager:
         "ssh_window":           BL.SSH,
         "wifi_window":          BL.WIFI,
         "config_editor_window": BL.CONFIG,
+        "audio_window":         BL.AUDIO,
     }
 
     _ALWAYS_VISIBLE = [

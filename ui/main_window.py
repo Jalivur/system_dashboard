@@ -23,7 +23,7 @@ from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindo
                         HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow,
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
                         LedWindow, CameraWindow, ServicesManagerWindow, LogViewerWindow, ButtonManagerWindow, CrontabWindow,
-                        HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow)
+                        HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow, AudioWindow)
 from ui.window_manager import WindowManager
 from ui.window_lifecycle import WindowLifecycleManager
 from ui.main_badges import BadgeManager
@@ -65,6 +65,7 @@ class MainWindow:
         self.audio_alert_service = registry.get("audio_alert_service")
         self.ssh_monitor         = registry.get("ssh_monitor")
         self.wifi_monitor        = registry.get("wifi_monitor")
+        self.audio_service       = registry.get("audio_service")
 
         self._menu_btns   = {}
         self._active_tab  = UICfg.MENU_TABS[0][0]
@@ -314,6 +315,8 @@ class MainWindow:
             lambda: WiFiWindow(root, self.wifi_monitor))
         r("config_editor_window", BL.CONFIG,
             lambda: ConfigEditorWindow(root))
+        r("audio_window",         BL.AUDIO,         
+            lambda: AudioWindow(root, self.audio_service))
         r("button_manager",       BL.BOTONES,
             lambda: ButtonManagerWindow(root,
                 registry=self.registry, window_manager=self._wm))
@@ -349,6 +352,7 @@ class MainWindow:
             BL.SSH:               (lambda: self._wlm.open("ssh_window"),           []),
             BL.WIFI:              (lambda: self._wlm.open("wifi_window"),          []),
             BL.CONFIG:            (lambda: self._wlm.open("config_editor_window"), []),
+            BL.AUDIO:             (lambda: self._wlm.open("audio_window"),         []),
         }
 
     # ── Cambio de pestaña ─────────────────────────────────────────────────────
@@ -382,6 +386,7 @@ class MainWindow:
         "ssh_window":           BL.SSH,
         "wifi_window":          BL.WIFI,
         "config_editor_window": BL.CONFIG,
+        "audio_window":         BL.AUDIO,
     }.items()}
 
     def _switch_tab(self, key: str) -> None:

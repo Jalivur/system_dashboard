@@ -106,6 +106,9 @@ class Icons:
     RESUMEN             = "\U0001f4ca"          # 📊
     CAMARA              = "\U0001f4f7"          # 📷
     TEMA                = "\U000f050e"          # 󰔎
+    AUDIO               = "\U000f075a"          # 󰝚  nf-md-music_note
+    VOLUME_HIGH         = "\U000f057e"          # 󰕾  nf-md-volume_high
+    VOLUME_MUTE         = "\U000f0580"          # 󰖀  nf-md-volume_mute
     REINICIAR           = "\U000f0453"          # 󰑓
     SALIR               = "\U000f0fc5"          # 󰿅
     CONFIG              = "\ueb52"
@@ -245,6 +248,7 @@ class UI:
                 "FAN_CONTROL",
                 "LED_RGB",
                 "BRILLO",
+                "AUDIO",
                 "CAMARA",
             ],
         ),
