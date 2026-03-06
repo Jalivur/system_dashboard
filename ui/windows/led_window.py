@@ -26,10 +26,10 @@ class LedWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.after(150, self.focus_set)
 
-        self._r = ctk.IntVar(value=0)
-        self._g = ctk.IntVar(value=255)
-        self._b = ctk.IntVar(value=0)
-        self._mode_var = ctk.StringVar(value="auto")
+        self._r = ctk.IntVar(master=self, value=0)
+        self._g = ctk.IntVar(master=self, value=255)
+        self._b = ctk.IntVar(master=self, value=0)
+        self._mode_var = ctk.StringVar(master=self, value="auto")
 
         self._banner_shown = False
         self._inner = None   # referencia al frame de contenido

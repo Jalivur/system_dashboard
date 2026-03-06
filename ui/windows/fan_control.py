@@ -26,15 +26,15 @@ class FanControlWindow(ctk.CTkToplevel):
         self.file_manager   = FileManager()
 
         # Variables de estado
-        self.mode_var       = tk.StringVar()
-        self.manual_pwm_var = tk.IntVar(value=128)
+        self.mode_var       = tk.StringVar(master=self)
+        self.manual_pwm_var = tk.IntVar(master=self, value=128)
         self.curve_vars     = []
 
         # Variables para entries de nuevo punto (con placeholder)
         self._PLACEHOLDER_TEMP = "0-100"
         self._PLACEHOLDER_PWM  = "0-255"
-        self.new_temp_var = tk.StringVar(value=self._PLACEHOLDER_TEMP)
-        self.new_pwm_var  = tk.StringVar(value=self._PLACEHOLDER_PWM)
+        self.new_temp_var = tk.StringVar(master=self, value=self._PLACEHOLDER_TEMP)
+        self.new_pwm_var  = tk.StringVar(master=self, value=self._PLACEHOLDER_PWM)
 
         # Cargar estado inicial
         self._load_initial_state()

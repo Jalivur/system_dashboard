@@ -150,7 +150,7 @@ class CameraWindow(ctk.CTkToplevel):
                      font=(FONT_FAMILY, FONT_SIZES['small']),
                      text_color=COLORS['text_dim']).pack(side="left", padx=(16, 4))
 
-        self._res_var = ctk.StringVar(value="1920x1080")
+        self._res_var = ctk.StringVar(master=self, value="1920x1080")
         ctk.CTkOptionMenu(
             row, variable=self._res_var,
             values=["640x480", "1296x972", "1920x1080", "2592x1944"],

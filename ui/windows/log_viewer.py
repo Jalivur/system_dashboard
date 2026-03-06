@@ -57,14 +57,14 @@ class LogViewerWindow(ctk.CTkToplevel):
         self._modules:   list = []
         self._loading         = False
 
-        self._level_var  = ctk.StringVar(value="TODOS")
-        self._module_var = ctk.StringVar(value=_PH_MODULE)
-        self._search_var = ctk.StringVar(value=_PH_SEARCH)
-        self._quick_var  = ctk.StringVar(value="1h")
-        self._date_from  = ctk.StringVar(value=_PH_DATE)
-        self._time_from  = ctk.StringVar(value=_PH_TIME)
-        self._date_to    = ctk.StringVar(value=_PH_DATE)
-        self._time_to    = ctk.StringVar(value=_PH_TIME)
+        self._level_var  = ctk.StringVar(master=self, value="TODOS")
+        self._module_var = ctk.StringVar(master=self,value=_PH_MODULE)
+        self._search_var = ctk.StringVar(master=self,value=_PH_SEARCH)
+        self._quick_var  = ctk.StringVar(master=self,value="1h")
+        self._date_from  = ctk.StringVar(master=self,value=_PH_DATE)
+        self._time_from  = ctk.StringVar(master=self,value=_PH_TIME)
+        self._date_to    = ctk.StringVar(master=self,value=_PH_DATE)
+        self._time_to    = ctk.StringVar(master=self,value=_PH_TIME)
 
         self._create_ui()
         self._load_log()

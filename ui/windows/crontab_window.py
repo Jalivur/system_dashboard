@@ -34,19 +34,19 @@ class CrontabWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.after(150, self.focus_set)
 
-        self._user_var   = ctk.StringVar(value=_SYSTEM_USER)
+        self._user_var   = ctk.StringVar(master=self, value=_SYSTEM_USER)
         self._lines      = []    # líneas raw del crontab
         self._parsed     = []    # entradas parseadas (solo las válidas)
         self._edit_index = None  # índice en _parsed de la entrada en edición
         self._panel_open = False
 
         # Variables del formulario
-        self._f_minute  = ctk.StringVar(value="*")
-        self._f_hour    = ctk.StringVar(value="*")
-        self._f_day     = ctk.StringVar(value="*")
-        self._f_month   = ctk.StringVar(value="*")
-        self._f_weekday = ctk.StringVar(value="*")
-        self._f_command = ctk.StringVar(value="")
+        self._f_minute  = ctk.StringVar(master=self, value="*")
+        self._f_hour    = ctk.StringVar(master=self, value="*")
+        self._f_day     = ctk.StringVar(master=self, value="*")
+        self._f_month   = ctk.StringVar(master=self, value="*")
+        self._f_weekday = ctk.StringVar(master=self, value="*")
+        self._f_command = ctk.StringVar(master=self, value="")
 
         self._create_ui()
         self._load()

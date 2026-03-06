@@ -36,7 +36,7 @@ class DisplayWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.after(150, self.focus_set)
 
-        self._slider_var = ctk.IntVar(value=self.display_service.get_brightness())
+        self._slider_var = ctk.IntVar(master=self, value=self.display_service.get_brightness())
         self._banner_shown = False
         self._inner = None
 
