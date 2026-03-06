@@ -330,7 +330,7 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         if key in self._saved_params:
             current = self._saved_params[key]
 
-        var = ctk.StringVar(value=str(current))
+        var = ctk.StringVar(master=self, value=str(current))
         self._vars[key] = var
 
         row = ctk.CTkFrame(parent, fg_color="transparent")
@@ -442,7 +442,7 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             ctk.CTkFrame(self._icon_card, fg_color="transparent", height=6).pack()
 
     def _build_icon_row(self, parent, attr: str, current_char: str):
-        var = ctk.StringVar(value="")
+        var = ctk.StringVar(master=self, value="")
         self._icon_vars[attr] = var
 
         row = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'], corner_radius=6)
@@ -550,7 +550,7 @@ class ConfigEditorWindow(ctk.CTkToplevel):
                     errors.append(f"{label}: valor no válido '{raw}'")
 
         for attr, current_char in self._editable_icons:
-            raw = self._icon_vars.get(attr, ctk.StringVar()).get().strip()
+            raw = self._icon_vars.get(attr, ctk.StringVar(master=self)).get().strip()
             if not raw:
                 continue
             try:

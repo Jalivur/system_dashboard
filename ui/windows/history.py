@@ -31,9 +31,9 @@ class HistoryWindow(ctk.CTkToplevel):
         self.cleanup_service  = cleanup_service
 
         # Estado de periodo
-        self.period_var = ctk.StringVar(value="24h")
-        self.period_start = ctk.StringVar(value="YYYY-MM-DD HH:MM")
-        self.period_end   = ctk.StringVar(value="YYYY-MM-DD HH:MM")
+        self.period_var = ctk.StringVar(master=self, value="24h")
+        self.period_start = ctk.StringVar(master=self, value="YYYY-MM-DD HH:MM")
+        self.period_end   = ctk.StringVar(master=self, value="YYYY-MM-DD HH:MM")
 
         # Estado de rango personalizado
         self._using_custom_range = False

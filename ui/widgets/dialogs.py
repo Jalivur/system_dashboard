@@ -6,6 +6,7 @@ from ui.styles import make_futuristic_button
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES
 import subprocess
 import threading
+from core.event_bus import get_event_bus
 
 
 def custom_msgbox(parent, text: str, title: str = "Info") -> None:
@@ -192,27 +193,95 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
     frame.pack(fill="both", expand=True, padx=2, pady=2)
 
     ctk.CTkLabel(frame, text=title, font=(FONT_FAMILY, 18, "bold"), text_color=COLORS['secondary']).pack(pady=5)
+    
+    console = ctk.CTkTextbox(frame, fg_color="black", text_color="#00FF00", font=("Courier New", 12))
+    console.pack(fill="both", expand=True, padx=10, pady=5)
+
+    btn_close = ctk.CTkButton(frame, text="Cerrar", state="disabled")
+    btn_close.pack(pady=10)
+
+    # Eventos para comunicación thread-safe
+    thread_active = threading.Event()
+    thread_active.set()
+    
     def _on_close():
         try:
             popup.grab_release()
         except Exception:
             pass
-        popup.destroy()
+        # Esperar a que termine el thread
+        thread_active.wait(timeout=2.0)
+        try:
+            popup.destroy()
+        except Exception:
+            pass
         if on_close:
             on_close()
-    console = ctk.CTkTextbox(frame, fg_color="black", text_color="#00FF00", font=("Courier New", 12))
-    console.pack(fill="both", expand=True, padx=10, pady=5)
 
-    btn_close = ctk.CTkButton(frame, text="Cerrar", command=_on_close, state="disabled")
-    btn_close.pack(pady=10)
+    btn_close.configure(command=_on_close)
 
     def run_command():
-        process = subprocess.Popen(["bash", script_path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        for line in process.stdout:
-            popup.after(0, lambda l=line: console.insert("end", l))
-            popup.after(0, lambda: console.see("end"))
-        process.wait()
-        popup.after(0, lambda: btn_close.configure(state="normal"))
+        try:
+            process = subprocess.Popen(
+                ["bash", script_path], 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT, 
+                text=True
+            )
+            for line in process.stdout:
+                # Publicar al EventBus para que se procese en thread principal
+                get_event_bus().publish("terminal.line", {
+                    "console": console,
+                    "line": line
+                })
+            process.wait()
+            # Habilitar botón de cierre
+            get_event_bus().publish("terminal.done", {"btn": btn_close})
+        except Exception as e:
+            get_event_bus().publish("terminal.error", {"error": str(e)})
+        finally:
+            thread_active.clear()
+
+    # Registrar suscriptores para eventos del terminal
+    def handle_terminal_line(data):
+        try:
+            console = data.get("console")
+            line = data.get("line")
+            if console and line:
+                console.insert("end", line)
+                console.see("end")
+        except Exception:
+            pass
+    
+    def handle_terminal_done(data):
+        try:
+            btn = data.get("btn")
+            if btn:
+                btn.configure(state="normal")
+        except Exception:
+            pass
+    
+    def handle_terminal_error(data):
+        try:
+            error = data.get("error")
+            console.insert("end", f"\n❌ Error: {error}\n")
+            console.see("end")
+            btn_close.configure(state="normal")
+        except Exception:
+            pass
+    
+    get_event_bus().subscribe("terminal.line", handle_terminal_line)
+    get_event_bus().subscribe("terminal.done", handle_terminal_done)
+    get_event_bus().subscribe("terminal.error", handle_terminal_error)
+
+    # Limpiar suscriptores al cerrar
+    def cleanup_on_destroy():
+        get_event_bus().unsubscribe("terminal.line", handle_terminal_line)
+        get_event_bus().unsubscribe("terminal.done", handle_terminal_done)
+        get_event_bus().unsubscribe("terminal.error", handle_terminal_error)
+    
+    popup.protocol("WM_DELETE_WINDOW", _on_close)
+    popup.bind("<Destroy>", lambda e: cleanup_on_destroy())
 
     threading.Thread(target=run_command, daemon=True).start()
     popup.grab_set()

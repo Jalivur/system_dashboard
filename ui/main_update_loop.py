@@ -1,9 +1,10 @@
 """
 Loop de actualizacion del menu principal.
 
-Gestiona dos ciclos independientes:
+Gestiona tres ciclos independientes:
   - Reloj / uptime: cada 1 segundo via root.after
   - Badges del menu: cada update_interval ms via root.after
+  - Eventos del bus: procesa eventos publicados desde threads secundarios
 
 Ambos ciclos leen exclusivamente caches de los monitores — nunca bloquean la UI.
 
@@ -20,6 +21,7 @@ Uso en MainWindow:
 """
 from datetime import datetime
 from config.settings import COLORS
+from core.event_bus import get_event_bus
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -78,6 +80,9 @@ class UpdateLoop:
 
     def _update_badges(self) -> None:
         """Actualiza todos los badges del menu. Solo lee caches — nunca bloquea la UI."""
+        # Procesar eventos publicados desde threads secundarios
+        get_event_bus().process_events()
+        
         self._update_misc_badges()
         self._update_service_badge()
         self._update_system_badges()
