@@ -509,7 +509,7 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         except ValueError:
             pass
 
-    def _update_icon_preview(self, attr: str, var: ctk.StringVar(), preview: ctk.CTkLabel):
+    def _update_icon_preview(self, attr: str, var: ctk.StringVar, preview: ctk.CTkLabel):
         raw = var.get().strip()
         if not raw:
             preview.configure(text="")
