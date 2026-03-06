@@ -18,8 +18,8 @@ class ProcessWindow(ctk.CTkToplevel):
         self.process_monitor = process_monitor
 
         # Estado
-        self.search_var    = ctk.StringVar()
-        self.filter_var    = ctk.StringVar(value="all")
+        self.search_var    = ctk.StringVar(master=self)
+        self.filter_var    = ctk.StringVar(master=self, value="all")
         self.update_paused = False
         self.update_job    = None
 
