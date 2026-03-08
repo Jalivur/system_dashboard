@@ -41,7 +41,8 @@ TEMA                = f"{Icons.TEMA}  Cambiar Tema"
 SSH                 = f"{Icons.SSH}  Monitor SSH"
 WIFI                = f"{Icons.WIFI}  Monitor WiFi"
 CONFIG              = f"{Icons.CONFIG} Editor Config"
-I2C                 = f"{Icons.I2C}  Scanner I²C"
+I2C                 = f"{Icons.I2C}  Scanner I\u00b2C"
+GPIO                = f"{Icons.GPIO}  Monitor GPIO"
 
 # ── Botones siempre visibles (no controlados por WindowManager) ───────────────
 BOTONES             = f"{Icons.BOTONES}  Gestor de Botones"

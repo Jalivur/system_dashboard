@@ -783,13 +783,13 @@ class WeatherWindow(ctk.CTkToplevel):
             ss = item.get("sunset",  "--")
             ctk.CTkLabel(
                 cell,
-                text=f"{Icons.SUNRISE}{sr}",
+                text=f"{Icons.SUNRISE} {sr}",
                 font=(FONT_FAMILY, 9),
                 text_color=COLORS.get('warning', '#ffaa00'),
             ).pack(pady=0)
             ctk.CTkLabel(
                 cell,
-                text=f"{Icons.SUNSET}{ss}",
+                text=f"{Icons.SUNSET} {ss}",
                 font=(FONT_FAMILY, 9),
                 text_color=COLORS['text_dim'],
             ).pack(pady=(0, 3))

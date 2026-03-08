@@ -113,6 +113,7 @@ class Icons:
     REINICIAR           = "\U000f0453"          # 󰑓
     SALIR               = "\U000f0fc5"          # 󰿅
     CONFIG              = "\ueb52"
+    GPIO                = "\U000f0335"          # 󰌵  nf-md-integrated_circuit_chip (alias I2C visual)
 
     # Header principal
     UPTIME              = "\u23f1"             # ⏱
@@ -267,6 +268,7 @@ class UI:
                 "AUDIO",
                 "CAMARA",
                 "I2C",
+                "GPIO",
             ],
         ),
         (

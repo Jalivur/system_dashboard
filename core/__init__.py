@@ -24,6 +24,7 @@ from .wifi_monitor import WiFiMonitor
 from .audio_service import AudioService
 from .weather_service import WeatherService
 from .i2c_monitor import I2CMonitor
+from .gpio_monitor import GPIOMonitor
 
 __all__ = [
     'FanController',
@@ -49,4 +50,5 @@ __all__ = [
     'AudioService',
     'WeatherService',
     'I2CMonitor',
+    'GPIOMonitor',
 ]

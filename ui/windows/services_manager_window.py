@@ -93,9 +93,12 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         ("wifi_monitor",
          "WiFi Monitor", Icons.WIFI,
          "El monitor de conexión WiFi dejará de actualizarse."),
-        ("audio_service",                              
+        ("audio_service",
          "Audio Service", Icons.AUDIO,
          "El control de volumen y mute via amixer quedará desactivado."),
+        ("gpio_monitor",
+         "GPIO Monitor", Icons.GPIO,
+         "El monitor de pines GPIO dejará de leer estados. Los pines no se alteran."),
     ]
 
     def __init__(self, parent, registry):

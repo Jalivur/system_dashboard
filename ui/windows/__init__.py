@@ -32,6 +32,7 @@ from .config_editor_window import ConfigEditorWindow
 from .audio_window import AudioWindow
 from .weather_window import WeatherWindow
 from .i2c_window import I2CWindow
+from .gpio_window import GPIOWindow
 
 __all__ = [
     'FanControlWindow',
@@ -65,4 +66,5 @@ __all__ = [
     'AudioWindow',
     'WeatherWindow',
     'I2CWindow',
+    'GPIOWindow',
 ]
