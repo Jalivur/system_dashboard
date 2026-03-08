@@ -44,6 +44,7 @@ _BTN_LABELS = {
     "config_editor_window": BL.CONFIG,
     "audio_window":         BL.AUDIO,
     "weather_window":       BL.CLIMA,
+    "i2c_window":           BL.I2C,
 }
 
 

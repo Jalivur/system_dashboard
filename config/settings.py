@@ -174,6 +174,7 @@ class Icons:
     SUNSET              = "\U000f059b"          # 󰖛  nf-md-weather_sunset_down
     BACK                = "\U000F004D"          # 󰁍  nf-md-arrow_left_bold
     AIR                 = "\U000F0595"          # 󰖕  nf-md-weather_windy_variant
+    I2C                 = "\U000F0335"          # 󰌵  nf-md-integrated_circuit_chip
 
     # Círculos de color (estado / LEDs)
     RED_CIRCLE          = "\U0001f534"          # 🔴
@@ -265,6 +266,7 @@ class UI:
                 "BRILLO",
                 "AUDIO",
                 "CAMARA",
+                "I2C",
             ],
         ),
         (

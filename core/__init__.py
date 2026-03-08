@@ -10,11 +10,11 @@ from .process_monitor import ProcessMonitor
 from .service_monitor import ServiceMonitor
 from .update_monitor import UpdateMonitor
 from .cleanup_service import CleanupService
-from .homebridge_monitor import HomebridgeMonitor  
+from .homebridge_monitor import HomebridgeMonitor
 from .alert_service import AlertService
 from .network_scanner import NetworkScanner
 from .pihole_monitor import PiholeMonitor
-from .display_service import DisplayService       
+from .display_service import DisplayService
 from .vpn_monitor import VpnMonitor
 from .led_service import LedService
 from .hardware_monitor import HardwareMonitor
@@ -23,6 +23,8 @@ from .ssh_monitor import SSHMonitor
 from .wifi_monitor import WiFiMonitor
 from .audio_service import AudioService
 from .weather_service import WeatherService
+from .i2c_monitor import I2CMonitor
+
 __all__ = [
     'FanController',
     'SystemMonitor',
@@ -33,7 +35,7 @@ __all__ = [
     'ServiceMonitor',
     'UpdateMonitor',
     'CleanupService',
-    'HomebridgeMonitor',                                 
+    'HomebridgeMonitor',
     'AlertService',
     'NetworkScanner',
     'PiholeMonitor',
@@ -45,5 +47,6 @@ __all__ = [
     'SSHMonitor',
     'WiFiMonitor',
     'AudioService',
-    'WeatherService'
+    'WeatherService',
+    'I2CMonitor',
 ]

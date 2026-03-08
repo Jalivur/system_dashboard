@@ -11,10 +11,12 @@ from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor,
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
                   PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService,
-                  SSHMonitor, WiFiMonitor, AudioService, WeatherService)
+                  SSHMonitor, WiFiMonitor, AudioService)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from core.service_registry import ServiceRegistry
+from core.weather_service import WeatherService
+from core.i2c_monitor import I2CMonitor
 from ui.main_window import MainWindow
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -75,6 +77,7 @@ def main():
     wifi_monitor        = WiFiMonitor()
     audio_service       = AudioService()
     weather_service     = WeatherService()
+    i2c_monitor         = I2CMonitor()
 
     data_service = DataCollectionService(
         system_monitor=system_monitor,
@@ -113,6 +116,7 @@ def main():
     ssh_monitor.start()
     wifi_monitor.start()
     weather_service.start()
+    i2c_monitor.start()
 
     # ── Registrar en el registry y aplicar configuración ─────────────────────
     registry = ServiceRegistry()
@@ -139,6 +143,7 @@ def main():
     registry.register("wifi_monitor",         wifi_monitor)
     registry.register("audio_service",        audio_service)
     registry.register("weather_service",      weather_service)
+    registry.register("i2c_monitor",          i2c_monitor)
     # Para los servicios configurados como False en services.json
     registry.apply_config()
 
@@ -181,6 +186,7 @@ def main():
         audio_alert_service.stop()
         wifi_monitor.stop()
         weather_service.stop()
+    i2c_monitor.stop()
 
     # ── Crear interfaz ────────────────────────────────────────────────────────
     app = MainWindow(root, registry=registry, update_interval=UPDATE_MS)
