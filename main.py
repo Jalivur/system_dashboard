@@ -11,12 +11,34 @@ from config import DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS
 from core import (SystemMonitor, FanController, NetworkMonitor, FanAutoService, DiskMonitor, ProcessMonitor,
                   ServiceMonitor, UpdateMonitor, CleanupService, HomebridgeMonitor, AlertService, NetworkScanner,
                   PiholeMonitor, DisplayService, VpnMonitor, LedService, HardwareMonitor, AudioAlertService,
-                  SSHMonitor, WiFiMonitor)
+                  SSHMonitor, WiFiMonitor, AudioService, GPIOMonitor)
 from core.data_collection_service import DataCollectionService
 from core.data_logger import DataLogger
 from core.service_registry import ServiceRegistry
+from core.weather_service import WeatherService
+from core.i2c_monitor import I2CMonitor
+from core.gpio_monitor import OP_LIBRE
 from ui.main_window import MainWindow
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ── Filtro de excepciones ignoradas ──────────────────────────────────────────
+# Suprime el traceback de Variable.__del__ que aparece al salir cuando el GC
+# recoge StringVar/IntVar de CTkRadioButton tras root.destroy(). Es un bug
+# conocido de CustomTkinter — cosmético, no afecta al comportamiento.
+# "Exception ignored in:" no pasa por sys.stderr — requiere sys.unraisablehook.
+
+def _unraisable_filter(unraisable):
+    """Filtra RuntimeError de Variable.__del__ — deja pasar todo lo demás."""
+    if (unraisable.exc_type is RuntimeError
+            and "main thread is not in main loop" in str(unraisable.exc_value)
+            and unraisable.object is not None
+            and getattr(unraisable.object, "__qualname__", "") == "Variable.__del__"):
+        return
+    sys.__unraisablehook__(unraisable)
+
+sys.unraisablehook = _unraisable_filter
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def main():
@@ -54,6 +76,10 @@ def main():
     audio_alert_service = AudioAlertService(system_monitor, service_monitor)
     ssh_monitor         = SSHMonitor()
     wifi_monitor        = WiFiMonitor()
+    audio_service       = AudioService()
+    weather_service     = WeatherService()
+    i2c_monitor         = I2CMonitor()
+    gpio_monitor        = GPIOMonitor(op_mode=OP_LIBRE)
 
     data_service = DataCollectionService(
         system_monitor=system_monitor,
@@ -91,6 +117,9 @@ def main():
     fan_service.start()
     ssh_monitor.start()
     wifi_monitor.start()
+    weather_service.start()
+    i2c_monitor.start()
+    gpio_monitor.start()
 
     # ── Registrar en el registry y aplicar configuración ─────────────────────
     registry = ServiceRegistry()
@@ -115,6 +144,10 @@ def main():
     registry.register("display_service",      display_service)
     registry.register("ssh_monitor",          ssh_monitor)
     registry.register("wifi_monitor",         wifi_monitor)
+    registry.register("audio_service",        audio_service)
+    registry.register("weather_service",      weather_service)
+    registry.register("i2c_monitor",          i2c_monitor)
+    registry.register("gpio_monitor",         gpio_monitor)
     # Para los servicios configurados como False en services.json
     registry.apply_config()
 
@@ -156,6 +189,9 @@ def main():
         hardware_monitor.stop()
         audio_alert_service.stop()
         wifi_monitor.stop()
+        weather_service.stop()
+        i2c_monitor.stop()
+        gpio_monitor.stop()
 
     # ── Crear interfaz ────────────────────────────────────────────────────────
     app = MainWindow(root, registry=registry, update_interval=UPDATE_MS)

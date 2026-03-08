@@ -140,10 +140,10 @@ class SSHMonitor:
                 self._history      = history
                 self._last_update  = ts
 
-            logger.debug(
+            """logger.debug(
                 f"[SSHMonitor] Poll: {len(sessions)} sesiones activas, "
                 f"{len(history)} entradas historial"
-            )
+            )"""
         except Exception as e:
             logger.error(f"[SSHMonitor] Error en poll: {e}")
 

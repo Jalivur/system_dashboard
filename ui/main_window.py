@@ -23,7 +23,8 @@ from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindo
                         HistoryWindow, LaunchersWindow, ThemeSelector, DiskWindow, UpdatesWindow, HomebridgeWindow,
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
                         LedWindow, CameraWindow, ServicesManagerWindow, LogViewerWindow, ButtonManagerWindow, CrontabWindow,
-                        HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow)
+                        HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow, AudioWindow, WeatherWindow,
+                        I2CWindow, GPIOWindow)
 from ui.window_manager import WindowManager
 from ui.window_lifecycle import WindowLifecycleManager
 from ui.main_badges import BadgeManager
@@ -65,6 +66,10 @@ class MainWindow:
         self.audio_alert_service = registry.get("audio_alert_service")
         self.ssh_monitor         = registry.get("ssh_monitor")
         self.wifi_monitor        = registry.get("wifi_monitor")
+        self.audio_service       = registry.get("audio_service")
+        self.weather_service     = registry.get("weather_service")
+        self.i2c_monitor         = registry.get("i2c_monitor")
+        self.gpio_monitor        = registry.get("gpio_monitor")
 
         self._menu_btns   = {}
         self._active_tab  = UICfg.MENU_TABS[0][0]
@@ -199,12 +204,12 @@ class MainWindow:
         self._menu_btns[BL.BOTONES] = btn_gestor
 
         make_futuristic_button(
-            footer, BL.REINICIAR, command=lambda: restart_application(self.root),
+            footer, BL.REINICIAR, command=lambda: restart_application(self.root, self._update_loop),
             font_size=FONT_SIZES['small'], width=20, height=10
         ).pack(side="left", padx=4, pady=8, expand=True, fill="x")
 
         make_futuristic_button(
-            footer, BL.SALIR, command=lambda: exit_application(self.root),
+            footer, BL.SALIR, command=lambda: exit_application(self.root, self._update_loop),
             font_size=FONT_SIZES['small'], width=20, height=10
         ).pack(side="left", padx=(4, 8), pady=8, expand=True, fill="x")
 
@@ -225,16 +230,17 @@ class MainWindow:
             root=self.root,
             badge_mgr=self._badge_mgr,
             monitors={
-                "system_monitor":    self.system_monitor,
-                "update_monitor":    self.update_monitor,
+                "system_monitor":     self.system_monitor,
+                "update_monitor":     self.update_monitor,
                 "homebridge_monitor": self.homebridge_monitor,
-                "pihole_monitor":    self.pihole_monitor,
-                "vpn_monitor":       self.vpn_monitor,
-                "service_monitor":   self.service_monitor,
+                "pihole_monitor":     self.pihole_monitor,
+                "vpn_monitor":        self.vpn_monitor,
+                "service_monitor":    self.service_monitor,
             },
             update_interval=self.update_interval,
             clock_label=clock_label,
             uptime_label=uptime_label,
+            weather_service=self.weather_service,
         )
 
         # ── Render inicial ────────────────────────────────────────────────────
@@ -314,6 +320,15 @@ class MainWindow:
             lambda: WiFiWindow(root, self.wifi_monitor))
         r("config_editor_window", BL.CONFIG,
             lambda: ConfigEditorWindow(root))
+        r("audio_window",         BL.AUDIO,
+            lambda: AudioWindow(root, self.audio_service))
+        r("weather_window",       BL.CLIMA,
+            lambda: WeatherWindow(root, self.weather_service),
+            badge_keys=["weather_rain"])
+        r("i2c_window",           BL.I2C,
+            lambda: I2CWindow(root, self.i2c_monitor))
+        r("gpio_window",          BL.GPIO,
+            lambda: GPIOWindow(root, self.gpio_monitor))
         r("button_manager",       BL.BOTONES,
             lambda: ButtonManagerWindow(root,
                 registry=self.registry, window_manager=self._wm))
@@ -349,6 +364,10 @@ class MainWindow:
             BL.SSH:               (lambda: self._wlm.open("ssh_window"),           []),
             BL.WIFI:              (lambda: self._wlm.open("wifi_window"),          []),
             BL.CONFIG:            (lambda: self._wlm.open("config_editor_window"), []),
+            BL.AUDIO:             (lambda: self._wlm.open("audio_window"),         []),
+            BL.CLIMA:             (lambda: self._wlm.open("weather_window"),       ["weather_rain"]),
+            BL.I2C:               (lambda: self._wlm.open("i2c_window"),           []),
+            BL.GPIO:              (lambda: self._wlm.open("gpio_window"),          []),
         }
 
     # ── Cambio de pestaña ─────────────────────────────────────────────────────
@@ -382,6 +401,10 @@ class MainWindow:
         "ssh_window":           BL.SSH,
         "wifi_window":          BL.WIFI,
         "config_editor_window": BL.CONFIG,
+        "audio_window":         BL.AUDIO,
+        "weather_window":       BL.CLIMA,
+        "i2c_window":           BL.I2C,
+        "gpio_window":          BL.GPIO,
     }.items()}
 
     def _switch_tab(self, key: str) -> None:

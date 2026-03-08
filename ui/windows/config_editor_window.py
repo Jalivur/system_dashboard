@@ -17,19 +17,14 @@ import customtkinter as ctk
 from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
     DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons
-, Icons)
+)
 import config.settings as _settings
+from config.local_settings_io import read as _ls_read, write as _ls_write
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from ui.widgets import confirm_dialog, custom_msgbox
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-# Ruta del fichero que este editor escribe — nunca settings.py
-_LOCAL_SETTINGS_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "config", "local_settings.py"
-))
 
 # ── Definición de parámetros editables ───────────────────────────────────────
 # Formato: (clave, label, tipo, min, max, paso, descripción)
@@ -151,62 +146,15 @@ def _parse_codepoint(raw: str):
 
 
 def _load_local_settings() -> tuple:
-    """
-    Lee local_settings.py y devuelve (param_overrides, icon_overrides).
-    param_overrides: {clave: valor}   — variables sueltas (CPU_WARN, DSI_X…)
-    icon_overrides:  {attr: escape}   — iconos como \\Uxxxxxxxx
-    Separados para poder mergear correctamente al guardar.
-    """
-    param_overrides = {}
-    icon_overrides  = {}
-    if not os.path.exists(_LOCAL_SETTINGS_PATH):
-        return param_overrides, icon_overrides
-    try:
-        # Leer el fichero línea a línea para detectar asignaciones Icons.*
-        with open(_LOCAL_SETTINGS_PATH, "r", encoding="utf-8") as f:
-            raw = f.read()
-        # Extraer Icons.ATTR = "escape" antes de exec() para no perderlos
-        import re
-        for m in re.finditer(r'^Icons\.(\w+)\s*=\s*"(\\U[0-9A-Fa-f]{8})"', raw, re.MULTILINE):
-            icon_overrides[m.group(1)] = m.group(2)
-        # exec para el resto de variables sueltas
-        ns = {}
-        exec(raw, ns)
-        known_icons_attrs = {a for a, _ in _get_editable_icons()}
-        for k, v in ns.items():
-            if k.startswith("_") or k == "Icons":
-                continue
-            if k in known_icons_attrs:
-                continue   # icono ya capturado arriba
-            param_overrides[k] = v
-    except Exception as e:
-        logger.warning("[ConfigEditor] Error leyendo local_settings.py: %s", e)
-    return param_overrides, icon_overrides
+    """Delega en local_settings_io.read() — fuente única de verdad."""
+    return _ls_read()
 
 
 def _write_local_settings(param_overrides: dict, icon_overrides: dict):
-    lines = [
-        '"""',
-        "Overrides locales generados por Config Editor.",
-        "No editar manualmente — usa la ventana de configuración del dashboard.",
-        '"""',
-        "",
-    ]
-    if param_overrides:
-        lines.append("# ── Parámetros ───────────────────────────────────────────────────────────────")
-        for key, val in param_overrides.items():
-            lines.append(f'{key} = "{val}"' if isinstance(val, str) else f"{key} = {val}")
-        lines.append("")
-    if icon_overrides:
-        lines.append("# ── Iconos ───────────────────────────────────────────────────────────────────")
-        lines.append("from config.settings import Icons")
-        for attr, escape in icon_overrides.items():
-            lines.append(f'Icons.{attr} = "{escape}"')
-        lines.append("")
-    os.makedirs(os.path.dirname(_LOCAL_SETTINGS_PATH), exist_ok=True)
-    with open(_LOCAL_SETTINGS_PATH, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-    logger.info("[ConfigEditor] local_settings.py escrito en %s", _LOCAL_SETTINGS_PATH)
+    """Delega en local_settings_io.write() — fuente única de verdad."""
+    _ls_write(param_overrides, icon_overrides)
+    logger.info("[ConfigEditor] local_settings.py escrito (%d params, %d iconos)",
+                len(param_overrides), len(icon_overrides))
 
 
 # ── Ventana ───────────────────────────────────────────────────────────────────
@@ -448,7 +396,6 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         row = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'], corner_radius=6)
         row.pack(fill="x", padx=14, pady=2)
 
-        # Icono actual — sin width fijo, padding generoso para glifos anchos
         ctk.CTkLabel(
             row,
             text=current_char,
@@ -457,7 +404,6 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             padx=10, pady=4,
         ).pack(side="left")
 
-        # Nombre del atributo
         ctk.CTkLabel(
             row, text=attr,
             font=(FONT_FAMILY, FONT_SIZES['small'], "bold"),
@@ -465,7 +411,6 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             width=200,
         ).pack(side="left", padx=(0, 8))
 
-        # Preview nuevo icono — sin width fijo
         preview = ctk.CTkLabel(
             row, text="",
             font=(FONT_FAMILY, FONT_SIZES['large']),
@@ -475,7 +420,6 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         preview.pack(side="right")
         self._icon_previews[attr] = preview
 
-        # Entrada codepoint
         entry = ctk.CTkEntry(
             row, textvariable=var,
             width=170, height=32,
@@ -555,7 +499,6 @@ class ConfigEditorWindow(ctk.CTkToplevel):
                 continue
             try:
                 cp, escape = _parse_codepoint(raw)
-                # Comparar con el codepoint actual del icono
                 try:
                     current_cp = ord(current_char)
                 except TypeError:
@@ -565,15 +508,16 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             except ValueError as e:
                 errors.append(f"Icono {attr}: {e}")
 
-        # Mergear con overrides ya guardados — los nuevos tienen prioridad,
-        # pero los que no están en el formulario se conservan intactos.
-        merged_params = dict(self._saved_params)
+        # Leer estado actual del fichero en el momento de guardar
+        # (puede haber cambiado desde que se abrió la ventana, p.ej. favoritos de clima)
+        current_params, current_icons = _load_local_settings()
+
+        merged_params = current_params
         merged_params.update(param_overrides)
-        # Eliminar los que han vuelto al default
         merged_params = {k: v for k, v in merged_params.items()
                          if v != getattr(_settings, k, None)}
 
-        merged_icons = dict(self._saved_icons)
+        merged_icons = current_icons
         merged_icons.update(icon_overrides)
 
         return merged_params, merged_icons, errors
@@ -644,9 +588,10 @@ class ConfigEditorWindow(ctk.CTkToplevel):
                     self._icon_vars[attr].set("")
                 if attr in self._icon_previews:
                     self._icon_previews[attr].configure(text="")
-            if os.path.exists(_LOCAL_SETTINGS_PATH):
+            from config.local_settings_io import _PATH
+            if os.path.exists(_PATH):
                 try:
-                    os.remove(_LOCAL_SETTINGS_PATH)
+                    os.remove(_PATH)
                     logger.info("[ConfigEditor] local_settings.py eliminado")
                 except Exception as e:
                     logger.error("[ConfigEditor] Error borrando local_settings.py: %s", e)

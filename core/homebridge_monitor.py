@@ -31,9 +31,9 @@ def _load_env():
     try:
         from dotenv import load_dotenv
         load_dotenv(env_path, override=False)
-        logger.debug("[HomebridgeMonitor] .env cargado con python-dotenv")
+        #logger.debug("[HomebridgeMonitor] .env cargado con python-dotenv")
     except ImportError:
-        logger.debug("[HomebridgeMonitor] python-dotenv no instalado, usando parser manual")
+        logger.info("[HomebridgeMonitor] python-dotenv no instalado, usando parser manual")
         with open(env_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -307,7 +307,7 @@ class HomebridgeMonitor:
         with self._accessories_lock:
             self._accessories = devices
 
-        logger.debug(
+        """logger.debug(
             "[HomebridgeMonitor] Sondeo OK — %d dispositivos (%s)",
             len(devices),
             ", ".join(
@@ -315,7 +315,7 @@ class HomebridgeMonitor:
                 for t in ('switch','light','thermostat','sensor','blind')
                 if any(d['type']==t for d in devices)
             ),
-        )
+        )"""
         return devices
 
     def get_accessories_cached(self) -> List[Dict]:

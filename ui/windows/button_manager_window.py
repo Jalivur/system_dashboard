@@ -42,6 +42,10 @@ _BTN_LABELS = {
     "camera_window":        BL.CAMARA,
     "theme_selector":       BL.TEMA,
     "config_editor_window": BL.CONFIG,
+    "audio_window":         BL.AUDIO,
+    "weather_window":       BL.CLIMA,
+    "i2c_window":           BL.I2C,
+    "gpio_window":          BL.GPIO,
 }
 
 
