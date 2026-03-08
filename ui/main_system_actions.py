@@ -9,8 +9,8 @@ Uso en MainWindow:
     from ui.main_system_actions import exit_application, restart_application
 
     # En _create_ui footer:
-    make_futuristic_button(..., command=lambda: exit_application(self.root))
-    make_futuristic_button(..., command=lambda: restart_application(self.root))
+    make_futuristic_button(..., command=lambda: exit_application(self.root, self._update_loop))
+    make_futuristic_button(..., command=lambda: restart_application(self.root, self._update_loop))
 """
 import sys
 import os
@@ -23,12 +23,13 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def exit_application(root) -> None:
+def exit_application(root, update_loop=None) -> None:
     """
     Muestra el dialogo de opciones de salida (salir / apagar sistema).
 
     Args:
-        root: ventana Tk raiz del dashboard
+        root:        ventana Tk raiz del dashboard
+        update_loop: instancia de UpdateLoop (se detiene antes de destroy)
     """
     selection_window = ctk.CTkToplevel(root)
     selection_window.title("Opciones de Salida")
@@ -54,7 +55,7 @@ def exit_application(root) -> None:
         font=(FONT_FAMILY, FONT_SIZES['xlarge'], "bold"),
     ).pack(pady=(10, 10))
 
-    selection_var = ctk.StringVar(master=selection_window, value="exit")
+    selection_var = ctk.StringVar(master=root, value="exit")
     options_frame = ctk.CTkFrame(main_frame, fg_color=COLORS['bg_dark'])
     options_frame.pack(fill="x", pady=5, padx=20)
 
@@ -70,7 +71,7 @@ def exit_application(root) -> None:
         text_color=COLORS['text'], font=(FONT_FAMILY, FONT_SIZES['medium']))
     shutdown_radio.pack(anchor="w", padx=20, pady=12)
 
-    StyleManager.style_radiobutton_ctk(exit_radio,    radiobutton_width=30, radiobutton_height=30)
+    StyleManager.style_radiobutton_ctk(exit_radio,     radiobutton_width=30, radiobutton_height=30)
     StyleManager.style_radiobutton_ctk(shutdown_radio, radiobutton_width=30, radiobutton_height=30)
 
     buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
@@ -83,6 +84,9 @@ def exit_application(root) -> None:
         if selected == "exit":
             def do_exit():
                 logger.info("[SystemActions] Cerrando dashboard por solicitud del usuario")
+                # Detener el UpdateLoop antes de destruir — evita after() huérfanos
+                if update_loop is not None:
+                    update_loop.stop()
                 root.quit()
                 root.destroy()
             confirm_dialog(
@@ -119,15 +123,19 @@ def exit_application(root) -> None:
     selection_window.bind("<Escape>", lambda e: on_cancel())
 
 
-def restart_application(root) -> None:
+def restart_application(root, update_loop=None) -> None:
     """
     Muestra confirmacion y reinicia el proceso del dashboard via os.execv.
 
     Args:
-        root: ventana Tk raiz del dashboard
+        root:        ventana Tk raiz del dashboard
+        update_loop: instancia de UpdateLoop (se detiene antes de destroy)
     """
     def do_restart():
         logger.info("[SystemActions] Reiniciando dashboard")
+        # Detener el UpdateLoop antes de destruir — evita after() huérfanos
+        if update_loop is not None:
+            update_loop.stop()
         root.quit()
         root.destroy()
         os.execv(sys.executable,

@@ -64,6 +64,7 @@ class WindowManager:
         "wifi_window":          BL.WIFI,
         "config_editor_window": BL.CONFIG,
         "audio_window":         BL.AUDIO,
+        "weather_window":       BL.CLIMA,
     }
 
     _ALWAYS_VISIBLE = [

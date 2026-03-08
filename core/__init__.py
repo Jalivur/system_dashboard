@@ -22,6 +22,7 @@ from .audio_alert_service import AudioAlertService
 from .ssh_monitor import SSHMonitor
 from .wifi_monitor import WiFiMonitor
 from .audio_service import AudioService
+from .weather_service import WeatherService
 __all__ = [
     'FanController',
     'SystemMonitor',
@@ -43,5 +44,6 @@ __all__ = [
     'AudioAlertService',
     'SSHMonitor',
     'WiFiMonitor',
-    'AudioService'
+    'AudioService',
+    'WeatherService'
 ]

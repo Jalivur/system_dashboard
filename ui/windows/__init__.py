@@ -30,6 +30,8 @@ from .ssh_window import SSHWindow
 from .wifi_window import WiFiWindow
 from .config_editor_window import ConfigEditorWindow
 from .audio_window import AudioWindow
+from ui.windows.weather_window import WeatherWindow
+
 
 __all__ = [
     'FanControlWindow',
@@ -61,4 +63,5 @@ __all__ = [
     'WiFiWindow',
     'ConfigEditorWindow',
     'AudioWindow',
+    'WeatherWindow'
 ]

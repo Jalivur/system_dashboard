@@ -109,6 +109,7 @@ class Icons:
     AUDIO               = "\U000f075a"          # 󰝚  nf-md-music_note
     VOLUME_HIGH         = "\U000f057e"          # 󰕾  nf-md-volume_high
     VOLUME_MUTE         = "\U000f0580"          # 󰖀  nf-md-volume_mute
+    CLIMA               = "\U0001f324\ufe0f"    # 🌤️  nf-weather icon
     REINICIAR           = "\U000f0453"          # 󰑓
     SALIR               = "\U000f0fc5"          # 󰿅
     CONFIG              = "\ueb52"
@@ -137,6 +138,8 @@ class Icons:
     TAP                 = "\U000F0741"
     ETHERNET            = "\U000F0200"
     CALENDAR_RANGE      = "\U000F0679"         # 󰙹  nf-md-calendar_range
+    CALENDAR            = "\U000F0150"         # 󰅐  nf-md-calendar
+    CLOCK               = "\U000F0954"         # 󰥔  nf-md-clock_outline
     # Lanzadores
     NAS                 = "\U000F08F3"         # 󰣳
     MONTAR              = "\U000F0318"         # 󰌘
@@ -162,6 +165,16 @@ class Icons:
     THERMOMETER         = "\U0001f321"          # 🌡
     FIRE                = "\U0001f525"          # 🔥
 
+    # Clima — iconos Nerd Font para garantizar render con FiraMono
+    WEATHER_HUMIDITY    = "\U000f058e"          # 󰖎  nf-md-water_percent
+    WEATHER_WIND        = "\U000f059d"          # 󰖝  nf-md-weather_windy
+    WEATHER_PRECIP_PCT  = "\U000f0597"          # 󰖗  nf-md-weather_rainy
+    SUN                 = "\U000f0599"          # 󰖙  nf-md-weather_sunny
+    SUNRISE             = "\U000f059a"          # 󰖚  nf-md-weather_sunset_up
+    SUNSET              = "\U000f059b"          # 󰖛  nf-md-weather_sunset_down
+    BACK                = "\U000F004D"          # 󰁍  nf-md-arrow_left_bold
+    AIR                 = "\U000F0595"          # 󰖕  nf-md-weather_windy_variant
+
     # Círculos de color (estado / LEDs)
     RED_CIRCLE          = "\U0001f534"          # 🔴
     GREEN_CIRCLE        = "\U0001f7e2"          # 🟢
@@ -183,6 +196,7 @@ class Icons:
     DROPLET             = "\U0001f4a7"          # 💧
     UNLOCK              = "\U0001f513"          # 🔓
     DELETE              = "\U0001f5d1"          # 🗑
+    STAR                = "\U0001f31f"          # 🌟
 
     # Brillo (fases de luna)
     MOON_NEW            = "\U0001f311"          # 🌑
@@ -197,6 +211,7 @@ class Icons:
     TAB_SERVICIOS       = "\u2699\ufe0f"        # ⚙️
     TAB_REGISTROS       = "\U000f163f"          # 󱘿
     TAB_CONFIG          = "\ueb52"              # (mismo que CONFIG)
+    TAB_CLIMA           = "\U0001f324\ufe0f"    # 🌤️
 
 
 # ── Menú principal por pestañas ───────────────────────────────────────────────
@@ -281,6 +296,14 @@ class UI:
             [
                 "CONFIG",
                 "TEMA",
+            ],
+        ),
+        (
+            "clima",
+            Icons.TAB_CLIMA,
+            "Clima",
+            [
+                "CLIMA",
             ],
         ),
     ]

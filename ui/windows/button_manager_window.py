@@ -43,6 +43,7 @@ _BTN_LABELS = {
     "theme_selector":       BL.TEMA,
     "config_editor_window": BL.CONFIG,
     "audio_window":         BL.AUDIO,
+    "weather_window":       BL.CLIMA,
 }
 
 
