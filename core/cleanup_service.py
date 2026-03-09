@@ -73,6 +73,7 @@ class CleanupService:
         self.interval_hours = interval_hours
 
         self._running = False
+        self._stop_evt = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._initialized = True
 
@@ -89,6 +90,7 @@ class CleanupService:
             logger.info("[CleanupService] Ya está corriendo")
             return
         self._running = True
+        self._stop_evt.clear()
         self._thread = threading.Thread(
             target=self._run, daemon=True, name="CleanupService"
         )
@@ -100,6 +102,7 @@ class CleanupService:
         if not self._running:
             return
         self._running = False
+        self._stop_evt.set()
         if self._thread:
             self._thread.join(timeout=5)
         logger.info("[CleanupService] Servicio detenido")
@@ -108,13 +111,9 @@ class CleanupService:
         """Bucle principal: limpia al arrancar y luego cada interval_hours."""
         self._cleanup_cycle()
         interval_seconds = self.interval_hours * 3600
-        elapsed = 0.0
-        while self._running:
-            time.sleep(0.5)
-            elapsed += 0.5
-            if elapsed >= interval_seconds:
+        while not self._stop_evt.wait(timeout=interval_seconds):
+            if self._running:
                 self._cleanup_cycle()
-                elapsed = 0.0
 
     # ── Lógica de limpieza ────────────────────────────────────────────────────
 
