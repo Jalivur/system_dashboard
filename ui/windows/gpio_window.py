@@ -77,6 +77,7 @@ class GPIOWindow(ctk.CTkToplevel):
         self._lbl_status: ctk.CTkLabel | None = None
         self._btn_op: ctk.CTkButton | None    = None
         self._lbl_op: ctk.CTkLabel | None     = None
+        self._op_job = None
         self._last_op_mode: str = self._monitor.get_op_mode()
 
         self._create_ui()
@@ -165,7 +166,7 @@ class GPIOWindow(ctk.CTkToplevel):
             args=(new,),
             daemon=True, name="GPIO-opmode",
         ).start()
-        self.after(200, self._on_op_mode_changed)
+        self._op_job = self.after(200, self._on_op_mode_changed)
 
     def _on_op_mode_changed(self):
         if not self.winfo_exists():
@@ -711,11 +712,12 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
             self.after(1500, lambda: (feedback_label.winfo_exists() and
                                       feedback_label.configure(text="")))
 
-    def destroy(self):
         """Al cerrar notifica a GPIOWindow para que reconstruya sus filas."""
-        if self._on_close:
+    def destroy(self) -> None:
+        if self._op_job is not None:
             try:
-                self._on_close()
+                self.after_cancel(self._op_job)
             except Exception:
                 pass
+        logger.info("[GPIOWindow] Ventana cerrada")
         super().destroy()

@@ -11,6 +11,7 @@ El uptime se lee del caché de SystemMonitor.
 import platform
 import subprocess
 import psutil
+import threading
 import customtkinter as ctk
 from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
@@ -102,12 +103,35 @@ class HardwareInfoWindow(ctk.CTkToplevel):
 
         self._uptime_tick  = 0
         self._uptime_label = None
-        self._info         = _gather_static_info()
-
+        
+        self._info = {}
         self._create_ui()
-        self._tick_uptime()
-        logger.info("[HardwareInfoWindow] Ventana abierta")
 
+        threading.Thread(
+            target=self._load_info,
+            daemon=True,
+            name="HWInfoLoad"
+        ).start()
+        logger.info("[HardwareInfoWindow] Ventana abierta")
+        
+    def _load_info(self) -> None:
+        """Carga info estática en background y rellena la UI."""
+        info = _gather_static_info()
+        if self.winfo_exists():
+            self.after(0, lambda: self._populate_info(info))
+    
+    def _populate_info(self, info: dict) -> None:
+        """Rellena la UI con los datos ya cargados (main thread)."""
+        if not self.winfo_exists():
+            return
+        self._info = info
+        # Limpiar skeleton
+        for w in self._inner.winfo_children():
+            w.destroy()
+        # Reconstruir con datos reales
+        self._build_content(self._inner)
+        self._uptime_tick = 0
+        self._tick_uptime()
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
@@ -135,8 +159,17 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         inner.bind("<Configure>",
                    lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        self._build_content(inner)
-
+        self._inner = inner    # guarda referencia para _populate_info
+        self._show_loading(inner)
+    def _show_loading(self, parent) -> None:
+        """Muestra texto de carga mientras _gather_static_info trabaja."""
+        ctk.CTkLabel(
+            parent,
+            text="Cargando información del hardware...",
+            font=(FONT_FAMILY, FONT_SIZES['medium']),
+            text_color=COLORS['text_dim'],
+        ).pack(pady=40)
+    
     def _build_content(self, inner):
         info = self._info
 

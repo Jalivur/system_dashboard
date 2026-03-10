@@ -95,7 +95,7 @@ class USBWindow(ctk.CTkToplevel):
         storage_devices = self.system_utils.list_usb_storage_devices()
         other_devices = self.system_utils.list_usb_other_devices()
         
-        logger.debug(f"[USBWindow] Dispositivos detectados: {len(storage_devices)} almacenamiento, {len(other_devices)} otros")
+        logger.debug("[USBWindow] Dispositivos detectados: %d almacenamiento, %d otros", len(storage_devices), len(other_devices))
         
         if storage_devices:
             self._create_storage_section(storage_devices)
@@ -281,12 +281,12 @@ class USBWindow(ctk.CTkToplevel):
         """Expulsa un dispositivo USB"""
         device_name = device.get('name', 'dispositivo')
         
-        logger.info(f"[USBWindow] Intentando expulsar: '{device_name}' ({device.get('dev', '?')})")
+        logger.info("[USBWindow] Intentando expulsar: '%s' (%s)", device_name, device.get('dev', '?'))
         
         success, message = self.system_utils.eject_usb_device(device)
         
         if success:
-            logger.info(f"[USBWindow] Expulsión exitosa: '{device_name}'")
+            logger.info("[USBWindow] Expulsión exitosa: '%s'", device_name)
             custom_msgbox(
                 self,
                 f"{Icons.OK} {device_name}\n\n{message}\n\nAhora puedes desconectar el dispositivo de forma segura.",
@@ -294,7 +294,7 @@ class USBWindow(ctk.CTkToplevel):
             )
             self._refresh_devices()
         else:
-            logger.error(f"[USBWindow] Error expulsando '{device_name}': {message}")
+            logger.error("[USBWindow] Error expulsando '%s': %s", device_name, message)
             custom_msgbox(
                 self,
                 f"{Icons.ERROR} Error al expulsar {device_name}:\n\n{message}",

@@ -5,6 +5,8 @@ Ventana de escaneo I2C — muestra dispositivos detectados en cada bus.
 Solo lectura. Refresco manual o automático cada 30s.
 """
 import tkinter as tk
+import time
+import threading
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
@@ -242,11 +244,10 @@ class I2CWindow(ctk.CTkToplevel):
 
         def _do():
             self._mon.scan_now()
-            import time; time.sleep(2)
+            time.sleep(2)
             if self.winfo_exists():
                 self.after(0, self._on_scan_done)
 
-        import threading
         threading.Thread(target=_do, daemon=True, name="I2CScanUI").start()
 
     def _on_scan_done(self) -> None:

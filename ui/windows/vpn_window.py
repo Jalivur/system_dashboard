@@ -192,6 +192,8 @@ class VpnWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _update(self):
+        if not self.winfo_exists():
+            return
         
         if not self.vpn_monitor._running:
             StyleManager.show_service_stopped_banner(self._content_frame, "VPN Monitor")

@@ -156,6 +156,8 @@ class OverviewWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _update(self):
+        if not self.winfo_exists():
+            return
         if not self._running:
             return
         try:

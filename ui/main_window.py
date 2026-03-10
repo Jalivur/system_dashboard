@@ -75,7 +75,7 @@ class MainWindow:
         self._active_tab  = UICfg.MENU_TABS[0][0]
         self._tab_buttons = {}
 
-        logger.info(f"[MainWindow] Dashboard iniciado en {self.system_utils.get_hostname()}")
+        logger.info("[MainWindow] Dashboard iniciado en %s", self.system_utils.get_hostname())
 
         self._create_ui()
         self._update_loop.start()
@@ -427,14 +427,14 @@ class MainWindow:
         for bl_key in bl_keys:
             label = getattr(BL, bl_key, None)
             if label is None:
-                logger.warning(f"[MainWindow] BL.{bl_key} no existe — omitido")
+                logger.warning("[MainWindow] BL.%s no existe — omitido", bl_key)
                 continue
             json_key = self._BL_TO_KEY.get(label)
             if json_key is not None and not self.registry.ui_enabled(json_key):
                 continue
             meta = self._buttons_meta.get(label)
             if meta is None:
-                logger.warning(f"[MainWindow] Sin meta para '{label}' — omitido")
+                logger.warning("[MainWindow] Sin meta para '%s' — omitido", label)
                 continue
             command, badge_keys = meta
             btn = make_futuristic_button(
