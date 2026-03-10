@@ -369,9 +369,9 @@ class AudioWindow(ctk.CTkToplevel):
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    logger.info(f"[AudioWindow] play_test: {wav}")
+                    logger.info("[AudioWindow] play_test: %s", wav)
                 except Exception as e:
-                    logger.warning(f"[AudioWindow] play_test error: {e}")
+                    logger.warning("[AudioWindow] play_test error: %s", e)
             else:
                 logger.warning("[AudioWindow] play_test: no se encontró ningún wav")
         threading.Thread(target=_worker, daemon=True, name="AudioTest").start()

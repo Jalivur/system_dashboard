@@ -254,7 +254,7 @@ class LogViewerWindow(ctk.CTkToplevel):
                         if p:
                             lines.append(p)
         except Exception as e:
-            logger.error(f"[LogViewerWindow] Error leyendo log: {e}")
+            logger.error("[LogViewerWindow] Error leyendo log: %s", e)
 
         self._all_lines = lines
         self._loading = False
@@ -381,11 +381,11 @@ class LogViewerWindow(ctk.CTkToplevel):
             with open(export_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(result))
             custom_msgbox(self, f"Exportado en:\n{export_path}", "Exportar")
-            logger.info(f"[LogViewerWindow] Log exportado: {export_path}")
+            logger.info("[LogViewerWindow] Log exportado: %s", e)
             try:
                 CleanupService().clean_log_exports()
             except Exception as e:
-                logger.warning(f"[LogViewerWindow] No se pudo limpiar exports: {e}")
+                logger.warning("[LogViewerWindow] No se pudo limpiar exports: %s", e)
         except OSError as e:
             custom_msgbox(self, f"Error al exportar:\n{e}", "Error")
-            logger.error(f"[LogViewerWindow] Error exportando: {e}")
+            logger.error("[LogViewerWindow] Error exportando: %s", e)

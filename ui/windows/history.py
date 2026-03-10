@@ -338,8 +338,9 @@ class HistoryWindow(ctk.CTkToplevel):
         self._custom_end   = end_dt
 
         logger.info(
-            f"[HistoryWindow] Rango aplicado: "
-            f"{start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%Y-%m-%d %H:%M')}"
+            "[HistoryWindow] Rango aplicado: %s → %s",
+            start_dt.strftime('%Y-%m-%d %H:%M'),
+            end_dt.strftime('%Y-%m-%d %H:%M')
         )
         self._update_data()
 
@@ -448,7 +449,7 @@ class HistoryWindow(ctk.CTkToplevel):
                 try:
                     CleanupService().clean_csv()
                 except Exception as ce:
-                    logger.warning(f"[HistoryWindow] No se pudo limpiar CSV: {ce}")
+                    logger.warning("[HistoryWindow] No se pudo limpiar CSV: %s", ce)
             except Exception as e:
                 custom_msgbox(self, f"Error al exportar:\n{e}\n{Icons.ERROR} Error")
         else:
@@ -461,7 +462,7 @@ class HistoryWindow(ctk.CTkToplevel):
                 try:
                     CleanupService().clean_csv()
                 except Exception as ce:
-                    logger.warning(f"[HistoryWindow] No se pudo limpiar CSV: {ce}")
+                    logger.warning("[HistoryWindow] No se pudo limpiar CSV: %s", ce)
             except Exception as e:
                 custom_msgbox(self, f"Error al exportar:\n{e}\n{Icons.ERROR} Error")
 
@@ -479,10 +480,10 @@ class HistoryWindow(ctk.CTkToplevel):
                     f"• BD limpiada: {'Sí' if result['db_ok'] else 'No'}"
                 )
                 custom_msgbox(self, msg, "" + Icons.OK + " Limpiado")
-                logger.info(f"[HistoryWindow] Limpieza manual completada: {result}")
+                logger.info("[HistoryWindow] Limpieza manual completada: %s", result)
                 self._update_data()
             except Exception as e:
-                logger.error(f"[HistoryWindow] Error en limpieza manual: {e}")
+                logger.error("[HistoryWindow] Error en limpieza manual: %s", e)
                 custom_msgbox(self, f"Error al limpiar:\n{e}\n{Icons.ERROR} Error")
 
         confirm_dialog(
@@ -513,14 +514,14 @@ class HistoryWindow(ctk.CTkToplevel):
                 facecolor=self.fig.get_facecolor(),
                 bbox_inches='tight'
             )
-            logger.info(f"[HistoryWindow] Figura guardada: {filepath}")
+            logger.info("[HistoryWindow] Figura guardada: %s", filepath)
             custom_msgbox(self, f"Imagen guardada en:\n{filepath}\n{Icons.OK} Captura Guardada")
             try:
                 CleanupService().clean_png()
             except Exception as ce:
-                logger.warning(f"[HistoryWindow] No se pudo limpiar PNG: {ce}")
+                logger.warning("[HistoryWindow] No se pudo limpiar PNG: %s", ce)
         except Exception as e:
-            logger.error(f"[HistoryWindow] Error guardando imagen: {e}")
+            logger.error("[HistoryWindow] Error guardando imagen: %s", e)
             custom_msgbox(self, f"Error al guardar la imagen: {e}\n{Icons.ERROR} Error")
 
     # ─────────────────────────────────────────────
@@ -529,7 +530,7 @@ class HistoryWindow(ctk.CTkToplevel):
 
     def _on_click(self, event):
         if event.inaxes:
-            logger.debug(f"Click en gráfica: x={event.xdata}, y={event.ydata}")
+            logger.debug("Click en gráfica: x=%s, y=%s", event.xdata, event.ydata)
 
     def _on_release(self, event):
         pass

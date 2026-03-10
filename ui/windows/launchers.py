@@ -119,7 +119,7 @@ class LaunchersWindow(ctk.CTkToplevel):
         """Ejecuta un script usando la terminal integrada tras confirmar"""
 
         def do_execute():
-            logger.info(f"[LaunchersWindow] Ejecutando script: '{label}' → {script_path}")
+            logger.info("[LaunchersWindow] Ejecutando script: '%s' → %s", label, script_path)
             terminal_dialog(
                 parent=self,
                 script_path=script_path,
