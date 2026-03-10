@@ -16,6 +16,8 @@ Arquitectura:
 """
 import tkinter as tk
 import customtkinter as ctk
+import threading, time
+from datetime import datetime
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, Icons
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from utils.logger import get_logger
@@ -471,7 +473,6 @@ class WeatherWindow(ctk.CTkToplevel):
             return
 
         try:
-            from datetime import datetime
             fmt = "%H:%M"
             now   = datetime.now()
             t_sr  = datetime.strptime(sr, fmt).replace(
@@ -682,8 +683,6 @@ class WeatherWindow(ctk.CTkToplevel):
         self._error_lbl.configure(
             text=f"Buscando '{city}'...", text_color=COLORS['text_dim'])
 
-        import threading
-
         def _do():
             result = self._svc.set_city(city)
             self.after(0, lambda: self._on_search_done(result))
@@ -708,8 +707,7 @@ class WeatherWindow(ctk.CTkToplevel):
         self._refresh_btn.configure(state="disabled")
         self._error_lbl.configure(text="Actualizando...", text_color=COLORS['text_dim'])
 
-        import threading, time
-
+        
         def _do():
             self._svc.fetch_now()
             time.sleep(2)

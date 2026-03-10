@@ -2,6 +2,7 @@
 Ventana de control de LEDs RGB del GPIO Board.
 Hardware: Freenove FNK0100K — 4 LEDs RGB (I2C 0x21, gestionados por fase1.py).
 """
+import tkinter as tk
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, UPDATE_MS, Icons
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
@@ -133,7 +134,7 @@ class LedWindow(ctk.CTkToplevel):
                      font=(FONT_FAMILY, FONT_SIZES['small']),
                      text_color=COLORS['text_dim']).pack(side="left", padx=(0, 10))
 
-        import tkinter as tk
+        
         self._preview_canvas = tk.Canvas(preview_row, width=60, height=30,
                                          bg="#000000", highlightthickness=1,
                                          highlightbackground=COLORS['border'])
