@@ -27,9 +27,9 @@ class SystemMonitor:
     def __init__(self):
         self.system_utils = SystemUtils()
 
-        self.cpu_hist  = deque(maxlen=HISTORY)
-        self.ram_hist  = deque(maxlen=HISTORY)
-        self.temp_hist = deque(maxlen=HISTORY)
+        self._cpu_hist  = deque(maxlen=HISTORY)
+        self._ram_hist  = deque(maxlen=HISTORY)
+        self._temp_hist = deque(maxlen=HISTORY)
 
         self._cache_lock = threading.Lock()
         self._cached: Dict = {
@@ -114,15 +114,15 @@ class SystemMonitor:
     get_cached_stats = get_current_stats
 
     def update_history(self, stats: Dict) -> None:
-        self.cpu_hist.append(stats['cpu'])
-        self.ram_hist.append(stats['ram'])
-        self.temp_hist.append(stats['temp'])
+        self._cpu_hist.append(stats['cpu'])
+        self._ram_hist.append(stats['ram'])
+        self._temp_hist.append(stats['temp'])
 
     def get_history(self) -> Dict:
         return {
-            'cpu':  list(self.cpu_hist),
-            'ram':  list(self.ram_hist),
-            'temp': list(self.temp_hist),
+            'cpu':  list(self._cpu_hist),
+            'ram':  list(self._ram_hist),
+            'temp': list(self._temp_hist),
         }
 
     @staticmethod

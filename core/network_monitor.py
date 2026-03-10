@@ -19,18 +19,18 @@ class NetworkMonitor:
     """Monitor de red con gestión de estadísticas y speedtest"""
 
     def __init__(self):
-        self.system_utils  = SystemUtils()
+        self._system_utils = SystemUtils()
         self._running      = True
 
-        self.download_hist = deque(maxlen=HISTORY)
-        self.upload_hist   = deque(maxlen=HISTORY)
+        self._download_hist = deque(maxlen=HISTORY)
+        self._upload_hist   = deque(maxlen=HISTORY)
 
-        self.last_net_io   = {}
-        self.last_used_iface = None
-        self.dynamic_max   = NET_MAX_MB
-        self.idle_counter  = 0
+        self._last_net_io   = {}
+        self._last_used_iface = None
+        self._dynamic_max   = NET_MAX_MB
+        self._idle_counter  = 0
 
-        self.speedtest_result = {
+        self._speedtest_result = {
             "status":   "idle",
             "ping":     0,
             "download": 0.0,
@@ -45,9 +45,9 @@ class NetworkMonitor:
 
     def stop(self) -> None:
         self._running = False
-        self.download_hist.clear()
-        self.upload_hist.clear()
-        self.speedtest_result = {"status": "idle", "ping": 0, "download": 0.0, "upload": 0.0}
+        self._download_hist.clear()
+        self._upload_hist.clear()
+        self._speedtest_result = {"status": "idle", "ping": 0, "download": 0.0, "upload": 0.0}
         logger.info("[NetworkMonitor] Detenido")
 
     # ── API pública ───────────────────────────────────────────────────────────
@@ -65,19 +65,19 @@ class NetworkMonitor:
         if not self._running:
             return {'interface': '', 'download_mb': 0.0, 'upload_mb': 0.0}
 
-        iface, stats = self.system_utils.get_net_io(interface)
-        prev         = self.last_net_io.get(iface)
-        dl, ul       = self.system_utils.safe_net_speed(stats, prev)
+        iface, stats = self._system_utils.get_net_io(interface)
+        prev         = self._last_net_io.get(iface)
+        dl, ul       = self._system_utils.safe_net_speed(stats, prev)
 
-        self.last_net_io[iface] = stats
-        self.last_used_iface    = iface
+        self._last_net_io[iface] = stats
+        self._last_used_iface    = iface
 
         return {'interface': iface, 'download_mb': dl, 'upload_mb': ul}
 
     def update_history(self, stats: Dict) -> None:
         """Actualiza historiales de red."""
-        self.download_hist.append(stats['download_mb'])
-        self.upload_hist.append(stats['upload_mb'])
+        self._download_hist.append(stats['download_mb'])
+        self._upload_hist.append(stats['upload_mb'])
 
     def adaptive_scale(self, current_max: float, recent_data: list) -> float:
         """
@@ -96,12 +96,12 @@ class NetworkMonitor:
         peak = max(recent_data)
 
         if peak < NET_IDLE_THRESHOLD:
-            self.idle_counter += 1
-            if self.idle_counter >= NET_IDLE_RESET_TIME:
-                self.idle_counter = 0
+            self._idle_counter += 1
+            if self._idle_counter >= NET_IDLE_RESET_TIME:
+                self._idle_counter = 0
                 return NET_MAX_MB
         else:
-            self.idle_counter = 0
+            self._idle_counter = 0
 
         if peak > current_max * 0.8:
             new_max = peak * 1.2
@@ -114,17 +114,17 @@ class NetworkMonitor:
 
     def update_dynamic_scale(self) -> None:
         """Actualiza la escala dinámica basada en el historial."""
-        all_data = list(self.download_hist) + list(self.upload_hist)
-        self.dynamic_max = self.adaptive_scale(self.dynamic_max, all_data)
+        all_data = list(self._download_hist) + list(self._upload_hist)
+        self._dynamic_max = self.adaptive_scale(self._dynamic_max, all_data)
 
     def get_history(self) -> Dict:
         """Obtiene historiales de red."""
         if not self._running:
             return {'download': [], 'upload': [], 'dynamic_max': NET_MAX_MB}
         return {
-            'download':    list(self.download_hist),
-            'upload':      list(self.upload_hist),
-            'dynamic_max': self.dynamic_max,
+            'download':    list(self._download_hist),
+            'upload':      list(self._upload_hist),
+            'dynamic_max': self._dynamic_max,
         }
 
     def run_speedtest(self) -> None:
@@ -135,7 +135,7 @@ class NetworkMonitor:
 
         def _run():
             logger.info("[NetworkMonitor] Iniciando speedtest...")
-            self.speedtest_result["status"] = "running"
+            self._speedtest_result["status"] = "running"
             try:
                 result = subprocess.run(
                     ["speedtest", "--format=json", "--accept-license", "--accept-gdpr"],
@@ -146,7 +146,7 @@ class NetworkMonitor:
                     ping     = data["ping"]["latency"]
                     download = data["download"]["bandwidth"] / 1_000_000
                     upload   = data["upload"]["bandwidth"]   / 1_000_000
-                    self.speedtest_result.update({
+                    self._speedtest_result.update({
                         "status":   "done",
                         "ping":     round(ping, 1),
                         "download": round(download, 2),
@@ -161,33 +161,33 @@ class NetworkMonitor:
                         "[NetworkMonitor] speedtest retornó código %d: %s",
                         result.returncode, result.stderr
                     )
-                    self.speedtest_result["status"] = "error"
+                    self._speedtest_result["status"] = "error"
 
             except subprocess.TimeoutExpired:
                 logger.warning("[NetworkMonitor] Speedtest timeout (>90s)")
-                self.speedtest_result["status"] = "timeout"
+                self._speedtest_result["status"] = "timeout"
             except FileNotFoundError:
                 logger.error(
                     "[NetworkMonitor] speedtest no encontrado. "
                     "Instala el CLI oficial de Ookla: https://www.speedtest.net/apps/cli"
                 )
-                self.speedtest_result["status"] = "error"
+                self._speedtest_result["status"] = "error"
             except (json.JSONDecodeError, KeyError) as e:
                 logger.error("[NetworkMonitor] Error parseando resultado de speedtest: %s", e)
-                self.speedtest_result["status"] = "error"
+                self._speedtest_result["status"] = "error"
             except Exception as e:
                 logger.error("[NetworkMonitor] Error inesperado en speedtest: %s", e)
-                self.speedtest_result["status"] = "error"
+                self._speedtest_result["status"] = "error"
 
         threading.Thread(target=_run, daemon=True).start()
 
     def get_speedtest_result(self) -> Dict:
         """Obtiene el resultado del speedtest."""
-        return self.speedtest_result.copy()
-
+        return self._speedtest_result.copy()
+    
     def reset_speedtest(self) -> None:
         """Resetea el estado del speedtest."""
-        self.speedtest_result = {"status": "idle", "ping": 0, "download": 0.0, "upload": 0.0}
+        self._speedtest_result = {"status": "idle", "ping": 0, "download": 0.0, "upload": 0.0}
 
     @staticmethod
     def net_color(value: float) -> str:

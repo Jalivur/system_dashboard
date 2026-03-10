@@ -17,12 +17,12 @@ class DiskMonitor:
     """Monitor de disco con historial"""
 
     def __init__(self):
-        self.system_utils = SystemUtils()
+        self._system_utils = SystemUtils()
 
-        self.usage_hist    = deque(maxlen=HISTORY)
-        self.read_hist     = deque(maxlen=HISTORY)
-        self.write_hist    = deque(maxlen=HISTORY)
-        self.nvme_temp_hist = deque(maxlen=HISTORY)
+        self._usage_hist    = deque(maxlen=HISTORY)
+        self._read_hist     = deque(maxlen=HISTORY)
+        self._write_hist    = deque(maxlen=HISTORY)
+        self._nvme_temp_hist = deque(maxlen=HISTORY)
 
         self._cache_lock = threading.Lock()
         self._cache: Dict = {
@@ -32,7 +32,7 @@ class DiskMonitor:
             'nvme_temp':    0.0,
         }
 
-        self.last_disk_io = psutil.disk_io_counters()
+        self._last_disk_io = psutil.disk_io_counters()
         self._running   = False
         self._stop_evt  = threading.Event()
         self._thread    = None
@@ -78,14 +78,14 @@ class DiskMonitor:
             disk_usage = psutil.disk_usage('/').percent
 
             disk_io     = psutil.disk_io_counters()
-            read_bytes  = max(0, disk_io.read_bytes  - self.last_disk_io.read_bytes)
-            write_bytes = max(0, disk_io.write_bytes - self.last_disk_io.write_bytes)
-            self.last_disk_io = disk_io
+            read_bytes  = max(0, disk_io.read_bytes  - self._last_disk_io.read_bytes)
+            write_bytes = max(0, disk_io.write_bytes - self._last_disk_io.write_bytes)
+            self._last_disk_io = disk_io
 
             read_mb  = (read_bytes  / (1024 * 1024)) / self._interval_s
             write_mb = (write_bytes / (1024 * 1024)) / self._interval_s
 
-            nvme_temp = self.system_utils.get_nvme_temp()
+            nvme_temp = self._system_utils.get_nvme_temp()
             stats = {
                 'disk_usage':   disk_usage,
                 'disk_read_mb': read_mb,
@@ -120,10 +120,10 @@ class DiskMonitor:
         Args:
             stats: Diccionario con estadísticas
         """
-        self.usage_hist.append(stats['disk_usage'])
-        self.read_hist.append(stats['disk_read_mb'])
-        self.write_hist.append(stats['disk_write_mb'])
-        self.nvme_temp_hist.append(stats['nvme_temp'])
+        self._usage_hist.append(stats['disk_usage'])
+        self._read_hist.append(stats['disk_read_mb'])
+        self._write_hist.append(stats['disk_write_mb'])
+        self._nvme_temp_hist.append(stats['nvme_temp'])
 
     def get_history(self) -> Dict:
         """
@@ -133,10 +133,10 @@ class DiskMonitor:
             Diccionario con historiales
         """
         return {
-            'disk_usage': list(self.usage_hist),
-            'disk_read':  list(self.read_hist),
-            'disk_write': list(self.write_hist),
-            'nvme_temp':  list(self.nvme_temp_hist),
+            'disk_usage': list(self._usage_hist),
+            'disk_read':  list(self._read_hist),
+            'disk_write': list(self._write_hist),
+            'nvme_temp':  list(self._nvme_temp_hist),
         }
 
     def get_nvme_smart(self) -> dict:

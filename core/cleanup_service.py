@@ -66,12 +66,12 @@ class CleanupService:
             logger.debug("[CleanupService] Instancia singleton ya inicializada — parámetros ignorados")
             return
 
-        self.data_logger    = data_logger
-        self.max_csv        = max_csv
-        self.max_png        = max_png
-        self.max_log        = max_log
-        self.db_days        = db_days
-        self.interval_hours = interval_hours
+        self._data_logger    = data_logger
+        self._max_csv        = max_csv
+        self._max_png        = max_png
+        self._max_log        = max_log
+        self._db_days        = db_days
+        self._interval_hours = interval_hours
 
         self._running = False
         self._stop_evt = threading.Event()
@@ -80,7 +80,7 @@ class CleanupService:
 
         logger.info(
             "[CleanupService] Configurado — CSV: %d, PNG: %d, LOG: %d, BD: %dd, intervalo: %gh",
-            max_csv, max_png, max_log, db_days, interval_hours
+            self._max_csv, self._max_png, self._max_log, self._db_days, self._interval_hours
         )
 
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ class CleanupService:
     def _run(self):
         """Bucle principal: limpia al arrancar y luego cada interval_hours."""
         self._cleanup_cycle()
-        interval_seconds = self.interval_hours * 3600
+        interval_seconds = self._interval_hours * 3600
         while not self._stop_evt.wait(timeout=interval_seconds):
             if self._running:
                 self._cleanup_cycle()
@@ -126,7 +126,7 @@ class CleanupService:
         self.clean_csv()
         self.clean_png()
         self.clean_log_exports()
-        if self.data_logger:
+        if self._data_logger:
             self.clean_db()
         logger.info("[CleanupService] Ciclo de limpieza completado")
 
@@ -135,14 +135,14 @@ class CleanupService:
         Elimina los CSV exportados más antiguos que superen el límite.
 
         Args:
-            max_files: Límite a aplicar. Si es None usa self.max_csv.
+            max_files: Límite a aplicar. Si es None usa self._max_csv.
 
         Returns:
             Número de archivos eliminados.
         """
         if not self._running:
             return 0
-        limit   = max_files if max_files is not None else self.max_csv
+        limit   = max_files if max_files is not None else self._max_csv
         pattern = os.path.join(str(EXPORTS_CSV_DIR), "history_*.csv")
         return self._trim_files(pattern, limit, "CSV")
 
@@ -151,14 +151,14 @@ class CleanupService:
         Elimina los PNG exportados más antiguos que superen el límite.
 
         Args:
-            max_files: Límite a aplicar. Si es None usa self.max_png.
+            max_files: Límite a aplicar. Si es None usa self._max_png.
 
         Returns:
             Número de archivos eliminados.
         """
         if not self._running:
             return 0
-        limit   = max_files if max_files is not None else self.max_png
+        limit   = max_files if max_files is not None else self._max_png
         pattern = os.path.join(str(EXPORTS_SCR_DIR), "*.png")
         return self._trim_files(pattern, limit, "PNG")
 
@@ -167,14 +167,14 @@ class CleanupService:
         Elimina los archivos de exportación de logs más antiguos que superen el límite.
 
         Args:
-            max_files: Límite a aplicar. Si es None usa self.max_log.
+            max_files: Límite a aplicar. Si es None usa self._max_log.
 
         Returns:
             Número de archivos eliminados.
         """
         if not self._running:
             return 0
-        limit   = max_files if max_files is not None else self.max_log
+        limit   = max_files if max_files is not None else self._max_log
         pattern = os.path.join(str(EXPORTS_LOG_DIR), "log_export_*.log")
         return self._trim_files(pattern, limit, "LOG_EXPORT")
 
@@ -183,19 +183,19 @@ class CleanupService:
         Elimina registros de la BD más antiguos que 'days' días.
 
         Args:
-            days: Antigüedad máxima. Si es None usa self.db_days.
+            days: Antigüedad máxima. Si es None usa self._db_days.
 
         Returns:
             True si la limpieza fue exitosa.
         """
         if not self._running:
             return False
-        if not self.data_logger:
+        if not self._data_logger:
             logger.warning("[CleanupService] No hay data_logger configurado")
             return False
-        d = days if days is not None else self.db_days
+        d = days if days is not None else self._db_days
         try:
-            self.data_logger.clean_old_data(days=d)
+            self._data_logger.clean_old_data(days=d)
             logger.info("[CleanupService] BD limpiada — registros >%dd eliminados", d)
             return True
         except Exception as e:
@@ -250,11 +250,11 @@ class CleanupService:
         return {
             'running':        self._running,
             'thread_alive':   self._thread.is_alive() if self._thread else False,
-            'interval_hours': self.interval_hours,
-            'max_csv':        self.max_csv,
-            'max_png':        self.max_png,
-            'max_log':        self.max_log,
-            'db_days':        self.db_days,
+            'interval_hours': self._interval_hours,
+            'max_csv':        self._max_csv,
+            'max_png':        self._max_png,
+            'max_log':        self._max_log,
+            'db_days':        self._db_days,
             'csv_count':      len(csv_files),
             'png_count':      len(png_files),
             'log_count':      len(log_files),
@@ -271,7 +271,7 @@ class CleanupService:
         deleted_csv = self.clean_csv()
         deleted_png = self.clean_png()
         deleted_log = self.clean_log_exports()
-        db_ok       = self.clean_db() if self.data_logger else False
+        db_ok       = self.clean_db() if self._data_logger else False
         logger.info(
             "[CleanupService] Limpieza manual completada — CSV: %d, PNG: %d, LOG: %d, BD: %s",
             deleted_csv, deleted_png, deleted_log, db_ok
