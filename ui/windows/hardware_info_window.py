@@ -163,8 +163,6 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         self._show_loading(inner)
     def _show_loading(self, parent) -> None:
         """Muestra texto de carga mientras _gather_static_info trabaja."""
-        import customtkinter as ctk
-        from config.settings import COLORS, FONT_FAMILY, FONT_SIZES
         ctk.CTkLabel(
             parent,
             text="Cargando información del hardware...",
