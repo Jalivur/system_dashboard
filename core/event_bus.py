@@ -59,7 +59,7 @@ class EventBus:
             if event_name not in self._subscribers:
                 self._subscribers[event_name] = []
             self._subscribers[event_name].append(callback)
-            logger.debug(f"[EventBus] Suscriptor añadido: {event_name}")
+            logger.debug("[EventBus] Suscriptor añadido: %s", event_name)
     
     def unsubscribe(self, event_name: str, callback: Callable) -> None:
         """Desuscribirse de un evento."""
@@ -97,7 +97,7 @@ class EventBus:
                 except queue.Empty:
                     break
         except Exception as e:
-            logger.error(f"[EventBus] Error procesando eventos: {e}")
+            logger.error("[EventBus] Error procesando eventos: %s", e)
     
     def _dispatch_event(self, event_name: str, data: Any) -> None:
         """Ejecutar callbacks para un evento."""
@@ -109,7 +109,7 @@ class EventBus:
             try:
                 callback(data)
             except Exception as e:
-                logger.error(f"[EventBus] Error en callback para '{event_name}': {e}")
+                logger.error("[EventBus] Error en callback para '%s': %s", event_name, e)
     
     def clear(self) -> None:
         """Limpiar todos los suscriptores (útil para tests)."""

@@ -29,7 +29,7 @@ def _run(cmd: list) -> str:
         )
         return result.stdout.strip()
     except Exception as e:
-        logger.warning(f"[WiFiMonitor] Error ejecutando {cmd}: {e}")
+        logger.warning("[WiFiMonitor] Error ejecutando %s: %s", cmd, e)
         return ""
 
 
@@ -141,7 +141,7 @@ class WiFiMonitor:
             target=self._loop, daemon=True, name="WiFiMonitor"
         )
         self._thread.start()
-        logger.info(f"[WiFiMonitor] Servicio iniciado — interfaz: {self._iface}")
+        logger.info("[WiFiMonitor] Servicio iniciado — interfaz: %s", self._iface)
 
     def stop(self):
         self._running = False
@@ -204,7 +204,7 @@ class WiFiMonitor:
             )"""
 
         except Exception as e:
-            logger.error(f"[WiFiMonitor] Error en poll: {e}")
+            logger.error("[WiFiMonitor] Error en poll: %s", e)
 
     def _read_proc_net_dev(self) -> tuple:
         """Lee rx_bytes y tx_bytes de /proc/net/dev para la interfaz."""
@@ -217,7 +217,7 @@ class WiFiMonitor:
                         # rx_bytes = col 1, tx_bytes = col 9
                         return int(parts[1]), int(parts[9])
         except Exception as e:
-            logger.warning(f"[WiFiMonitor] Error leyendo /proc/net/dev: {e}")
+            logger.warning("[WiFiMonitor] Error leyendo /proc/net/dev: %s", e)
         return 0, 0
 
     def _calc_speed(self, rx: int, tx: int) -> tuple:

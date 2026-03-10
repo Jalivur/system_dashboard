@@ -26,7 +26,7 @@ class HardwareMonitor:
     def __init__(self):
         self._lock    = threading.Lock()
         self._running = False
-        self._stop    = threading.Event()
+        self._stop_evt    = threading.Event()
         self._thread  = None
         self._data    = {
             "chassis_temp": None,
@@ -41,7 +41,7 @@ class HardwareMonitor:
         if self._running:
             return
         self._running = True
-        self._stop.clear()
+        self._stop_evt.clear()
         self._thread = threading.Thread(
             target=self._loop, daemon=True, name="HardwareMonitor"
         )
@@ -50,7 +50,7 @@ class HardwareMonitor:
 
     def stop(self):
         self._running = False
-        self._stop.set()
+        self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
         self._cache = {}
@@ -64,8 +64,8 @@ class HardwareMonitor:
                 self._poll()
             except Exception as e:
                 logger.error("[HardwareMonitor] Error: %s", e)
-            self._stop.wait(timeout=6)
-            if self._stop.is_set():
+            self._stop_evt.wait(timeout=6)
+            if self._stop_evt.is_set():
                 break
 
     def _poll(self):

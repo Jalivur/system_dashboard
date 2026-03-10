@@ -18,9 +18,9 @@ class UpdateMonitor:
         self._lock          = threading.Lock()
         # Inicializar con tiempo actual para que la caché sea válida desde el inicio
         # Solo ejecuta apt update real cuando: arranque (main.py) o usuario pulsa "Buscar"
-        self.last_check_time = time.time()
-        self.cached_result = {"pending": 0, "status": "Unknown", "message": "No comprobado"}
-        self.check_interval = 43200  # 12 horas en segundos
+        self._last_check_time = time.time()
+        self._cached_result = {"pending": 0, "status": "Unknown", "message": "No comprobado"}
+        self._check_interval = 43200  # 12 horas en segundos
 
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ class UpdateMonitor:
     def stop(self) -> None:
         self._running = False
         with self._lock:
-            self.cached_result = {"pending": 0, "status": "Unknown", "message": "Servicio parado"}
+            self._cached_result = {"pending": 0, "status": "Unknown", "message": "Servicio parado"}
         logger.info("[UpdateMonitor] Detenido")
 
     # ── API pública ───────────────────────────────────────────────────────────
@@ -52,11 +52,11 @@ class UpdateMonitor:
 
         current_time = time.time()
         with self._lock:
-            cached = dict(self.cached_result)
-            last   = self.last_check_time
+            cached = dict(self._cached_result)
+            last   = self._last_check_time
 
         # Devolver caché si no ha pasado el intervalo y no se fuerza
-        if not force and (current_time - last) < self.check_interval:
+        if not force and (current_time - last) < self._check_interval:
             logger.debug("[UpdateMonitor] Devolviendo resultado en caché")
             return cached
 
@@ -86,8 +86,8 @@ class UpdateMonitor:
                 "message": f"{count} paquetes pendientes" if count > 0 else "Sistema al día"
             }
             with self._lock:
-                self.cached_result = result
-                self.last_check_time  = current_time
+                self._cached_result = result
+                self._last_check_time  = current_time
             return result
 
         except subprocess.TimeoutExpired:

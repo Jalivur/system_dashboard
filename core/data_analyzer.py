@@ -113,7 +113,7 @@ class DataAnalyzer:
             data = self.get_data_range_between(start, end)
             return self._extract_metric(data, metric)
         except Exception as e:
-            logger.error(f"[DataAnalyzer] get_graph_data_between '$s': %s", metric, e)
+            logger.error("[DataAnalyzer] get_graph_data_between '%s': %s", metric, e)
             return [], []
 
     def export_to_csv_between(self, output_path: str, start: datetime, end: datetime):
