@@ -48,8 +48,8 @@ class _MetricState:
 class AudioAlertService:
 
     def __init__(self, system_monitor, service_monitor=None):
-        self.system_monitor  = system_monitor
-        self.service_monitor = service_monitor
+        self._system_monitor = system_monitor
+        self._service_monitor = service_monitor
 
         self._lock      = threading.Lock()
         self._running   = False
@@ -120,7 +120,7 @@ class AudioAlertService:
         now = time.time()
 
         try:
-            stats = self.system_monitor.get_current_stats()
+            stats = self._system_monitor.get_current_stats()
         except Exception:
             return
 
@@ -129,9 +129,9 @@ class AudioAlertService:
             "cpu":  stats.get("cpu",  0),
             "ram":  stats.get("ram",  0),
         }
-        if self.service_monitor:
+        if self._service_monitor:
             try:
-                values["services"] = self.service_monitor.get_stats().get("failed", 0)
+                values["services"] = self._service_monitor.get_stats().get("failed", 0)
             except Exception:
                 values["services"] = 0
         else:

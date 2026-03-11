@@ -22,7 +22,7 @@ class DataAnalyzer:
     """Analiza datos históricos de la base de datos"""
 
     def __init__(self, db_path: str = f"{DATA_DIR}/history.db"):
-        self.db_path = db_path
+        self._db_path = db_path
 
     # ─────────────────────────────────────────────
     # Métodos basados en horas
@@ -31,7 +31,7 @@ class DataAnalyzer:
     def get_data_range(self, hours: int = 24) -> List[Dict]:
         """Obtiene datos de las últimas X horas"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(self._db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
@@ -81,7 +81,7 @@ class DataAnalyzer:
     def get_data_range_between(self, start: datetime, end: datetime) -> List[Dict]:
         """Obtiene datos entre dos fechas exactas"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(self._db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
@@ -157,7 +157,7 @@ class DataAnalyzer:
     def _get_stats_between(self, start: datetime, end: datetime) -> Dict:
         """Lógica común de estadísticas para cualquier rango start→end."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(self._db_path) as conn:
                 cursor = conn.cursor()
 
                 cursor.execute('''

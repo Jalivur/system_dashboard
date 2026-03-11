@@ -38,9 +38,9 @@ class FanAutoService:
         if hasattr(self, '_initialized'):
             return
 
-        self.fan_controller  = fan_controller
-        self.system_monitor  = system_monitor
-        self.file_manager    = FileManager()
+        self._fan_controller  = fan_controller
+        self._system_monitor  = system_monitor
+        self._file_manager    = FileManager()
 
         self._running          = False
         self._thread: Optional[threading.Thread] = None
@@ -88,7 +88,7 @@ class FanAutoService:
     def _update_auto_mode(self):
         """Actualiza el PWM si está en modo auto."""
         try:
-            state = self.file_manager.load_state()
+            state = self._file_manager.load_state()
         except Exception as e:
             logger.error("[FanAutoService] Error cargando estado: %s", e)
             return
@@ -97,12 +97,12 @@ class FanAutoService:
             return
 
         try:
-            stats      = self.system_monitor.get_current_stats()
+            stats      = self._system_monitor.get_current_stats()
             temp       = stats.get('temp', 50)
-            target_pwm = self.fan_controller.get_pwm_for_mode(mode="auto", temp=temp)
+            target_pwm = self._fan_controller.get_pwm_for_mode(mode="auto", temp=temp)
 
             if target_pwm != state.get("target_pwm"):
-                self.file_manager.write_state({"mode": "auto", "target_pwm": target_pwm})
+                self._file_manager.write_state({"mode": "auto", "target_pwm": target_pwm})
         except Exception as e:
             logger.error("[FanAutoService] Error calculando o guardando PWM: %s", e)
 

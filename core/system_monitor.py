@@ -25,7 +25,7 @@ class SystemMonitor:
     """
 
     def __init__(self):
-        self.system_utils = SystemUtils()
+        self._system_utils = SystemUtils()
 
         self._cpu_hist  = deque(maxlen=HISTORY)
         self._ram_hist  = deque(maxlen=HISTORY)
@@ -78,7 +78,7 @@ class SystemMonitor:
         try:
             cpu  = psutil.cpu_percent()
             vm   = psutil.virtual_memory()
-            temp = self.system_utils.get_cpu_temp()
+            temp = self._system_utils.get_cpu_temp()
 
             uptime_s = time.time() - _BOOT_TIME
             days     = int(uptime_s // 86400)
