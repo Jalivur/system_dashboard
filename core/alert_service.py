@@ -68,8 +68,8 @@ class AlertService:
     """
 
     def __init__(self, system_monitor, service_monitor):
-        self.system_monitor  = system_monitor
-        self.service_monitor = service_monitor
+        self._system_monitor  = system_monitor
+        self._service_monitor = service_monitor
 
         self._token, self._chat_id = _load_telegram_config()
 
@@ -122,7 +122,7 @@ class AlertService:
                 break
 
     def _check_metrics(self) -> None:
-        stats = self.system_monitor.get_current_stats()
+        stats = self._system_monitor.get_current_stats()
         checks = [
             ('temp', stats.get('temp',       0), '°C', '🌡️ Temperatura'),
             ('cpu',  stats.get('cpu',         0), '%',  '🔥 CPU'),
@@ -151,7 +151,7 @@ class AlertService:
                     self._reset(f"{key}_{suffix}")
 
     def _check_services(self) -> None:
-        stats  = self.service_monitor.get_stats()
+        stats  = self._service_monitor.get_stats()
         failed = stats.get('failed', 0)
         key    = 'services_failed'
         if failed > 0:
