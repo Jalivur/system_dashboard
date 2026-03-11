@@ -14,14 +14,14 @@ class DataLogger:
 
     def __init__(self, db_path: str = "data/history.db"):
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        self.db_path = db_path
+        self._db_path = db_path
         self._init_database()
-        self.dashboard_logger = DashboardLogger()
+        self._dashboard_logger = DashboardLogger()
         self.check_and_rotate_db(max_mb=5.0)
 
     def _init_database(self):
         """Inicializa la base de datos con las tablas necesarias"""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self._db_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute('''
@@ -67,7 +67,7 @@ class DataLogger:
         La timestamp se genera con datetime.now() para usar la hora local del sistema,
         evitando el desfase UTC que produce DEFAULT CURRENT_TIMESTAMP de SQLite.
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self._db_path) as conn:
             cursor = conn.cursor()
 
             # Hora local explícita — SQLite CURRENT_TIMESTAMP siempre es UTC
@@ -100,7 +100,7 @@ class DataLogger:
 
     def log_event(self, event_type: str, severity: str, message: str, data: Dict = None):
         """Registra un evento con hora local."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self._db_path) as conn:
             cursor = conn.cursor()
 
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -115,7 +115,7 @@ class DataLogger:
 
     def get_metrics_count(self) -> int:
         """Obtiene el número total de registros"""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self._db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT COUNT(*) FROM metrics')
             count = cursor.fetchone()[0]
@@ -124,14 +124,14 @@ class DataLogger:
 
     def get_db_size_mb(self) -> float:
         """Obtiene el tamaño de la base de datos en MB"""
-        db_file = Path(self.db_path)
+        db_file = Path(self._db_path)
         if db_file.exists():
             return db_file.stat().st_size / (1024 * 1024)
         return 0.0
 
-    def clean_old_data(self, days: int = 7):
+    def clean_old_data(self, days: int = 30):
         """Elimina datos más antiguos de X días"""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self._db_path) as conn:
             cursor = conn.cursor()
 
             cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
@@ -145,9 +145,9 @@ class DataLogger:
 
     def check_and_rotate_db(self, max_mb: float = 5.0):
         """Si la DB supera el tamaño máximo, elimina datos antiguos"""
-        log = self.dashboard_logger.get_logger(__name__)
-        log.info(f"[DataLogger] Verificando tamaño BD... {self.get_db_size_mb():.2f} MB")
+        log = self._dashboard_logger.get_logger(__name__)
+        log.info("[DataLogger] Verificando tamaño BD... %.2F MB", self.get_db_size_mb())
         if self.get_db_size_mb() > max_mb:
-            log.warning(f"[DataLogger] BD supera {max_mb} MB. Limpiando...")
-            self.clean_old_data(days=7)
-            log.info(f"[DataLogger] Limpieza completada. Nuevo tamaño: {self.get_db_size_mb():.2f} MB")
+            log.warning("[DataLogger] BD supera %.1f MB. Limpiando...", max_mb)
+            self.clean_old_data(days=30)
+            log.info("[DataLogger] Limpieza completada. Nuevo tamaño: %.2f MB", self.get_db_size_mb())

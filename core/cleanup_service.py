@@ -31,7 +31,7 @@ class CleanupService:
     DEFAULT_MAX_CSV        = 10
     DEFAULT_MAX_PNG        = 10
     DEFAULT_MAX_LOG        = 10
-    DEFAULT_DB_DAYS        = 30
+    DEFAULT_DB_DAYS        = 90
     DEFAULT_INTERVAL_HOURS = 24
 
     def __new__(cls, *args, **kwargs):
@@ -79,7 +79,7 @@ class CleanupService:
         self._initialized = True
 
         logger.info(
-            "[CleanupService] Configurado — CSV: %d, PNG: %d, LOG: %d, BD: %dd, intervalo: %gh",
+            "[CleanupService] Configurado — CSV: %d, PNG: %d, LOG: %d, BD: %d Dias, intervalo: %g Horas",
             self._max_csv, self._max_png, self._max_log, self._db_days, self._interval_hours
         )
 
