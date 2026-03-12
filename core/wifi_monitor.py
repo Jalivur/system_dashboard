@@ -9,6 +9,7 @@ import threading
 from collections import deque
 from typing import Optional
 from config.settings import HISTORY
+from datetime import datetime
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -161,8 +162,6 @@ class WiFiMonitor:
 
     def _poll(self):
         try:
-            from datetime import datetime
-
             # ── Señal via iwconfig ─────────────────────────────────────────────
             iwconfig_raw = _run(["iwconfig", self._iface])
             iw_data      = _parse_iwconfig(iwconfig_raw)

@@ -21,6 +21,11 @@ import threading
 import time
 import json
 from typing import Optional, List
+import urllib.request
+import urllib.parse
+import urllib.request
+from datetime import datetime, date
+from config.local_settings_io import update_params, read
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -239,9 +244,6 @@ class WeatherService:
     def _geocode(self, city: str) -> dict:
         """Busca coordenadas para una ciudad via Open-Meteo Geocoding API."""
         try:
-            import urllib.request
-            import urllib.parse
-
             params = urllib.parse.urlencode({
                 "name":     city,
                 "count":    1,
@@ -281,10 +283,6 @@ class WeatherService:
             return
 
         try:
-            import urllib.request
-            import urllib.parse
-            from datetime import datetime
-
             params = urllib.parse.urlencode({
                 "latitude":  lat,
                 "longitude": lon,
@@ -379,7 +377,6 @@ class WeatherService:
                 d_code = d_codes[i] if i < len(d_codes) else 0
                 _, d_icon = _wmo_label(d_code)
                 try:
-                    from datetime import date
                     d = date.fromisoformat(d_times[i])
                     label = "Hoy" if i == 0 else _DAY_NAMES[d.weekday()]
                     date_str = d.strftime("%d/%m")
@@ -469,7 +466,6 @@ class WeatherService:
     def _persist_location(self, city: str, lat: float, lon: float) -> None:
         """Guarda ciudad activa y coordenadas en config/local_settings.py."""
         try:
-            from config.local_settings_io import update_params
             update_params({
                 "WEATHER_CITY": city,
                 "WEATHER_LAT":  lat,
@@ -481,7 +477,6 @@ class WeatherService:
     def _persist_favorites(self, favorites: List[str], max_fav: int) -> None:
         """Guarda lista de favoritos y máximo en config/local_settings.py."""
         try:
-            from config.local_settings_io import update_params
             update_params({
                 "WEATHER_FAVORITES":     favorites,
                 "WEATHER_MAX_FAVORITES": max_fav,
@@ -492,7 +487,6 @@ class WeatherService:
     def _load_persisted_location(self) -> None:
         """Carga ciudad, coordenadas, favoritos y máximo desde local_settings."""
         try:
-            from config.local_settings_io import read
             params, _ = read()
 
             city  = params.get("WEATHER_CITY")
