@@ -9,6 +9,7 @@ import threading
 from collections import deque
 from typing import Optional
 from config.settings import HISTORY
+from datetime import datetime
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -125,8 +126,8 @@ class WiFiMonitor:
 
         # Históricos
         self.signal_hist = deque(maxlen=HISTORY)
-        self.rx_hist     = deque(maxlen=HISTORY)
-        self.tx_hist     = deque(maxlen=HISTORY)
+        self._rx_hist     = deque(maxlen=HISTORY)
+        self._tx_hist     = deque(maxlen=HISTORY)
 
         self._last_update: str = ""
 
@@ -161,8 +162,6 @@ class WiFiMonitor:
 
     def _poll(self):
         try:
-            from datetime import datetime
-
             # ── Señal via iwconfig ─────────────────────────────────────────────
             iwconfig_raw = _run(["iwconfig", self._iface])
             iw_data      = _parse_iwconfig(iwconfig_raw)
@@ -194,8 +193,8 @@ class WiFiMonitor:
 
                 if iw_data["signal_dbm"] is not None:
                     self.signal_hist.append(iw_data["signal_dbm"])
-                self.rx_hist.append(rx_mbps)
-                self.tx_hist.append(tx_mbps)
+                self._rx_hist.append(rx_mbps)
+                self._tx_hist.append(tx_mbps)
 
             """logger.debug(
                 f"[WiFiMonitor] Poll: ssid={iw_data['ssid']} "
@@ -257,8 +256,8 @@ class WiFiMonitor:
                 "rx_mbps":     self._rx_mbps,
                 "tx_mbps":     self._tx_mbps,
                 "signal_hist": list(self.signal_hist),
-                "rx_hist":     list(self.rx_hist),
-                "tx_hist":     list(self.tx_hist),
+                "rx_hist":     list(self._rx_hist),
+                "tx_hist":     list(self._tx_hist),
                 "last_update": self._last_update,
             }
         finally:

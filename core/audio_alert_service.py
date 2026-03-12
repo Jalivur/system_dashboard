@@ -46,10 +46,16 @@ class _MetricState:
 
 
 class AudioAlertService:
-
+    """
+    Servicio de alertas sonoras via los altavoces del FNK0100K.
+    Reproduce archivos WAV cuando CPU, RAM, temperatura o servicios
+    superan los umbrales configurados en _THRESHOLDS.
+    Corre en thread daemon con patrón _stop_evt estándar.
+    """
+    
     def __init__(self, system_monitor, service_monitor=None):
-        self.system_monitor  = system_monitor
-        self.service_monitor = service_monitor
+        self._system_monitor = system_monitor
+        self._service_monitor = service_monitor
 
         self._lock      = threading.Lock()
         self._running   = False
@@ -94,7 +100,7 @@ class AudioAlertService:
     def play_test(self):
         """Prueba: reproduce temp_crit.wav"""
         threading.Thread(
-            target=self._play, args=(_sound("temp", "crit"),), daemon=True
+            target=self._play, args=(_sound("temp", "crit"),), daemon=True, name="AudioAlert-PlayWav"
         ).start()
 
     # ── Bucle ─────────────────────────────────────────────────────────────────
@@ -120,7 +126,7 @@ class AudioAlertService:
         now = time.time()
 
         try:
-            stats = self.system_monitor.get_current_stats()
+            stats = self._system_monitor.get_current_stats()
         except Exception:
             return
 
@@ -129,9 +135,9 @@ class AudioAlertService:
             "cpu":  stats.get("cpu",  0),
             "ram":  stats.get("ram",  0),
         }
-        if self.service_monitor:
+        if self._service_monitor:
             try:
-                values["services"] = self.service_monitor.get_stats().get("failed", 0)
+                values["services"] = self._service_monitor.get_stats().get("failed", 0)
             except Exception:
                 values["services"] = 0
         else:
@@ -159,7 +165,8 @@ class AudioAlertService:
                                    key, val, thresh["unit"])
                     state.last_played = now
                     threading.Thread(
-                        target=self._play, args=(_sound(key, "crit"),), daemon=True
+                        target=self._play, args=(_sound(key, "crit"),), daemon=True,
+                        name="AudioAlert-PlayWav"
                     ).start()
 
             # ── WARN: {metric}_warn.wav cada WARN_REPEAT_S ───────────────────
@@ -169,7 +176,8 @@ class AudioAlertService:
                                 key, val, thresh["unit"])
                     state.last_played = now
                     threading.Thread(
-                        target=self._play, args=(_sound(key, "warn"),), daemon=True
+                        target=self._play, args=(_sound(key, "warn"),), daemon=True,
+                        name="AudioAlert-PlayWav"
                     ).start()
 
             # ── OK: {metric}_ok.wav una vez al recuperarse ───────────────────
@@ -178,7 +186,8 @@ class AudioAlertService:
                             key, val, thresh["unit"])
                 state.last_played = now
                 threading.Thread(
-                    target=self._play, args=(_sound(key, "ok"),), daemon=True
+                    target=self._play, args=(_sound(key, "ok"),), daemon=True,
+                    name="AudioAlert-PlayWav"
                 ).start()
 
     # ── Reproducción ─────────────────────────────────────────────────────────

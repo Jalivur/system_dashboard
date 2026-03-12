@@ -25,6 +25,7 @@ class AudioService:
                 ["amixer", "sget", control],
                 stderr=subprocess.DEVNULL,
                 text=True,
+                timeout=3
             )
             for line in out.splitlines():
                 if "%" in line:
@@ -40,7 +41,7 @@ class AudioService:
         value = max(0, min(100, value))
         try:
             subprocess.run(
-                ["amixer", "sset", control, "{value}%"],
+                ["amixer", "sset", control, f"{value}%"],
                 check=True, capture_output=True,
             )
             return True
@@ -55,6 +56,7 @@ class AudioService:
                 ["amixer", "sget", control],
                 stderr=subprocess.DEVNULL,
                 text=True,
+                timeout=3
             )
             for line in out.splitlines():
                 if "[off]" in line:
@@ -101,6 +103,7 @@ class AudioService:
                 ["amixer", "scontrols"],
                 stderr=subprocess.DEVNULL,
                 text=True,
+                timeout=3
             )
             controls = [l.split("'")[1] for l in out.splitlines() if "'" in l]
             return controls if controls else [self.DEFAULT_CONTROL]

@@ -308,7 +308,7 @@ class AudioWindow(ctk.CTkToplevel):
         self._set_vu_from_vol(vol)
         if self._muted:
             self._muted = False
-            self._update_mute_ui()
+        self._update_mute_ui()
         self._run_async(self._svc.set_volume, vol, self._control.get())
 
     def _set_quick(self, pct: int):
@@ -394,8 +394,7 @@ class AudioWindow(ctk.CTkToplevel):
             self._state_label.configure(text="Reproduciendo", text_color=COLORS['success'])
             self._mute_btn.configure(text=f"{Icons.VOLUME_MUTE}  Silenciar")
             self._slider.configure(state="normal", button_color=COLORS['primary'])
-            self._header.status_label.configure(
-                text=f"Vol {vol}%", text_color=COLORS['text_dim'])
+            self._header.status_label.configure(text=f"Vol {vol}%", text_color=COLORS['text_dim'])
 
     # ── Cierre ────────────────────────────────────────────────────────────────
 

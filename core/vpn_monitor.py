@@ -156,4 +156,4 @@ class VpnMonitor:
         """Fuerza una comprobación inmediata (útil tras conectar/desconectar)."""
         if not self._running:
             return
-        threading.Thread(target=self._poll, daemon=True).start()
+        threading.Thread(target=self._poll, daemon=True, name="VpnMonitor-ForcePoll").start()

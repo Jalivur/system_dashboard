@@ -12,7 +12,7 @@ class FanController:
     """Controlador para gestión de ventiladores"""
     
     def __init__(self):
-        self.file_manager = FileManager()
+        self._file_manager = FileManager()
         self._running = True  # stateless — siempre activo
 
     def start(self) -> None:
@@ -31,7 +31,7 @@ class FanController:
         Returns:
             Valor PWM (0-255)
         """
-        curve = self.file_manager.load_curve()
+        curve = self._file_manager.load_curve()
         
         if not curve:
             logger.warning("[FanController] compute_pwm_from_curve: curva vacía, retornando PWM 0")
@@ -99,7 +99,7 @@ class FanController:
         
         if desired != current_target:
             new_state = {"mode": mode, "target_pwm": desired}
-            self.file_manager.write_state(new_state)
+            self._file_manager.write_state(new_state)
             logger.debug("[FanController] PWM actualizado: %d → %d (modo=%s, temp=%.1f°C)", current_target, desired, mode, temp)
             return new_state
         
@@ -116,7 +116,7 @@ class FanController:
         Returns:
             Curva actualizada
         """
-        curve = self.file_manager.load_curve()
+        curve = self._file_manager.load_curve()
         pwm = max(0, min(255, pwm))
         
         found = False
@@ -132,7 +132,7 @@ class FanController:
             curve.append({"temp": temp, "pwm": pwm})
         
         curve = sorted(curve, key=lambda x: x["temp"])
-        self.file_manager.save_curve(curve)
+        self._file_manager.save_curve(curve)
         
         return curve
     
@@ -146,7 +146,7 @@ class FanController:
         Returns:
             Curva actualizada
         """
-        curve = self.file_manager.load_curve()
+        curve = self._file_manager.load_curve()
         original_len = len(curve)
         curve = [p for p in curve if p["temp"] != temp]
         
@@ -159,5 +159,5 @@ class FanController:
             curve = [{"temp": 40, "pwm": 100}]
             logger.warning("[FanController] Curva quedó vacía, restaurado punto por defecto")
         
-        self.file_manager.save_curve(curve)
+        self._file_manager.save_curve(curve)
         return curve
