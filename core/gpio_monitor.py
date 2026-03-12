@@ -25,6 +25,10 @@ Pines reservados por fase1.py — nunca tocar:
   UART: GPIO 14, 15
 """
 import threading
+import gpiozero
+from gpiozero import Device
+from gpiozero.pins.lgpio import LGPIOFactory
+from config.local_settings_io import update_params, read
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -69,7 +73,6 @@ def _load_config() -> dict[int, dict]:
     Las claves se almacenan como strings — se convierten a int.
     """
     try:
-        from config.local_settings_io import read
         params, _ = read()
         raw = params.get(_SETTINGS_KEY)
         if raw and isinstance(raw, dict):
@@ -89,7 +92,6 @@ def _save_config(pins_cfg: dict[int, dict]) -> None:
     Merge seguro — no machaca otras claves del fichero.
     """
     try:
-        from config.local_settings_io import update_params
         serializable = {str(pin): dict(cfg) for pin, cfg in pins_cfg.items()}
         update_params({_SETTINGS_KEY: serializable})
         logger.debug("[GPIOMonitor] Config persistida (%d pines)", len(pins_cfg))
@@ -192,7 +194,6 @@ class GPIOMonitor:
 
     def _import_gpiozero(self) -> bool:
         try:
-            import gpiozero
             self._gz = gpiozero
             self._gpio_available = True
             logger.info("[GPIOMonitor] gpiozero disponible")
@@ -210,8 +211,6 @@ class GPIOMonitor:
             return
         # Recrear factory si fue cerrado en una liberación anterior
         try:
-            from gpiozero import Device
-            from gpiozero.pins.lgpio import LGPIOFactory
             if Device.pin_factory is None:
                 Device.pin_factory = LGPIOFactory()
                 logger.debug("[GPIOMonitor] LGPIOFactory recreado")
@@ -261,7 +260,6 @@ class GPIOMonitor:
             self._close_device(pin)
         # Cerrar el factory — en Pi 5 (lgpio) libera /dev/gpiochip0
         try:
-            from gpiozero import Device
             if Device.pin_factory is not None:
                 Device.pin_factory.close()
                 Device.pin_factory = None

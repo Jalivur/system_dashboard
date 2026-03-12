@@ -26,6 +26,10 @@ from .weather_service import WeatherService
 from .i2c_monitor import I2CMonitor
 from .gpio_monitor import GPIOMonitor
 from .event_bus import EventBus, get_event_bus
+from .data_logger import DataLogger
+from .data_analyzer import DataAnalyzer
+from .data_collection_service import DataCollectionService
+from .service_registry import ServiceRegistry
 
 __all__ = [
     'FanController',
@@ -53,5 +57,9 @@ __all__ = [
     'I2CMonitor',
     'GPIOMonitor',
     'EventBus',
-    'get_event_bus'
+    'get_event_bus',
+    'DataLogger',
+    'DataAnalyzer',
+    'DataCollectionService',
+    'ServiceRegistry'
 ]

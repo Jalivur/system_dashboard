@@ -4,7 +4,7 @@ Servicio de recolección automática de datos
 import threading
 import time
 from datetime import datetime
-from core.data_logger import DataLogger
+from core import DataLogger
 from utils.file_manager import FileManager
 from utils.logger import get_logger
  

@@ -44,6 +44,7 @@ class FanAutoService:
 
         self._running          = False
         self._thread: Optional[threading.Thread] = None
+        self._stop_evt = threading.Event()
         self._update_interval  = 2.0
         self._initialized      = True
 
@@ -55,6 +56,7 @@ class FanAutoService:
             logger.info("[FanAutoService] ya está corriendo")
             return
         self._running = True
+        self._stop_evt.clear()
         self._thread  = threading.Thread(
             target=self._run, daemon=True, name="FanAutoService"
         )
@@ -67,6 +69,7 @@ class FanAutoService:
             logger.debug("[FanAutoService] stop() ignorado — ya estaba parado")
             return
         self._running = False
+        self._stop_evt.set()
         if self._thread:
             self._thread.join(timeout=5)
         logger.info("[FanAutoService] Servicio detenido")
@@ -75,15 +78,14 @@ class FanAutoService:
 
     def _run(self):
         """Bucle principal del servicio."""
-        while self._running:
+        self._update_auto_mode()   # primera ejecución inmediata
+        while not self._stop_evt.wait(timeout=self._update_interval):
+            if not self._running:
+                break
             try:
                 self._update_auto_mode()
             except Exception as e:
                 logger.error("[FanAutoService] Error en actualización automática: %s", e)
-            for _ in range(int(self._update_interval * 10)):
-                if not self._running:
-                    break
-                time.sleep(0.1)
 
     def _update_auto_mode(self):
         """Actualiza el PWM si está en modo auto."""
