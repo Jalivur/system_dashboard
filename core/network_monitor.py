@@ -179,7 +179,7 @@ class NetworkMonitor:
                 logger.error("[NetworkMonitor] Error inesperado en speedtest: %s", e)
                 self._speedtest_result["status"] = "error"
 
-        threading.Thread(target=_run, daemon=True).start()
+        threading.Thread(target=_run, daemon=True, name="NetworkMonitor-Speedtest").start()
 
     def get_speedtest_result(self) -> Dict:
         """Obtiene el resultado del speedtest."""

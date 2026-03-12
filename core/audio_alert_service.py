@@ -100,7 +100,7 @@ class AudioAlertService:
     def play_test(self):
         """Prueba: reproduce temp_crit.wav"""
         threading.Thread(
-            target=self._play, args=(_sound("temp", "crit"),), daemon=True
+            target=self._play, args=(_sound("temp", "crit"),), daemon=True, name="AudioAlert-PlayWav"
         ).start()
 
     # ── Bucle ─────────────────────────────────────────────────────────────────
@@ -165,7 +165,8 @@ class AudioAlertService:
                                    key, val, thresh["unit"])
                     state.last_played = now
                     threading.Thread(
-                        target=self._play, args=(_sound(key, "crit"),), daemon=True
+                        target=self._play, args=(_sound(key, "crit"),), daemon=True,
+                        name="AudioAlert-PlayWav"
                     ).start()
 
             # ── WARN: {metric}_warn.wav cada WARN_REPEAT_S ───────────────────
@@ -175,7 +176,8 @@ class AudioAlertService:
                                 key, val, thresh["unit"])
                     state.last_played = now
                     threading.Thread(
-                        target=self._play, args=(_sound(key, "warn"),), daemon=True
+                        target=self._play, args=(_sound(key, "warn"),), daemon=True,
+                        name="AudioAlert-PlayWav"
                     ).start()
 
             # ── OK: {metric}_ok.wav una vez al recuperarse ───────────────────
@@ -184,7 +186,8 @@ class AudioAlertService:
                             key, val, thresh["unit"])
                 state.last_played = now
                 threading.Thread(
-                    target=self._play, args=(_sound(key, "ok"),), daemon=True
+                    target=self._play, args=(_sound(key, "ok"),), daemon=True,
+                    name="AudioAlert-PlayWav"
                 ).start()
 
     # ── Reproducción ─────────────────────────────────────────────────────────
