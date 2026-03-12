@@ -46,7 +46,13 @@ class _MetricState:
 
 
 class AudioAlertService:
-
+    """
+    Servicio de alertas sonoras via los altavoces del FNK0100K.
+    Reproduce archivos WAV cuando CPU, RAM, temperatura o servicios
+    superan los umbrales configurados en _THRESHOLDS.
+    Corre en thread daemon con patrón _stop_evt estándar.
+    """
+    
     def __init__(self, system_monitor, service_monitor=None):
         self._system_monitor = system_monitor
         self._service_monitor = service_monitor
