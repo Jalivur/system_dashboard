@@ -21,9 +21,9 @@ class DiskWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, disk_monitor: DiskMonitor):
         super().__init__(parent)
-        self.disk_monitor = disk_monitor
-        self.widgets = {}
-        self.graphs  = {}
+        self._disk_monitor = disk_monitor
+        self._widgets = {}
+        self._graphs  = {}
 
         self._smart_tick = 0          # contador de ciclos para el SMART
         self._smart_cache = {}        # último resultado SMART
@@ -136,9 +136,9 @@ class DiskWindow(ctk.CTkToplevel):
         graph = GraphWidget(cell, width=_COL_W - 16, height=graph_h)
         graph.pack(padx=4, pady=(0, 6))
 
-        self.widgets[f"{key}_label"] = lbl
-        self.widgets[f"{key}_value"] = val
-        self.graphs[key] = {'widget': graph, 'max_val': 100 if unit in ('%', '°C') else 50}
+        self._widgets[f"{key}_label"] = lbl
+        self._widgets[f"{key}_value"] = val
+        self._graphs[key] = {'widget': graph, 'max_val': 100 if unit in ('%', '°C') else 50}
 
     def _create_smart_col(self, parent, col_idx: int, key: str, title: str):
         """Columna de un campo SMART — sin gráfica."""
@@ -161,20 +161,20 @@ class DiskWindow(ctk.CTkToplevel):
         lbl.pack()
 
         # Guardar referencia con prefijo smart_
-        self.widgets[f"smart_{key}"] = lbl
+        self._widgets[f"smart_{key}"] = lbl
 
     # ── Update ────────────────────────────────────────────────────────────────
 
     def _update(self):
         if not self.winfo_exists():
             return
-        if not self.disk_monitor.is_running():
+        if not self._disk_monitor.is_running():
             StyleManager.show_service_stopped_banner(self._content_inner, "Disk Monitor")
             self.after(UPDATE_MS, self._update)
             return
-        stats   = self.disk_monitor.get_current_stats()
-        self.disk_monitor.update_history(stats)
-        history = self.disk_monitor.get_history()
+        stats   = self._disk_monitor.get_current_stats()
+        self._disk_monitor.update_history(stats)
+        history = self._disk_monitor.get_history()
 
         # Métricas originales con gráfica
         self._update_metric('disk',       stats['disk_usage'],    history['disk_usage'], "%",    60, 80)
@@ -195,13 +195,13 @@ class DiskWindow(ctk.CTkToplevel):
 
     def _refresh_smart(self):
         """Llama a get_nvme_smart() y actualiza las etiquetas SMART."""
-        smart = self.disk_monitor.get_nvme_smart()
+        smart = self._disk_monitor.get_nvme_smart()
         self._smart_cache = smart
 
         if not smart.get("available"):
             for key in ("power_on_hours", "power_cycles", "unsafe_shutdowns",
                         "data_written_tb", "data_read_tb", "percentage_used"):
-                lbl = self.widgets.get(f"smart_{key}")
+                lbl = self._widgets.get(f"smart_{key}")
                 if lbl:
                     lbl.configure(text="N/D", text_color=COLORS['text_dim'])
             return
@@ -241,7 +241,7 @@ class DiskWindow(ctk.CTkToplevel):
                 color = COLORS['warning']
             else:
                 color = COLORS['primary']
-            lbl = self.widgets.get("smart_percentage_used")
+            lbl = self._widgets.get("smart_percentage_used")
             if lbl:
                 lbl.configure(text=f"{pct} %", text_color=color)
         else:
@@ -249,7 +249,7 @@ class DiskWindow(ctk.CTkToplevel):
 
     def _set_smart(self, key: str, text: str, warn):
         """Actualiza una etiqueta SMART con color según warn."""
-        lbl = self.widgets.get(f"smart_{key}")
+        lbl = self._widgets.get(f"smart_{key}")
         if not lbl:
             return
         if warn is True:
@@ -285,15 +285,15 @@ class DiskWindow(ctk.CTkToplevel):
     # ── Métricas originales — sin cambios ────────────────────────────────────
 
     def _update_metric(self, key, value, history, unit, warn, crit):
-        color = self.disk_monitor.level_color(value, warn, crit)
-        self.widgets[f"{key}_value"].configure(text=f"{value:.1f} {unit}", text_color=color)
-        self.widgets[f"{key}_label"].configure(text_color=color)
-        g = self.graphs[key]
+        color = self._disk_monitor.level_color(value, warn, crit)
+        self._widgets[f"{key}_value"].configure(text=f"{value:.1f} {unit}", text_color=color)
+        self._widgets[f"{key}_label"].configure(text_color=color)
+        g = self._graphs[key]
         g['widget'].update(history, g['max_val'], color)
 
     def _update_io(self, key, value, history):
-        color = self.disk_monitor.level_color(value, 10, 50)
-        self.widgets[f"{key}_value"].configure(text=f"{value:.1f} MB/s", text_color=color)
-        self.widgets[f"{key}_label"].configure(text_color=color)
-        g = self.graphs[key]
+        color = self._disk_monitor.level_color(value, 10, 50)
+        self._widgets[f"{key}_value"].configure(text=f"{value:.1f} MB/s", text_color=color)
+        self._widgets[f"{key}_label"].configure(text_color=color)
+        g = self._graphs[key]
         g['widget'].update(history, g['max_val'], color)

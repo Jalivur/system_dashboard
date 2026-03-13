@@ -26,14 +26,14 @@ class HistoryWindow(ctk.CTkToplevel):
         super().__init__(parent)
 
         # Referencias
-        self.analyzer         = DataAnalyzer()
-        self.logger           = DataLogger()
-        self.cleanup_service  = cleanup_service
+        self._analyzer         = DataAnalyzer()
+        self._logger           = DataLogger()
+        self._cleanup_service  = cleanup_service
 
         # Estado de periodo
-        self.period_var = ctk.StringVar(master=self, value="24h")
-        self.period_start = ctk.StringVar(master=self, value="YYYY-MM-DD HH:MM")
-        self.period_end   = ctk.StringVar(master=self, value="YYYY-MM-DD HH:MM")
+        self._period_var = ctk.StringVar(master=self, value="24h")
+        self._period_start = ctk.StringVar(master=self, value="YYYY-MM-DD HH:MM")
+        self._period_end   = ctk.StringVar(master=self, value="YYYY-MM-DD HH:MM")
 
         # Estado de rango personalizado
         self._using_custom_range = False
@@ -67,9 +67,9 @@ class HistoryWindow(ctk.CTkToplevel):
             on_close=self.destroy,
         )
         # Barra de herramientas en línea propia debajo del header
-        self.toolbar_container = ctk.CTkFrame(self._main, fg_color=COLORS["bg_dark"])
-        self.toolbar_container.pack(fill="x", padx=5, pady=(0, 4))
-        self.toolbar_container.pack_configure(anchor="center")
+        self._toolbar_container = ctk.CTkFrame(self._main, fg_color=COLORS["bg_dark"])
+        self._toolbar_container.pack(fill="x", padx=5, pady=(0, 4))
+        self._toolbar_container.pack_configure(anchor="center")
         self._create_period_controls(self._main)
         self._create_range_panel(self._main)   # fila oculta de OptionMenus
 
@@ -122,7 +122,7 @@ class HistoryWindow(ctk.CTkToplevel):
             rb = ctk.CTkRadioButton(
                 self._controls_frame,
                 text=label,
-                variable=self.period_var,
+                variable=self._period_var,
                 value=period,
                 command=self._on_period_radio,
                 text_color=COLORS['text'],
@@ -155,17 +155,17 @@ class HistoryWindow(ctk.CTkToplevel):
             font=(FONT_FAMILY, FONT_SIZES['small'])
         ).pack(side="left", padx=(10, 2))
 
-        self.date_start = ctk.CTkEntry(
+        self._date_start = ctk.CTkEntry(
             self._range_panel,
-            textvariable=self.period_start,
+            textvariable=self._period_start,
             text_color=COLORS['text_dim'],
             width=300,
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
         # Limpiar al hacer foco si tiene el texto de ejemplo
-        self.date_start.bind("<FocusIn>",  lambda e: self._entry_focus_in(self.date_start, self.period_start))
-        self.date_start.bind("<FocusOut>", lambda e: self._entry_focus_out(self.date_start, self.period_start))
-        self.date_start.pack(side="left", padx=(0, 4))
+        self._date_start.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._date_start, self._period_start))
+        self._date_start.bind("<FocusOut>", lambda e: self._entry_focus_out(self._date_start, self._period_start))
+        self._date_start.pack(side="left", padx=(0, 4))
                 # Entradas de fecha en la fila de controles (derecha)
         ctk.CTkLabel(
             self._range_panel,
@@ -174,16 +174,16 @@ class HistoryWindow(ctk.CTkToplevel):
             font=(FONT_FAMILY, FONT_SIZES['small'])
         ).pack(side="left", padx=(0, 2))
 
-        self.date_end = ctk.CTkEntry(
+        self._date_end = ctk.CTkEntry(
             self._range_panel,
-            textvariable=self.period_end,
+            textvariable=self._period_end,
             text_color=COLORS['text_dim'],
             width=300,
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
-        self.date_end.bind("<FocusIn>",  lambda e: self._entry_focus_in(self.date_end, self.period_end))
-        self.date_end.bind("<FocusOut>", lambda e: self._entry_focus_out(self.date_end, self.period_end))
-        self.date_end.pack(side="left", padx=(0, 4))
+        self._date_end.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._date_end, self._period_end))
+        self._date_end.bind("<FocusOut>", lambda e: self._entry_focus_out(self._date_end, self._period_end))
+        self._date_end.pack(side="left", padx=(0, 4))
 
 
         # ── BOTÓN APLICAR ─────────────────────────────────────────
@@ -201,34 +201,34 @@ class HistoryWindow(ctk.CTkToplevel):
         graphs_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         graphs_frame.pack(fill="both", expand=True, padx=(0, 10), pady=(0, 10))
 
-        self.fig = Figure(figsize=(9, 20), facecolor=COLORS['bg_medium'])
-        self.fig.set_tight_layout(True)
+        self._fig = Figure(figsize=(9, 20), facecolor=COLORS['bg_medium'])
+        self._fig.set_tight_layout(True)
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=graphs_frame)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill="both", expand=True, pady=0)
+        self._canvas = FigureCanvasTkAgg(self._fig, master=graphs_frame)
+        self._canvas.draw()
+        self._canvas.get_tk_widget().pack(fill="both", expand=True, pady=0)
 
-        # Toolbar invisible — sus métodos se invocan desde botones propios
-        self.toolbar = NavigationToolbar2Tk(self.canvas, self)
-        self.toolbar.pack_forget()
+        # _toolbar invisible — sus métodos se invocan desde botones propios
+        self._toolbar = NavigationToolbar2Tk(self._canvas, self)
+        self._toolbar.pack_forget()
 
         # Sub-frame centrado dentro de la barra de herramientas
-        _btn_row = ctk.CTkFrame(self.toolbar_container, fg_color="transparent")
+        _btn_row = ctk.CTkFrame(self._toolbar_container, fg_color="transparent")
         _btn_row.pack(expand=True)
 
         for text, cmd, w in [
-            ("" + Icons.HOME + " Inicio",  self.toolbar.home,          12),
-            ("" + Icons.SEARCH + " Zoom",    self.toolbar.zoom,           12),
-            ("" + Icons.HAND + "️ Mover",  self.toolbar.pan,            12),
+            ("" + Icons.HOME + " Inicio",  self._toolbar.home,          12),
+            ("" + Icons.SEARCH + " Zoom",    self._toolbar.zoom,           12),
+            ("" + Icons.HAND + "️ Mover",  self._toolbar.pan,            12),
             ("" + Icons.SAVE + " Guardar",  self._export_figure_image,   12),
         ]:
             make_futuristic_button(
                 _btn_row, text=text, command=cmd, height=6, width=w
             ).pack(side="left", padx=5, pady=4)
 
-        self.canvas.mpl_connect('button_press_event',   self._on_click)
-        self.canvas.mpl_connect('button_release_event', self._on_release)
-        self.canvas.mpl_connect('motion_notify_event',  self._on_motion)
+        self._canvas.mpl_connect('button_press_event',   self._on_click)
+        self._canvas.mpl_connect('button_release_event', self._on_release)
+        self._canvas.mpl_connect('motion_notify_event',  self._on_motion)
 
     def _create_stats_area(self, parent):
         stats_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
@@ -241,14 +241,14 @@ class HistoryWindow(ctk.CTkToplevel):
             font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
         ).pack(pady=(10, 5))
 
-        self.stats_label = ctk.CTkLabel(
+        self._stats_label = ctk.CTkLabel(
             stats_frame,
             text="Cargando...",
             text_color=COLORS['text'],
             font=(FONT_FAMILY, FONT_SIZES['small']),
             justify="left"
         )
-        self.stats_label.pack(pady=(0, 10), padx=20)
+        self._stats_label.pack(pady=(0, 10), padx=20)
 
     def _create_buttons(self, parent):
         buttons = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
@@ -309,8 +309,8 @@ class HistoryWindow(ctk.CTkToplevel):
     def _apply_custom_range(self):
         """Lee los OptionMenus y aplica el rango sin necesidad de teclado."""
         _PH = self._PLACEHOLDER
-        start_dt_text = self.period_start.get().strip()
-        end_dt_text   = self.period_end.get().strip()
+        start_dt_text = self._period_start.get().strip()
+        end_dt_text   = self._period_end.get().strip()
         if start_dt_text == _PH: start_dt_text = ""
         if end_dt_text   == _PH: end_dt_text   = ""
         try:
@@ -349,17 +349,17 @@ class HistoryWindow(ctk.CTkToplevel):
         if self._using_custom_range:
             start = self._custom_start
             end   = self._custom_end
-            stats = self.analyzer.get_stats_between(start, end)
+            stats = self._analyzer.get_stats_between(start, end)
             rango_label = f"{start.strftime('%Y-%m-%d %H:%M')} → {end.strftime('%Y-%m-%d %H:%M')}"
             hours = None  # no se usa en modo custom
         else:
-            period = self.period_var.get()
+            period = self._period_var.get()
             hours  = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[period]
-            stats  = self.analyzer.get_stats(hours)
+            stats  = self._analyzer.get_stats(hours)
             rango_label = period
 
-        total_records = self.logger.get_metrics_count()
-        db_size       = self.logger.get_db_size_mb()
+        total_records = self._logger.get_metrics_count()
+        db_size       = self._logger.get_db_size_mb()
 
         stats_text = (
             f"• CPU promedio: {stats.get('cpu_avg', 0):.1f}%  "
@@ -384,7 +384,7 @@ class HistoryWindow(ctk.CTkToplevel):
             f"• Muestras: {stats.get('total_samples', 0)} en {rango_label}\n"
             f"• Total registros: {total_records}  |  DB: {db_size:.2f} MB"
         )
-        self.stats_label.configure(text=stats_text)
+        self._stats_label.configure(text=stats_text)
 
         if self._using_custom_range:
             self._update_graphs_between(self._custom_start, self._custom_end)
@@ -407,22 +407,22 @@ class HistoryWindow(ctk.CTkToplevel):
     ]
 
     def _update_graphs(self, hours: int):
-        self.fig.clear()
-        axes = [self.fig.add_subplot(8, 1, i) for i in range(1, 9)]
+        self._fig.clear()
+        axes = [self._fig.add_subplot(8, 1, i) for i in range(1, 9)]
         for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
-            ts, vals = self.analyzer.get_graph_data(metric, hours)
+            ts, vals = self._analyzer.get_graph_data(metric, hours)
             self._draw_metric(ax, ts, vals, ylabel, COLORS[color_key])
-        self.fig.tight_layout()
-        self.canvas.draw()
+        self._fig.tight_layout()
+        self._canvas.draw()
 
     def _update_graphs_between(self, start: datetime, end: datetime):
-        self.fig.clear()
-        axes = [self.fig.add_subplot(8, 1, i) for i in range(1, 9)]
+        self._fig.clear()
+        axes = [self._fig.add_subplot(8, 1, i) for i in range(1, 9)]
         for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
-            ts, vals = self.analyzer.get_graph_data_between(metric, start, end)
+            ts, vals = self._analyzer.get_graph_data_between(metric, start, end)
             self._draw_metric(ax, ts, vals, ylabel, COLORS[color_key])
-        self.fig.tight_layout()
-        self.canvas.draw()
+        self._fig.tight_layout()
+        self._canvas.draw()
 
     def _draw_metric(self, ax, timestamps, values, ylabel: str, color: str):
         ax.set_facecolor(COLORS['bg_dark'])
@@ -444,7 +444,7 @@ class HistoryWindow(ctk.CTkToplevel):
             label = f"custom_{start.strftime('%Y%m%d%H%M')}_{end.strftime('%Y%m%d%H%M')}"
             path  = str(EXPORTS_CSV_DIR / f"history_{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
             try:
-                self.analyzer.export_to_csv_between(path, start, end)
+                self._analyzer.export_to_csv_between(path, start, end)
                 custom_msgbox(self, f"Datos exportados a:\n{path}\n{Icons.OK} Exportado")
                 try:
                     CleanupService().clean_csv()
@@ -453,11 +453,11 @@ class HistoryWindow(ctk.CTkToplevel):
             except Exception as e:
                 custom_msgbox(self, f"Error al exportar:\n{e}\n{Icons.ERROR} Error")
         else:
-            period = self.period_var.get()
+            period = self._period_var.get()
             hours  = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[period]
             path   = str(EXPORTS_CSV_DIR / f"history_{period}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
             try:
-                self.analyzer.export_to_csv(path, hours)
+                self._analyzer.export_to_csv(path, hours)
                 custom_msgbox(self, f"Datos exportados a:\n{path}\n{Icons.OK} Exportado")
                 try:
                     CleanupService().clean_csv()
@@ -468,11 +468,11 @@ class HistoryWindow(ctk.CTkToplevel):
 
     def _clean_old_data(self):
         """Fuerza un ciclo de limpieza completo a través de CleanupService."""
-        status = self.cleanup_service.get_status()
+        status = self._cleanup_service.get_status()
 
         def do_clean():
             try:
-                result = self.cleanup_service.force_cleanup()
+                result = self._cleanup_service.force_cleanup()
                 msg = (
                     f"Limpieza completada:\n\n"
                     f"• CSV eliminados: {result['deleted_csv']}\n"
@@ -509,9 +509,9 @@ class HistoryWindow(ctk.CTkToplevel):
                 save_dir,
                 f"graficas_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.png"
             )
-            self.fig.savefig(
+            self._fig.savefig(
                 filepath, dpi=150,
-                facecolor=self.fig.get_facecolor(),
+                facecolor=self._fig.get_facecolor(),
                 bbox_inches='tight'
             )
             logger.info("[HistoryWindow] Figura guardada: %s", filepath)

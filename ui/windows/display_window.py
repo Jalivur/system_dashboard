@@ -26,7 +26,7 @@ class DisplayWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, display_service):
         super().__init__(parent)
-        self.display_service = display_service
+        self._display_service = display_service
 
         self.title("Control de Pantalla")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -36,14 +36,14 @@ class DisplayWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.after(150, self.focus_set)
 
-        self._slider_var = ctk.IntVar(master=self, value=self.display_service.get_brightness())
+        self._slider_var = ctk.IntVar(master=self, value=self._display_service.get_brightness())
         self._banner_shown = False
         self._inner = None
 
         self._create_ui()
         self._update()
         logger.info("[DisplayWindow] Ventana abierta (método: %s)",
-                    self.display_service.get_method())
+                    self._display_service.get_method())
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ class DisplayWindow(ctk.CTkToplevel):
     def _build_content(self, inner):
         """Construye el contenido real de la ventana."""
         # ── Sin método disponible ──
-        if not self.display_service.is_available():
+        if not self._display_service.is_available():
             ctk.CTkLabel(
                 inner,
                 text=(
@@ -103,7 +103,7 @@ class DisplayWindow(ctk.CTkToplevel):
             return
 
         # ── Info método activo ──
-        method = self.display_service.get_method()
+        method = self._display_service.get_method()
         ctk.CTkLabel(
             inner,
             text=f"Método activo: {method}",
@@ -210,7 +210,7 @@ class DisplayWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        if not self.display_service.is_running():
+        if not self._display_service.is_running():
             if not self._banner_shown:
                 for w in self._inner.winfo_children():
                     w.destroy()
@@ -228,33 +228,33 @@ class DisplayWindow(ctk.CTkToplevel):
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     def _on_slider(self, value):
-        self.display_service.set_brightness(int(value))
+        self._display_service.set_brightness(int(value))
         self._refresh()
 
     def _set_quick(self, value):
-        self.display_service.set_brightness(value)
+        self._display_service.set_brightness(value)
         self._slider_var.set(value)
         self._refresh()
 
     def _screen_on(self):
-        self.display_service.screen_on()
+        self._display_service.screen_on()
         self._refresh()
 
     def _screen_off(self):
-        self.display_service.screen_off()
+        self._display_service.screen_off()
         self._refresh()
 
     def _toggle_dim(self):
         if self._dim_switch.get():
-            self.display_service.enable_dim_on_idle()
+            self._display_service.enable_dim_on_idle()
         else:
-            self.display_service.disable_dim_on_idle()
+            self._display_service.disable_dim_on_idle()
 
     def _refresh(self):
-        if not self.display_service.is_available():
+        if not self._display_service.is_available():
             return
         if not hasattr(self, "_brightness_label"):
             return
-        pct = self.display_service.get_brightness()
+        pct = self._display_service.get_brightness()
         self._brightness_label.configure(text=f"{pct}%")
         self._slider_var.set(pct)

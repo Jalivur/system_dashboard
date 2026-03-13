@@ -20,21 +20,21 @@ class FanControlWindow(ctk.CTkToplevel):
         super().__init__(parent)
 
         # Referencias
-        self.fan_controller = fan_controller
-        self.system_monitor = system_monitor
-        self.fan_service    = fan_service  # puede ser None si no está disponible
-        self.file_manager   = FileManager()
+        self._fan_controller = fan_controller
+        self._system_monitor = system_monitor
+        self._fan_service    = fan_service  # puede ser None si no está disponible
+        self._file_manager   = FileManager()
 
         # Variables de estado
-        self.mode_var       = tk.StringVar(master=self)
-        self.manual_pwm_var = tk.IntVar(master=self, value=128)
-        self.curve_vars     = []
+        self._mode_var       = tk.StringVar(master=self)
+        self._manual_pwm_var = tk.IntVar(master=self, value=128)
+        self._curve_vars     = []
 
         # Variables para entries de nuevo punto (con placeholder)
         self._PLACEHOLDER_TEMP = "0-100"
         self._PLACEHOLDER_PWM  = "0-255"
-        self.new_temp_var = tk.StringVar(master=self, value=self._PLACEHOLDER_TEMP)
-        self.new_pwm_var  = tk.StringVar(master=self, value=self._PLACEHOLDER_PWM)
+        self._new_temp_var = tk.StringVar(master=self, value=self._PLACEHOLDER_TEMP)
+        self._new_pwm_var  = tk.StringVar(master=self, value=self._PLACEHOLDER_PWM)
 
         # Cargar estado inicial
         self._load_initial_state()
@@ -57,11 +57,11 @@ class FanControlWindow(ctk.CTkToplevel):
 
     def _load_initial_state(self):
         """Carga el estado inicial desde archivo"""
-        state = self.file_manager.load_state()
-        self.mode_var.set(state.get("mode", "auto"))
+        state = self._file_manager.load_state()
+        self._mode_var.set(state.get("mode", "auto"))
         target = state.get("target_pwm")
         if target is not None:
-            self.manual_pwm_var.set(target)
+            self._manual_pwm_var.set(target)
 
     def _create_ui(self):
         """Crea la interfaz de usuario"""
@@ -121,10 +121,10 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Aviso dinámico de servicio ────────────────────────────────────────────
 
     def _update_service_status(self):
-        """Muestra u oculta el aviso según si fan_service está corriendo."""
+        """Muestra u oculta el aviso según si _fan_service está corriendo."""
         if not self.winfo_exists():
             return
-        if self.fan_service is not None and not self.fan_service.is_running():
+        if self._fan_service is not None and not self._fan_service.is_running():
             self._service_warning.pack(fill="x", padx=10, pady=(4, 0))
         else:
             self._service_warning.pack_forget()
@@ -159,7 +159,7 @@ class FanControlWindow(ctk.CTkToplevel):
             rb = ctk.CTkRadioButton(
                 modes_container,
                 text=text,
-                variable=self.mode_var,
+                variable=self._mode_var,
                 value=value,
                 command=lambda v=value: self._on_mode_change(v),
                 text_color=COLORS['text'],
@@ -180,19 +180,19 @@ class FanControlWindow(ctk.CTkToplevel):
             font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
         ).pack(anchor="w", pady=(0, 5))
 
-        self.pwm_value_label = ctk.CTkLabel(
+        self._pwm_value_label = ctk.CTkLabel(
             manual_frame,
-            text=f"Valor: {self.manual_pwm_var.get()} ({int(self.manual_pwm_var.get()/255*100)}%)",
+            text=f"Valor: {self._manual_pwm_var.get()} ({int(self._manual_pwm_var.get()/255*100)}%)",
             text_color=COLORS['text'],
             font=(FONT_FAMILY, FONT_SIZES['medium'])
         )
-        self.pwm_value_label.pack(anchor="w", pady=(0, 10))
+        self._pwm_value_label.pack(anchor="w", pady=(0, 10))
 
         slider = ctk.CTkSlider(
             manual_frame,
             from_=0,
             to=255,
-            variable=self.manual_pwm_var,
+            variable=self._manual_pwm_var,
             command=self._on_pwm_change,
             width=DSI_WIDTH - 100
         )
@@ -211,8 +211,8 @@ class FanControlWindow(ctk.CTkToplevel):
             font=(FONT_FAMILY, FONT_SIZES['medium'], "bold")
         ).pack(anchor="w", pady=(0, 5))
 
-        self.points_frame = ctk.CTkFrame(curve_frame, fg_color=COLORS['bg_dark'])
-        self.points_frame.pack(fill="x", pady=5, padx=5)
+        self._points_frame = ctk.CTkFrame(curve_frame, fg_color=COLORS['bg_dark'])
+        self._points_frame.pack(fill="x", pady=5, padx=5)
         self._refresh_curve_points()
 
         add_section = ctk.CTkFrame(curve_frame, fg_color=COLORS['bg_dark'])
@@ -241,7 +241,7 @@ class FanControlWindow(ctk.CTkToplevel):
 
         self._entry_temp = ctk.CTkEntry(
             temp_col,
-            textvariable=self.new_temp_var,
+            textvariable=self._new_temp_var,
             width=120, height=36,
             font=(FONT_FAMILY, FONT_SIZES['medium']),
             text_color=COLORS['text_dim'],
@@ -249,8 +249,8 @@ class FanControlWindow(ctk.CTkToplevel):
             border_color=COLORS['primary']
         )
         self._entry_temp.pack(pady=4)
-        self._entry_temp.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._entry_temp, self.new_temp_var, self._PLACEHOLDER_TEMP))
-        self._entry_temp.bind("<FocusOut>", lambda e: self._entry_focus_out(self._entry_temp, self.new_temp_var, self._PLACEHOLDER_TEMP))
+        self._entry_temp.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._entry_temp, self._new_temp_var, self._PLACEHOLDER_TEMP))
+        self._entry_temp.bind("<FocusOut>", lambda e: self._entry_focus_out(self._entry_temp, self._new_temp_var, self._PLACEHOLDER_TEMP))
 
         # — PWM —
         pwm_col = ctk.CTkFrame(entries_row, fg_color=COLORS['bg_dark'])
@@ -265,7 +265,7 @@ class FanControlWindow(ctk.CTkToplevel):
 
         self._entry_pwm = ctk.CTkEntry(
             pwm_col,
-            textvariable=self.new_pwm_var,
+            textvariable=self._new_pwm_var,
             width=120, height=36,
             font=(FONT_FAMILY, FONT_SIZES['medium']),
             text_color=COLORS['text_dim'],
@@ -273,8 +273,8 @@ class FanControlWindow(ctk.CTkToplevel):
             border_color=COLORS['primary']
         )
         self._entry_pwm.pack(pady=4)
-        self._entry_pwm.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._entry_pwm, self.new_pwm_var, self._PLACEHOLDER_PWM))
-        self._entry_pwm.bind("<FocusOut>", lambda e: self._entry_focus_out(self._entry_pwm, self.new_pwm_var, self._PLACEHOLDER_PWM))
+        self._entry_pwm.bind("<FocusIn>",  lambda e: self._entry_focus_in(self._entry_pwm, self._new_pwm_var, self._PLACEHOLDER_PWM))
+        self._entry_pwm.bind("<FocusOut>", lambda e: self._entry_focus_out(self._entry_pwm, self._new_pwm_var, self._PLACEHOLDER_PWM))
 
         make_futuristic_button(
             add_section,
@@ -298,8 +298,8 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Lógica de añadir punto ────────────────────────────────────────────────
 
     def _add_curve_point_from_entries(self):
-        temp_raw = self.new_temp_var.get().strip()
-        pwm_raw  = self.new_pwm_var.get().strip()
+        temp_raw = self._new_temp_var.get().strip()
+        pwm_raw  = self._new_pwm_var.get().strip()
 
         if temp_raw in ("", self._PLACEHOLDER_TEMP) or pwm_raw in ("", self._PLACEHOLDER_PWM):
             custom_msgbox(self, "Introduce un valor en ambos campos.", "Error")
@@ -319,9 +319,9 @@ class FanControlWindow(ctk.CTkToplevel):
             custom_msgbox(self, "El PWM debe estar entre 0 y 255.", "Error")
             return
 
-        self.fan_controller.add_curve_point(temp, pwm)
-        self.new_temp_var.set(self._PLACEHOLDER_TEMP)
-        self.new_pwm_var.set(self._PLACEHOLDER_PWM)
+        self._fan_controller.add_curve_point(temp, pwm)
+        self._new_temp_var.set(self._PLACEHOLDER_TEMP)
+        self._new_pwm_var.set(self._PLACEHOLDER_PWM)
         self._entry_temp.configure(text_color=COLORS['text_dim'])
         self._entry_pwm.configure(text_color=COLORS['text_dim'])
         self._refresh_curve_points()
@@ -330,14 +330,14 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Curva ─────────────────────────────────────────────────────────────────
 
     def _refresh_curve_points(self):
-        for widget in self.points_frame.winfo_children():
+        for widget in self._points_frame.winfo_children():
             widget.destroy()
 
-        curve = self.file_manager.load_curve()
+        curve = self._file_manager.load_curve()
 
         if not curve:
             ctk.CTkLabel(
-                self.points_frame,
+                self._points_frame,
                 text="No hay puntos en la curva",
                 text_color=COLORS['warning'],
                 font=(FONT_FAMILY, FONT_SIZES['small'])
@@ -348,7 +348,7 @@ class FanControlWindow(ctk.CTkToplevel):
             temp = point['temp']
             pwm  = point['pwm']
 
-            point_frame = ctk.CTkFrame(self.points_frame, fg_color=COLORS['bg_medium'])
+            point_frame = ctk.CTkFrame(self._points_frame, fg_color=COLORS['bg_medium'])
             point_frame.pack(fill="x", pady=2, padx=5)
 
             ctk.CTkLabel(
@@ -366,7 +366,7 @@ class FanControlWindow(ctk.CTkToplevel):
             ).pack(side="right", padx=5)
 
     def _remove_curve_point(self, temp: int):
-        self.fan_controller.remove_curve_point(temp)
+        self._fan_controller.remove_curve_point(temp)
         self._refresh_curve_points()
 
     # ── Botones inferiores ────────────────────────────────────────────────────
@@ -385,30 +385,30 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Callbacks modo / PWM ──────────────────────────────────────────────────
 
     def _on_mode_change(self, mode: str):
-        temp = self.system_monitor.get_current_stats()['temp']
-        target_pwm = self.fan_controller.get_pwm_for_mode(
-            mode=mode, temp=temp, manual_pwm=self.manual_pwm_var.get())
+        temp = self._system_monitor.get_current_stats()['temp']
+        target_pwm = self._fan_controller.get_pwm_for_mode(
+            mode=mode, temp=temp, manual_pwm=self._manual_pwm_var.get())
         percent = int(target_pwm / 255 * 100)
-        self.manual_pwm_var.set(target_pwm)
-        self.pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
-        self.file_manager.write_state({"mode": mode, "target_pwm": target_pwm})
+        self._manual_pwm_var.set(target_pwm)
+        self._pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
+        self._file_manager.write_state({"mode": mode, "target_pwm": target_pwm})
 
     def _on_pwm_change(self, value):
         pwm = int(float(value))
         percent = int(pwm / 255 * 100)
-        self.pwm_value_label.configure(text=f"Valor: {pwm} ({percent}%)")
-        if self.mode_var.get() == "manual":
-            self.file_manager.write_state({"mode": "manual", "target_pwm": pwm})
+        self._pwm_value_label.configure(text=f"Valor: {pwm} ({percent}%)")
+        if self._mode_var.get() == "manual":
+            self._file_manager.write_state({"mode": "manual", "target_pwm": pwm})
 
     def _update_pwm_display(self):
         if not self.winfo_exists():
             return
-        mode = self.mode_var.get()
+        mode = self._mode_var.get()
         if mode != "manual":
-            temp = self.system_monitor.get_current_stats()['temp']
-            target_pwm = self.fan_controller.get_pwm_for_mode(
-                mode=mode, temp=temp, manual_pwm=self.manual_pwm_var.get())
+            temp = self._system_monitor.get_current_stats()['temp']
+            target_pwm = self._fan_controller.get_pwm_for_mode(
+                mode=mode, temp=temp, manual_pwm=self._manual_pwm_var.get())
             percent = int(target_pwm / 255 * 100)
-            self.manual_pwm_var.set(target_pwm)
-            self.pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
+            self._manual_pwm_var.set(target_pwm)
+            self._pwm_value_label.configure(text=f"Valor: {target_pwm} ({percent}%)")
         self.after(2000, self._update_pwm_display)
