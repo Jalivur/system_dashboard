@@ -194,10 +194,7 @@ class ProcessWindow(ctk.CTkToplevel):
         """Cambia el orden de procesos"""
         self._update_paused = True
 
-        if self._process_monitor.sort_by == column:
-            self._process_monitor.sort_reverse = not self._process_monitor.sort_reverse
-        else:
-            self._process_monitor.set_sort(column, reverse=True)
+        self._process_monitor.toggle_sort(column)
 
         self._update_now()
         self.after(2000, self._resume_updates)
