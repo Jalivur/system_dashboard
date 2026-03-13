@@ -20,9 +20,9 @@ class MonitorWindow(ctk.CTkToplevel):
     def __init__(self, parent, system_monitor: SystemMonitor, hardware_monitor=None):
         super().__init__(parent)
         self._system_monitor   = system_monitor
-        self.hardware_monitor = hardware_monitor
-        self.widgets = {}
-        self.graphs  = {}
+        self._hardware_monitor = hardware_monitor
+        self._widgets = {}
+        self._graphs  = {}
 
         self.title("Monitor del Sistema")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -71,8 +71,8 @@ class MonitorWindow(ctk.CTkToplevel):
         self._create_cell(grid, 1, 0, "TEMP °C", "temp", "°C", _GRAPH_H_TOP)
 
         # ── Tarjeta hardware FNK0100K (temperatura chasis + fan duty real) ───
-        # Solo se crea si se pasó hardware_monitor (fase1 activo)
-        if self.hardware_monitor:
+        # Solo se crea si se pasó _hardware_monitor (fase1 activo)
+        if self._hardware_monitor:
             chassis_card = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
             chassis_card.pack(fill="x", padx=5, pady=(0, 5))
 
@@ -113,7 +113,7 @@ class MonitorWindow(ctk.CTkToplevel):
                     anchor="center",
                 )
                 lbl.pack()
-                self.widgets[f"hw_{key}_value"] = (lbl, unit)
+                self._widgets[f"hw_{key}_value"] = (lbl, unit)
 
     def _create_cell(self, parent, row, col, title, key, unit, graph_h):
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
@@ -130,9 +130,9 @@ class MonitorWindow(ctk.CTkToplevel):
         graph = GraphWidget(cell, width=_COL_W - 16, height=graph_h)
         graph.pack(padx=4, pady=(0, 6))
 
-        self.widgets[f"{key}_label"] = lbl
-        self.widgets[f"{key}_value"] = val
-        self.graphs[key] = {'widget': graph, 'max_val': 100 if unit in ('%', '°C') else 50}
+        self._widgets[f"{key}_label"] = lbl
+        self._widgets[f"{key}_value"] = val
+        self._graphs[key] = {'widget': graph, 'max_val': 100 if unit in ('%', '°C') else 50}
 
     def _update(self):
         if not self.winfo_exists():
@@ -155,15 +155,15 @@ class MonitorWindow(ctk.CTkToplevel):
             text=f"CPU {stats['cpu']:.0f}%  ·  RAM {stats['ram']:.0f}%  ·  {stats['temp']:.0f}°C")
 
         # ── Hardware FNK0100K ──────────────────────────────────────────────────
-        if self.hardware_monitor:
-            if self.hardware_monitor.is_available():
-                hw = self.hardware_monitor.get_stats()
+        if self._hardware_monitor:
+            if self._hardware_monitor.is_available():
+                hw = self._hardware_monitor.get_stats()
                 for key, warn, crit in [
                     ("chassis_temp", 35, 45),
                     ("fan0_pct",     80, 95),
                     ("fan1_pct",     80, 95),
                 ]:
-                    entry = self.widgets.get(f"hw_{key}_value")
+                    entry = self._widgets.get(f"hw_{key}_value")
                     if entry is None:
                         continue
                     lbl, unit = entry
@@ -175,7 +175,7 @@ class MonitorWindow(ctk.CTkToplevel):
                         lbl.configure(text=f"{val:.0f} {unit}", text_color=color)
             else:
                 for key in ("chassis_temp", "fan0_pct", "fan1_pct"):
-                    entry = self.widgets.get(f"hw_{key}_value")
+                    entry = self._widgets.get(f"hw_{key}_value")
                     if entry:
                         entry[0].configure(text="fase1 inactivo", text_color=COLORS['text_dim'])
 
@@ -183,7 +183,7 @@ class MonitorWindow(ctk.CTkToplevel):
 
     def _update_metric(self, key, value, history, unit, warn, crit):
         color = self._system_monitor.level_color(value, warn, crit)
-        self.widgets[f"{key}_value"].configure(text=f"{value:.1f} {unit}", text_color=color)
-        self.widgets[f"{key}_label"].configure(text_color=color)
-        g = self.graphs[key]
+        self._widgets[f"{key}_value"].configure(text=f"{value:.1f} {unit}", text_color=color)
+        self._widgets[f"{key}_label"].configure(text_color=color)
+        g = self._graphs[key]
         g['widget'].update(history, g['max_val'], color)

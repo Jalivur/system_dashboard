@@ -17,8 +17,8 @@ class USBWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         
-        self.system_utils = SystemUtils()
-        self.device_widgets = []
+        self._system_utils = SystemUtils()
+        self._device_widgets = []
         
         self.title("Monitor USB")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -54,46 +54,46 @@ class USBWindow(ctk.CTkToplevel):
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
         
-        self.canvas = ctk.CTkCanvas(
+        self._canvas = ctk.CTkCanvas(
             scroll_container,
             bg=COLORS['bg_medium'],
             highlightthickness=0
         )
-        self.canvas.pack(side="left", fill="both", expand=True)
+        self._canvas.pack(side="left", fill="both", expand=True)
         
         scrollbar = ctk.CTkScrollbar(
             scroll_container,
             orientation="vertical",
-            command=self.canvas.yview,
+            command=self._canvas.yview,
             width=30
         )
         scrollbar.pack(side="right", fill="y")
         StyleManager.style_scrollbar_ctk(scrollbar)
         
-        self.canvas.configure(yscrollcommand=scrollbar.set)
+        self._canvas.configure(yscrollcommand=scrollbar.set)
         
-        self.devices_frame = ctk.CTkFrame(self.canvas, fg_color=COLORS['bg_medium'])
-        self.canvas.create_window(
+        self._devices_frame = ctk.CTkFrame(self._canvas, fg_color=COLORS['bg_medium'])
+        self._canvas.create_window(
             (0, 0),
-            window=self.devices_frame,
+            window=self._devices_frame,
             anchor="nw",
             width=DSI_WIDTH-50
         )
         
-        self.devices_frame.bind(
+        self._devices_frame.bind(
             "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            lambda e: self._canvas.configure(scrollregion=self._canvas.bbox("all"))
         )
         
     
     def _refresh_devices(self):
         """Refresca la lista de dispositivos USB"""
-        for widget in self.device_widgets:
+        for widget in self._device_widgets:
             widget.destroy()
-        self.device_widgets.clear()
+        self._device_widgets.clear()
         
-        storage_devices = self.system_utils.list_usb_storage_devices()
-        other_devices = self.system_utils.list_usb_other_devices()
+        storage_devices = self._system_utils.list_usb_storage_devices()
+        other_devices = self._system_utils.list_usb_other_devices()
         
         logger.debug("[USBWindow] Dispositivos detectados: %d almacenamiento, %d otros", len(storage_devices), len(other_devices))
         
@@ -105,25 +105,25 @@ class USBWindow(ctk.CTkToplevel):
         
         if not storage_devices and not other_devices:
             no_devices = ctk.CTkLabel(
-                self.devices_frame,
+                self._devices_frame,
                 text="No se detectaron dispositivos USB",
                 text_color=COLORS['warning'],
                 font=(FONT_FAMILY, FONT_SIZES['medium']),
                 justify="center"
             )
             no_devices.pack(pady=50)
-            self.device_widgets.append(no_devices)
+            self._device_widgets.append(no_devices)
     
     def _create_storage_section(self, storage_devices: list):
         """Crea la sección de almacenamiento USB"""
         title = ctk.CTkLabel(
-            self.devices_frame,
+            self._devices_frame,
             text="ALMACENAMIENTO USB",
             text_color=COLORS['secondary'],
             font=(FONT_FAMILY, FONT_SIZES['large'], "bold")
         )
         title.pack(anchor="w", pady=(10, 10), padx=10)
-        self.device_widgets.append(title)
+        self._device_widgets.append(title)
         
         for idx, device in enumerate(storage_devices):
             self._create_storage_device_widget(device, idx)
@@ -131,13 +131,13 @@ class USBWindow(ctk.CTkToplevel):
     def _create_storage_device_widget(self, device: dict, index: int):
         """Crea widget para un dispositivo de almacenamiento"""
         device_frame = ctk.CTkFrame(
-            self.devices_frame,
+            self._devices_frame,
             fg_color=COLORS['bg_dark'],
             border_width=2,
             border_color=COLORS['success']
         )
         device_frame.pack(fill="x", pady=5, padx=10)
-        self.device_widgets.append(device_frame)
+        self._device_widgets.append(device_frame)
         
         name = device.get('name', 'USB Disk')
         size = device.get('size', '?')
@@ -200,13 +200,13 @@ class USBWindow(ctk.CTkToplevel):
     def _create_other_devices_section(self, other_devices: list):
         """Crea la sección de otros dispositivos USB"""
         title = ctk.CTkLabel(
-            self.devices_frame,
+            self._devices_frame,
             text="OTROS DISPOSITIVOS USB",
             text_color=COLORS['secondary'],
             font=(FONT_FAMILY, FONT_SIZES['large'], "bold")
         )
         title.pack(anchor="w", pady=(20, 10), padx=10)
-        self.device_widgets.append(title)
+        self._device_widgets.append(title)
         
         for idx, device_line in enumerate(other_devices):
             self._create_other_device_widget(device_line, idx)
@@ -216,13 +216,13 @@ class USBWindow(ctk.CTkToplevel):
         device_info = self._parse_lsusb_line(device_line)
         
         device_frame = ctk.CTkFrame(
-            self.devices_frame,
+            self._devices_frame,
             fg_color=COLORS['bg_dark'],
             border_width=1,
             border_color=COLORS['primary']
         )
         device_frame.pack(fill="x", pady=3, padx=10)
-        self.device_widgets.append(device_frame)
+        self._device_widgets.append(device_frame)
         
         inner = ctk.CTkFrame(device_frame, fg_color=COLORS['bg_dark'])
         inner.pack(fill="x", padx=5, pady=5)
@@ -283,7 +283,7 @@ class USBWindow(ctk.CTkToplevel):
         
         logger.info("[USBWindow] Intentando expulsar: '%s' (%s)", device_name, device.get('dev', '?'))
         
-        success, message = self.system_utils.eject_usb_device(device)
+        success, message = self._system_utils.eject_usb_device(device)
         
         if success:
             logger.info("[USBWindow] Expulsión exitosa: '%s'", device_name)

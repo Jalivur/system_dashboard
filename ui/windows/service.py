@@ -14,12 +14,12 @@ class ServiceWindow(ctk.CTkToplevel):
     def __init__(self, parent, service_monitor: ServiceMonitor):
         super().__init__(parent)
 
-        self.service_monitor = service_monitor
+        self._service_monitor = service_monitor
 
-        self.search_var    = ctk.StringVar(master=self)
-        self.filter_var    = ctk.StringVar(master=self, value="all")
-        self.update_paused = False
-        self.update_job    = None
+        self._search_var    = ctk.StringVar(master=self)
+        self._filter_var    = ctk.StringVar(master=self, value="all")
+        self._update_paused = False
+        self._update_job    = None
 
         self.title("Monitor de Servicios")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -44,13 +44,13 @@ class ServiceWindow(ctk.CTkToplevel):
 
         stats_bar = ctk.CTkFrame(main, fg_color=COLORS['bg_dark'])
         stats_bar.pack(fill="x", padx=5, pady=(0, 4))
-        self.stats_label = ctk.CTkLabel(
+        self._stats_label = ctk.CTkLabel(
             stats_bar,
             text="Cargando...",
             text_color=COLORS['text'],
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
-        self.stats_label.pack(pady=4, padx=10, anchor="w")
+        self._stats_label.pack(pady=4, padx=10, anchor="w")
 
         self._create_controls(main)
         self._create_column_headers(main)
@@ -79,9 +79,9 @@ class ServiceWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.service_frame = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=self.service_frame, anchor="nw", width=DSI_WIDTH - 50)
-        self.service_frame.bind(
+        self._service_frame = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window((0, 0), window=self._service_frame, anchor="nw", width=DSI_WIDTH - 50)
+        self._service_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
@@ -114,7 +114,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
         search_entry = ctk.CTkEntry(
             search_frame,
-            textvariable=self.search_var,
+            textvariable=self._search_var,
             width=200,
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
@@ -140,7 +140,7 @@ class ServiceWindow(ctk.CTkToplevel):
             rb = ctk.CTkRadioButton(
                 filter_frame,
                 text=label,
-                variable=self.filter_var,
+                variable=self._filter_var,
                 value=filter_type,
                 command=self._on_filter_change,
                 text_color=COLORS['text'],
@@ -189,24 +189,24 @@ class ServiceWindow(ctk.CTkToplevel):
     # ── Callbacks de UI ───────────────────────────────────────────────────────
 
     def _on_sort_change(self, column: str):
-        self.update_paused = True
+        self._update_paused = True
 
-        if self.service_monitor.sort_by == column:
-            self.service_monitor.sort_reverse = not self.service_monitor.sort_reverse
+        if self._service_monitor.sort_by == column:
+            self._service_monitor.sort_reverse = not self._service_monitor.sort_reverse
         else:
-            self.service_monitor.set_sort(column, reverse=False)
+            self._service_monitor.set_sort(column, reverse=False)
 
         self._update_now()
         self.after(2000, self._resume_updates)
 
     def _on_filter_change(self):
-        self.update_paused = True
-        self.service_monitor.set_filter(self.filter_var.get())
+        self._update_paused = True
+        self._service_monitor.set_filter(self._filter_var.get())
         self._update_now()
         self.after(2000, self._resume_updates)
 
     def _on_search_change(self):
-        self.update_paused = True
+        self._update_paused = True
 
         if hasattr(self, '_search_timer'):
             self.after_cancel(self._search_timer)
@@ -218,10 +218,10 @@ class ServiceWindow(ctk.CTkToplevel):
         self.after(3000, self._resume_updates)
 
     def _resume_updates(self):
-        self.update_paused = False
+        self._update_paused = False
 
     def _force_update(self):
-        self.update_paused = False
+        self._update_paused = False
         self._update_now()
 
     # ── Bucle de actualización ────────────────────────────────────────────────
@@ -231,24 +231,24 @@ class ServiceWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        if not self.service_monitor.is_running():
+        if not self._service_monitor.is_running():
             StyleManager.show_service_stopped_banner(self._content_frame, "Service Monitor")
-            self.update_job = self.after(UPDATE_MS, self._update)
+            self._update_job = self.after(UPDATE_MS, self._update)
             return
 
-        if self.update_paused:
-            self.update_job = self.after(UPDATE_MS * 5, self._update)
+        if self._update_paused:
+            self._update_job = self.after(UPDATE_MS * 5, self._update)
             return
 
         self._update_now()
-        self.update_job = self.after(UPDATE_MS * 5, self._update)
+        self._update_job = self.after(UPDATE_MS * 5, self._update)
 
     def _update_now(self):
         if not self.winfo_exists():
             return
 
-        stats = self.service_monitor.get_stats()
-        self.stats_label.configure(
+        stats = self._service_monitor.get_stats()
+        self._stats_label.configure(
             text=(
                 f"Total: {stats['total']} | "
                 f"Activos: {stats['active']} | "
@@ -258,14 +258,14 @@ class ServiceWindow(ctk.CTkToplevel):
             )
         )
 
-        for widget in self.service_frame.winfo_children():
+        for widget in self._service_frame.winfo_children():
             widget.destroy()
 
-        search_query = self.search_var.get()
+        search_query = self._search_var.get()
         services = (
-            self.service_monitor.search_services(search_query)
+            self._service_monitor.search_services(search_query)
             if search_query
-            else self.service_monitor.get_services()
+            else self._service_monitor.get_services()
         )
 
         for i, service in enumerate(services[:30]):
@@ -275,7 +275,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _create_service_row(self, service: dict, row: int):
         bg_color  = COLORS['bg_dark'] if row % 2 == 0 else COLORS['bg_medium']
-        row_frame = ctk.CTkFrame(self.service_frame, fg_color=bg_color)
+        row_frame = ctk.CTkFrame(self._service_frame, fg_color=bg_color)
         row_frame.pack(fill="x", pady=2)
 
         row_frame.grid_columnconfigure(0, weight=2, minsize=150)
@@ -284,7 +284,7 @@ class ServiceWindow(ctk.CTkToplevel):
         row_frame.grid_columnconfigure(3, weight=3, minsize=300)
 
         state_icon  = Icons.GREEN_CIRCLE if service['active'] == 'active' else Icons.RED_CIRCLE
-        state_color = COLORS[self.service_monitor.get_state_color(service['active'])]
+        state_color = COLORS[self._service_monitor.get_state_color(service['active'])]
 
         ctk.CTkLabel(
             row_frame,
@@ -359,7 +359,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _start_service(self, service: dict):
         def do_start():
-            success, message = self.service_monitor.start_service(service['name'])
+            success, message = self._service_monitor.start_service(service['name'])
             custom_msgbox(self, message, "Iniciar Servicio")
             if success:
                 self._force_update()
@@ -374,7 +374,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _stop_service(self, service: dict):
         def do_stop():
-            success, message = self.service_monitor.stop_service(service['name'])
+            success, message = self._service_monitor.stop_service(service['name'])
             custom_msgbox(self, message, "Detener Servicio")
             if success:
                 self._force_update()
@@ -389,7 +389,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _restart_service(self, service: dict):
         def do_restart():
-            success, message = self.service_monitor.restart_service(service['name'])
+            success, message = self._service_monitor.restart_service(service['name'])
             custom_msgbox(self, message, "Reiniciar Servicio")
             if success:
                 self._force_update()
@@ -403,7 +403,7 @@ class ServiceWindow(ctk.CTkToplevel):
         )
 
     def _view_logs(self, service: dict):
-        logs = self.service_monitor.get_logs(service['name'], lines=30)
+        logs = self._service_monitor.get_logs(service['name'], lines=30)
 
         logs_window = ctk.CTkToplevel(self)
         logs_window.title(f"Logs: {service['name']}")
@@ -426,7 +426,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _enable_service(self, service: dict):
         def do_enable():
-            success, message = self.service_monitor.enable_service(service['name'])
+            success, message = self._service_monitor.enable_service(service['name'])
             custom_msgbox(self, message, "Habilitar Autostart")
             if success:
                 self._force_update()
@@ -442,7 +442,7 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _disable_service(self, service: dict):
         def do_disable():
-            success, message = self.service_monitor.disable_service(service['name'])
+            success, message = self._service_monitor.disable_service(service['name'])
             custom_msgbox(self, message, "Deshabilitar Autostart")
             if success:
                 self._force_update()

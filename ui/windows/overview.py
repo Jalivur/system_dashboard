@@ -71,15 +71,15 @@ class OverviewWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        self._inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
         canvas.create_window(
-            (0, 0), window=self.inner,
+            (0, 0), window=self._inner,
             anchor="nw", width=DSI_WIDTH - 50)
-        self.inner.bind(
+        self._inner.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        grid = ctk.CTkFrame(self.inner, fg_color="transparent")
+        grid = ctk.CTkFrame(self._inner, fg_color="transparent")
         grid.pack(fill="both", expand=True, padx=5, pady=5)
         grid.columnconfigure(0, weight=1)
         grid.columnconfigure(1, weight=1)
@@ -178,7 +178,7 @@ class OverviewWindow(ctk.CTkToplevel):
         return COLORS['primary']
 
     def _refresh_system(self):
-        if not self._system_monitor.is_running() and self_disk_monitor.is_running():
+        if not self._system_monitor.is_running() and self._disk_monitor.is_running():
             for key in ('cpu', 'ram', 'temp', 'disk'):
                 self._widgets[key].configure(text="-- (parado)", text_color=COLORS['text_dim'])
             return
