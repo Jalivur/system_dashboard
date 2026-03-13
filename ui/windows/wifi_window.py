@@ -24,7 +24,7 @@ class WiFiWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, wifi_monitor):
         super().__init__(parent)
-        self.wifi_monitor = wifi_monitor
+        self._wifi_monitor = wifi_monitor
 
         self.title("Monitor WiFi")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -124,7 +124,7 @@ class WiFiWindow(ctk.CTkToplevel):
         ).pack(side="left")
 
         self._lbl_iface = ctk.CTkLabel(
-            hdr, text=self.wifi_monitor.interface,
+            hdr, text=self._wifi_monitor.interface,
             font=(FONT_FAMILY, FONT_SIZES['small']),
             text_color=COLORS['text_dim'],
             anchor="e")
@@ -307,10 +307,10 @@ class WiFiWindow(ctk.CTkToplevel):
     def _update(self):
         if not self.winfo_exists():
             return
-        if not self.wifi_monitor.is_running():
+        if not self._wifi_monitor.is_running():
             StyleManager.show_service_stopped_banner(self._inner, "Wifi Monitor")
             return
-        stats = self.wifi_monitor.get_stats()
+        stats = self._wifi_monitor.get_stats()
         info  = stats["info"]
 
         self._refresh_connection(info)
@@ -323,7 +323,7 @@ class WiFiWindow(ctk.CTkToplevel):
                 text=f"{info['ssid']}  ·  {dbm_str}")
         else:
             self._header.status_label.configure(
-                text=f"Sin conexión — {self.wifi_monitor.interface}",
+                text=f"Sin conexión — {self._wifi_monitor.interface}",
                 text_color=COLORS['warning'])
 
         ts = stats["last_update"]
@@ -375,7 +375,7 @@ class WiFiWindow(ctk.CTkToplevel):
             text_color=COLORS['text'])
 
         # Gráfica señal — invertir signo para mostrar "más es mejor"
-        signal_hist = self._stats_signal_hist()
+        signal_hist = self._wifi_monitor.get_signal_history()
         if signal_hist:
             # Normalizar: convertir dBm negativos a valores positivos para GraphWidget
             # -30 → 100, -90 → 0
@@ -411,16 +411,6 @@ class WiFiWindow(ctk.CTkToplevel):
 
         self._graph_rx.update(rx_hist, scale, rx_color)
         self._graph_tx.update(tx_hist, scale, tx_color)
-
-    def _stats_signal_hist(self):
-        """Devuelve el historial de señal desde el monitor."""
-        acquired = self.wifi_monitor._lock.acquire(blocking=False)
-        if not acquired:
-            return []
-        try:
-            return list(self.wifi_monitor.signal_hist)
-        finally:
-            self.wifi_monitor._lock.release()
 
     @staticmethod
     def _signal_bars(pct: int) -> str:
