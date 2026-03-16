@@ -7,7 +7,7 @@ import customtkinter as ctk
 from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES,
                              DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y,
                              NET_CRIT, NET_WARN)
-from core import WiFiMonitor
+from core import WiFiMonitor, NetworkMonitor
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from ui.widgets import GraphWidget
 from utils.logger import get_logger
@@ -390,15 +390,10 @@ class WiFiWindow(ctk.CTkToplevel):
 
         # Colores dinámicos usando mismo criterio que network_monitor
         
-        def _traffic_color(v):
-            if v >= NET_CRIT:
-                return COLORS['danger']
-            if v >= NET_WARN:
-                return COLORS['warning']
-            return COLORS['primary']
+        
 
-        rx_color = _traffic_color(rx)
-        tx_color = _traffic_color(tx)
+        rx_color = NetworkMonitor.net_color(rx)
+        tx_color = NetworkMonitor.net_color(tx)
 
         self._lbl_rx.configure(text=f"{rx:.3f} MB/s", text_color=rx_color)
         self._lbl_tx.configure(text=f"{tx:.3f} MB/s", text_color=tx_color)
