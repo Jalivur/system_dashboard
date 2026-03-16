@@ -96,6 +96,7 @@ class SystemMonitor:
                 'ram':        vm.percent,
                 'ram_used':   vm.used,
                 'temp':       temp,
+                'uptime_s':   uptime_s,
                 'uptime_str': uptime_str,
             }
 

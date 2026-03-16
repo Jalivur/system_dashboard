@@ -104,6 +104,7 @@ class DataCollectionService:
             'fan_pwm':           fan_state.get('target_pwm', 0),
             'fan_mode':          fan_state.get('mode', 'unknown'),
             'updates_available': update_stats.get('pending', 0),
+            'uptime_s':          system_stats.get('uptime_s', 0),
         }
  
         self._data_logger.log_metrics(metrics)

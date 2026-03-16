@@ -39,7 +39,8 @@ class DataLogger:
                     net_upload_mb REAL,
                     fan_pwm INTEGER,
                     fan_mode TEXT,
-                    updates_available INTEGER
+                    updates_available INTEGER,
+                    uptime_s INTEGER
                 )
             ''')
 
@@ -78,8 +79,9 @@ class DataLogger:
                     timestamp,
                     cpu_percent, ram_percent, ram_used_gb, temperature,
                     disk_used_percent, disk_read_mb, disk_write_mb,
-                    net_download_mb, net_upload_mb, fan_pwm, fan_mode, updates_available
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    net_download_mb, net_upload_mb, fan_pwm, fan_mode, updates_available,
+                    uptime_s
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 now,
                 metrics.get('cpu_percent'),
@@ -94,6 +96,7 @@ class DataLogger:
                 metrics.get('fan_pwm'),
                 metrics.get('fan_mode'),
                 metrics.get('updates_available'),
+                metrics.get('uptime_s')
             ))
 
             conn.commit()
