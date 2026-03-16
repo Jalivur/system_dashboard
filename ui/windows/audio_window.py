@@ -354,27 +354,10 @@ class AudioWindow(ctk.CTkToplevel):
 
     def _play_test(self):
         """Lanza aplay en thread — busca el wav en varias rutas conocidas."""
-        def _worker():
-            import subprocess, os
-            candidates = [
-                "/usr/share/sounds/alsa/Front_Center.wav",
-                "/usr/share/sounds/alsa/Noise.wav",
-                "/usr/share/sounds/alsa/Side_Left.wav",
-            ]
-            wav = next((p for p in candidates if os.path.exists(p)), None)
-            if wav:
-                try:
-                    subprocess.Popen(
-                        ["aplay", "-q", wav],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    logger.info("[AudioWindow] play_test: %s", wav)
-                except Exception as e:
-                    logger.warning("[AudioWindow] play_test error: %s", e)
-            else:
-                logger.warning("[AudioWindow] play_test: no se encontró ningún wav")
-        threading.Thread(target=_worker, daemon=True, name="AudioTest").start()
+        threading.Thread(
+            target=self._svc.play_test,
+            daemon=True, name='AudioTest'
+        ).start()
 
     def _update_mute_ui(self):
         if not self.winfo_exists():
