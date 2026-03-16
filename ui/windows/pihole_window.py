@@ -21,7 +21,7 @@ class PiholeWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, pihole_monitor: PiholeMonitor):
         super().__init__(parent)
-        self.pihole = pihole_monitor
+        self._pihole = pihole_monitor
         self._update_job = None
 
         self.title("Pi-hole")
@@ -62,15 +62,15 @@ class PiholeWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        self._inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
         canvas.create_window(
-            (0, 0), window=self.inner,
+            (0, 0), window=self._inner,
             anchor="nw", width=DSI_WIDTH - 50)
-        self.inner.bind(
+        self._inner.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         # Grid 2×2 de tarjetas métricas
-        grid = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_medium'])
+        grid = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_medium'])
         grid.pack(fill="both", expand=True, padx=5, pady=5)
         grid.grid_columnconfigure(0, weight=1, uniform="col")
         grid.grid_columnconfigure(1, weight=1, uniform="col")
@@ -110,7 +110,7 @@ class PiholeWindow(ctk.CTkToplevel):
             self._value_labels[key] = (val_lbl, unit, color)
 
         # Botón forzar refresco
-        bottom = ctk.CTkFrame(self.inner, fg_color="transparent")
+        bottom = ctk.CTkFrame(self._inner, fg_color="transparent")
         bottom.pack(fill="x", pady=6, padx=10)
         make_futuristic_button(
             bottom, text="⟳  Actualizar",
@@ -125,11 +125,11 @@ class PiholeWindow(ctk.CTkToplevel):
 
     def _force_refresh(self):
         """Pide al monitor que sondee de inmediato (en background)."""
-        if not self.pihole.is_running():
+        if not self._pihole.is_running():
             return
 
         threading.Thread(
-            target=self.pihole._fetch,
+            target=self._pihole.fetch_now(),
             daemon=True, name="PiholeForceRefresh"
         ).start()
         self._header.status_label.configure(text="Actualizando...")
@@ -140,12 +140,12 @@ class PiholeWindow(ctk.CTkToplevel):
         """Actualiza los valores en pantalla con la caché del monitor."""
         if not self.winfo_exists():
             return
-        if not self.pihole.is_running():
+        if not self._pihole.is_running():
             StyleManager.show_service_stopped_banner(self._grid_frame, "Pi-hole Monitor")
             self._update_job = self.after(UPDATE_MS, self._render)
             return
         
-        stats = self.pihole.get_stats()
+        stats = self._pihole.get_stats()
 
         if not stats.get("reachable", False):
             self._header.status_label.configure(text="" + Icons.WARNING + " Sin conexión")

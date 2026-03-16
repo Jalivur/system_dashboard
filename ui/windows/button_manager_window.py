@@ -60,8 +60,8 @@ class ButtonManagerWindow(ctk.CTkToplevel):
             window_manager: WindowManager activo en MainWindow
         """
         super().__init__(parent)
-        self.registry       = registry
-        self.window_manager = window_manager
+        self._registry       = registry
+        self._window_manager = window_manager
 
         self.title("Gestor de Botones")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -110,7 +110,7 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         ).pack(anchor="w", padx=14, pady=(6, 10))
 
         for key, label in _BTN_LABELS.items():
-            enabled = self.registry.ui_enabled(key)
+            enabled = self._registry.ui_enabled(key)
             self._create_row(inner, key, label, enabled)
 
         bottom = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
@@ -173,26 +173,26 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         """Aplica el cambio inmediatamente en la UI del menú principal."""
         enabled = bool(self._switches[key].get())
         if enabled:
-            self.window_manager.show(key)
+            self._window_manager.show(key)
         else:
-            self.window_manager.hide(key)
+            self._window_manager.hide(key)
         logger.debug("[ButtonManagerWindow] %s → %s", key, "visible" if enabled else "oculto")
 
     def _enable_all(self):
         """Activa todos los switches y aplica los cambios."""
         for key, switch in self._switches.items():
             switch.select()
-            self.window_manager.show(key)
+            self._window_manager.show(key)
 
     def _disable_all(self):
         """Desactiva todos los switches y aplica los cambios."""
         for key, switch in self._switches.items():
             switch.deselect()
-            self.window_manager.hide(key)
+            self._window_manager.hide(key)
 
     def _save(self):
-        """Persiste el estado actual al JSON via registry.save_config()."""
-        self.registry.save_config()
+        """Persiste el estado actual al JSON via _registry.save_config()."""
+        self._registry.save_config()
         logger.info("[ButtonManagerWindow] Configuración de botones guardada")
         custom_msgbox(
             parent=self,

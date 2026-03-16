@@ -463,9 +463,8 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Config ────────────────────────────────────────────────────────────────
 
     def _open_config(self):
-        cfg = _GPIOConfigDialog(self, self._monitor,
-                                on_close=self._on_config_closed)
-        cfg.grab_set()
+        _GPIOConfigDialog(self, self._monitor,
+                          on_close=self._on_config_closed)
 
     def _on_config_closed(self):
         """Callback llamado al cerrar el diálogo — reconstruye las filas."""
@@ -712,12 +711,10 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
             self.after(1500, lambda: (feedback_label.winfo_exists() and
                                       feedback_label.configure(text="")))
 
-        """Al cerrar notifica a GPIOWindow para que reconstruya sus filas."""
+        
     def destroy(self) -> None:
-        if self._op_job is not None:
-            try:
-                self.after_cancel(self._op_job)
-            except Exception:
-                pass
-        logger.info("[GPIOWindow] Ventana cerrada")
+        """Al cerrar notifica a GPIOWindow para que reconstruya sus filas."""
+        logger.info('[GPIOConfigDialog] Diálogo cerrado')
         super().destroy()
+        if callable(self._on_close):
+            self._on_close()

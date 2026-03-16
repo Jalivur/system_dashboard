@@ -38,17 +38,17 @@ class HomebridgeWindow(ctk.CTkToplevel):
     # ── Interfaz ──────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        self.main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
-        self.main.pack(fill="both", expand=True, padx=5, pady=5)
+        self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        self._main.pack(fill="both", expand=True, padx=5, pady=5)
 
         self._header = make_window_header(
-            self.main,
+            self._main,
             title="HOMEBRIDGE",
             on_close=self._on_close,
             status_text="Conectando...",
         )
 
-        status_bar = ctk.CTkFrame(self.main, fg_color=COLORS['bg_dark'])
+        status_bar = ctk.CTkFrame(self._main, fg_color=COLORS['bg_dark'])
         status_bar.pack(fill="x", padx=5, pady=(0, 4))
         self._status_label = ctk.CTkLabel(
             status_bar,
@@ -59,7 +59,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         )
         self._status_label.pack(pady=4, padx=10, fill="x")
 
-        scroll_container = ctk.CTkFrame(self.main, fg_color=COLORS['bg_medium'])
+        scroll_container = ctk.CTkFrame(self._main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
 
         max_height = DSI_HEIGHT - 220
@@ -91,7 +91,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         )
         self._content_frame = self._device_frame
 
-        bottom = ctk.CTkFrame(self.main, fg_color=COLORS['bg_medium'])
+        bottom = ctk.CTkFrame(self._main, fg_color=COLORS['bg_medium'])
         bottom.pack(fill="x", pady=8, padx=10)
 
         make_futuristic_button(
@@ -136,7 +136,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         self._busy = False
 
         if self._hb.is_reachable():
-            on_count      = sum(1 for a in accessories if a["on"])
+            on_count      = sum(1 for a in accessories if a.get('on', False))
             total         = len(accessories)
             header_status = f"{on_count}/{total} encendidos"
             self._set_status(

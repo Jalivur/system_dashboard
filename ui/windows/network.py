@@ -18,8 +18,8 @@ class NetworkWindow(ctk.CTkToplevel):
     def __init__(self, parent, network_monitor):
         super().__init__(parent)
         self._network_monitor = network_monitor
-        self.widgets  = {}
-        self.graphs   = {}
+        self._widgets  = {}
+        self._graphs   = {}
         self._interface_update_counter = 0
         self._banner_shown = False
 
@@ -93,9 +93,9 @@ class NetworkWindow(ctk.CTkToplevel):
         graph = GraphWidget(cell, width=_COL_W - 16, height=_GRAPH_H)
         graph.pack(padx=4, pady=(0, 6))
 
-        self.widgets[f"{key}_label"] = lbl
-        self.widgets[f"{key}_value"] = val
-        self.graphs[key] = graph
+        self._widgets[f"{key}_label"] = lbl
+        self._widgets[f"{key}_value"] = val
+        self._graphs[key] = graph
 
     def _create_interfaces_cell(self, parent, row, col):
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
@@ -105,8 +105,8 @@ class NetworkWindow(ctk.CTkToplevel):
                      font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), anchor="w"
                      ).pack(anchor="w", padx=8, pady=(6, 4))
 
-        self.interfaces_container = ctk.CTkFrame(cell, fg_color="transparent")
-        self.interfaces_container.pack(fill="both", expand=True, padx=4, pady=(0, 6))
+        self._interfaces_container = ctk.CTkFrame(cell, fg_color="transparent")
+        self._interfaces_container.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         self._update_interfaces()
 
     def _create_speedtest_cell(self, parent, row, col):
@@ -117,26 +117,26 @@ class NetworkWindow(ctk.CTkToplevel):
                      font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), anchor="w"
                      ).pack(anchor="w", padx=8, pady=(6, 4))
 
-        self.speedtest_result = ctk.CTkLabel(
+        self._speedtest_result = ctk.CTkLabel(
             cell, text=f"{Icons.TAP} Pulsa {Icons.PLAY} para\ncomenzar",
             text_color=COLORS['text'],
             font=(FONT_FAMILY, FONT_SIZES['small']),
             justify="left", wraplength=_COL_W - 20)
-        self.speedtest_result.pack(anchor="w", padx=8, pady=(0, 4))
+        self._speedtest_result.pack(anchor="w", padx=8, pady=(0, 4))
 
-        self.speedtest_btn = make_futuristic_button(
+        self._speedtest_btn = make_futuristic_button(
             cell, text=f"{Icons.PLAY} Ejecutar Test", command=self._run_speedtest, width=15, height=5)
-        self.speedtest_btn.pack(pady=(0, 8))
+        self._speedtest_btn.pack(pady=(0, 8))
 
     # ── Interfaces ───────────────────────────────────────────────────────────
 
     def _update_interfaces(self):
-        for w in self.interfaces_container.winfo_children():
+        for w in self._interfaces_container.winfo_children():
             w.destroy()
 
         interfaces = SystemUtils.get_interfaces_ips()
         if not interfaces:
-            ctk.CTkLabel(self.interfaces_container, text="Sin interfaces",
+            ctk.CTkLabel(self._interfaces_container, text="Sin interfaces",
                          text_color=COLORS['warning'],
                          font=(FONT_FAMILY, FONT_SIZES['small'])).pack(pady=5)
             return
@@ -151,7 +151,7 @@ class NetworkWindow(ctk.CTkToplevel):
             else:
                 color, icon = COLORS['text'], "•"
 
-            ctk.CTkLabel(self.interfaces_container,
+            ctk.CTkLabel(self._interfaces_container,
                          text=f"{icon} {iface}: {ip}",
                          text_color=color,
                          font=(FONT_FAMILY, FONT_SIZES['small']),
@@ -166,31 +166,31 @@ class NetworkWindow(ctk.CTkToplevel):
             return
         self._network_monitor.reset_speedtest()
         self._network_monitor.run_speedtest()
-        self.speedtest_btn.configure(state="disabled")
-        self.speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
+        self._speedtest_btn.configure(state="disabled")
+        self._speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
 
     def _update_speedtest(self):
         result = self._network_monitor.get_speedtest_result()
         status = result['status']
         if status == 'idle':
-            self.speedtest_result.configure(
+            self._speedtest_result.configure(
                 text=f"{Icons.TAP} Pulsa {Icons.PLAY} para\ncomenzar", text_color=COLORS['text'])
-            self.speedtest_btn.configure(state="normal")
+            self._speedtest_btn.configure(state="normal")
         elif status == 'running':
-            self.speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
-            self.speedtest_btn.configure(state="disabled")
+            self._speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
+            self._speedtest_btn.configure(state="disabled")
         elif status == 'done':
-            self.speedtest_result.configure(
+            self._speedtest_result.configure(
                 text=f"Ping: {result['ping']} ms\n↓ {result['download']:.1f} MB/s\n↑ {result['upload']:.1f} MB/s",
                 text_color=COLORS['success'])
-            self.speedtest_btn.configure(state="normal")
+            self._speedtest_btn.configure(state="normal")
         elif status == 'timeout':
-            self.speedtest_result.configure(text="Timeout", text_color=COLORS['danger'])
-            self.speedtest_btn.configure(state="normal")
+            self._speedtest_result.configure(text="Timeout", text_color=COLORS['danger'])
+            self._speedtest_btn.configure(state="normal")
         elif status == 'error':
-            self.speedtest_result.configure(
+            self._speedtest_result.configure(
                 text="Error al ejecutar\nel test", text_color=COLORS['danger'])
-            self.speedtest_btn.configure(state="normal")
+            self._speedtest_btn.configure(state="normal")
 
     # ── Update loop ───────────────────────────────────────────────────────────
 
@@ -207,8 +207,8 @@ class NetworkWindow(ctk.CTkToplevel):
 
         if self._banner_shown:
             self._banner_shown = False
-            self.widgets.clear()
-            self.graphs.clear()
+            self._widgets.clear()
+            self._graphs.clear()
             for w in self._inner.winfo_children():
                 w.destroy()
             self._build_content(self._inner)
@@ -222,16 +222,16 @@ class NetworkWindow(ctk.CTkToplevel):
             text=f"{stats['interface']}  · {Icons.DOWN} {stats['download_mb']:.2f} {Icons.UP} {stats['upload_mb']:.2f} MB/s")
 
         dl_color = self._network_monitor.net_color(stats['download_mb'])
-        self.widgets['download_label'].configure(text_color=dl_color)
-        self.widgets['download_value'].configure(
+        self._widgets['download_label'].configure(text_color=dl_color)
+        self._widgets['download_value'].configure(
             text=f"{stats['download_mb']:.2f} MB/s", text_color=dl_color)
-        self.graphs['download'].update(history['download'], history['dynamic_max'], dl_color)
+        self._graphs['download'].update(history['download'], history['dynamic_max'], dl_color)
 
         ul_color = self._network_monitor.net_color(stats['upload_mb'])
-        self.widgets['upload_label'].configure(text_color=ul_color)
-        self.widgets['upload_value'].configure(
+        self._widgets['upload_label'].configure(text_color=ul_color)
+        self._widgets['upload_value'].configure(
             text=f"{stats['upload_mb']:.2f} MB/s", text_color=ul_color)
-        self.graphs['upload'].update(history['upload'], history['dynamic_max'], ul_color)
+        self._graphs['upload'].update(history['upload'], history['dynamic_max'], ul_color)
 
         self._update_speedtest()
 

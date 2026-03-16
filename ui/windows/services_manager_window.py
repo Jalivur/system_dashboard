@@ -220,9 +220,7 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         svc = self._services.get(key)
         if svc is None:
             return False
-        if hasattr(svc, "is_running"):
-            return svc.is_running()
-        return getattr(svc, "_running", False)
+        return svc.is_running()
 
     def _update_row(self, key: str):
         if key not in self._rows:

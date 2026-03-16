@@ -6,8 +6,8 @@ usando los scripts del usuario.
 import customtkinter as ctk
 from config.settings import (
     COLORS, FONT_FAMILY, FONT_SIZES,
-    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR
-, Icons)
+    DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR, 
+    Icons, UPDATE_MS)
 from ui.styles import StyleManager, make_window_header, make_futuristic_button
 from ui.widgets.dialogs import terminal_dialog
 from utils.logger import get_logger
@@ -19,8 +19,6 @@ logger = get_logger(__name__)
 _SCRIPT_CONNECT    = str(SCRIPTS_DIR / "conectar_vpn.sh")
 _SCRIPT_DISCONNECT = str(SCRIPTS_DIR / "desconectar_vpn.sh")
 
-# Intervalo de refresco del estado en ms
-UPDATE_MS = 3000
 
 
 class VpnWindow(ctk.CTkToplevel):
@@ -28,7 +26,7 @@ class VpnWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, vpn_monitor):
         super().__init__(parent)
-        self.vpn_monitor = vpn_monitor
+        self._vpn_monitor = vpn_monitor
 
         self.title("Gestor VPN")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -38,7 +36,6 @@ class VpnWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.after(150, self.focus_set)
 
-        self._running = True
         self._widgets = {}
 
         self._create_ui()
@@ -46,7 +43,7 @@ class VpnWindow(ctk.CTkToplevel):
         logger.info("[VpnWindow] Ventana abierta")
 
     def destroy(self):
-        self._running = False
+        logger.info("[VpnWindow] Ventana cerrada")
         super().destroy()
 
     # ── UI ────────────────────────────────────────────────────────────────────
@@ -69,15 +66,15 @@ class VpnWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        self._inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
         canvas.create_window(
-            (0, 0), window=self.inner,
+            (0, 0), window=self._inner,
             anchor="nw", width=DSI_WIDTH - 50)
-        self.inner.bind(
+        self._inner.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         # ── Tarjeta de estado ──
-        status_card = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        status_card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         status_card.pack(fill="x", padx=10, pady=(8, 4))
         self._content_frame = status_card
         ctk.CTkLabel(
@@ -122,7 +119,7 @@ class VpnWindow(ctk.CTkToplevel):
         self._widgets['status_detail'].pack(fill="x")
 
         # ── Botones de acción ──
-        action_card = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        action_card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         action_card.pack(fill="x", padx=10, pady=4)
 
         ctk.CTkLabel(
@@ -151,7 +148,7 @@ class VpnWindow(ctk.CTkToplevel):
         ).pack(side="left", padx=12)
 
         # ── Info de interfaz ──
-        info_card = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        info_card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         info_card.pack(fill="x", padx=10, pady=4)
 
         info_inner = ctk.CTkFrame(info_card, fg_color="transparent")
@@ -178,7 +175,7 @@ class VpnWindow(ctk.CTkToplevel):
             self._widgets[key] = lbl
 
         # ── Nota sobre scripts ──
-        note_frame = ctk.CTkFrame(self.inner, fg_color="transparent")
+        note_frame = ctk.CTkFrame(self._inner, fg_color="transparent")
         note_frame.pack(fill="x", padx=14, pady=(4, 0))
 
         ctk.CTkLabel(
@@ -195,13 +192,13 @@ class VpnWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
         
-        if not self.vpn_monitor.is_running():
+        if not self._vpn_monitor.is_running():
             StyleManager.show_service_stopped_banner(self._content_frame, "VPN Monitor")
             self.after(UPDATE_MS, self._update)
             return
         
         try:
-            status = self.vpn_monitor.get_status()
+            status = self._vpn_monitor.get_status()
             connected = status['connected']
             ip        = status['ip']
             iface     = status['interface']
@@ -234,7 +231,7 @@ class VpnWindow(ctk.CTkToplevel):
 
     def _connect(self):
         """Ejecuta conectar_vpn.sh con terminal en vivo."""
-        if not self.vpn_monitor.is_running():
+        if not self._vpn_monitor.is_running():
             return
 
         if not os.path.exists(_SCRIPT_CONNECT):
@@ -255,7 +252,7 @@ class VpnWindow(ctk.CTkToplevel):
 
     def _disconnect(self):
         """Ejecuta desconectar_vpn.sh con terminal en vivo."""
-        if not self.vpn_monitor.is_running():
+        if not self._vpn_monitor.is_running():
             return
         
         if not os.path.exists(_SCRIPT_DISCONNECT):
@@ -276,6 +273,6 @@ class VpnWindow(ctk.CTkToplevel):
 
     def _on_action_done(self):
         """Fuerza sondeo inmediato tras conectar/desconectar."""
-        self.vpn_monitor.force_poll()
+        self._vpn_monitor.force_poll()
         # Pequeño delay para que el sondeo tenga tiempo de completarse
         self.after(2000, self._update)

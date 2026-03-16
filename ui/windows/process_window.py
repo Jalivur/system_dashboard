@@ -15,13 +15,13 @@ class ProcessWindow(ctk.CTkToplevel):
         super().__init__(parent)
 
         # Referencias
-        self.process_monitor = process_monitor
+        self._process_monitor = process_monitor
 
         # Estado
-        self.search_var    = ctk.StringVar(master=self)
-        self.filter_var    = ctk.StringVar(master=self, value="all")
-        self.update_paused = False
-        self.update_job    = None
+        self._search_var    = ctk.StringVar(master=self)
+        self._filter_var    = ctk.StringVar(master=self, value="all")
+        self._update_paused = False
+        self._update_job    = None
 
         # Configurar ventana
         self.title("Monitor de Procesos")
@@ -52,13 +52,13 @@ class ProcessWindow(ctk.CTkToplevel):
         # Stats debajo del header
         stats_bar = ctk.CTkFrame(main, fg_color=COLORS['bg_dark'])
         stats_bar.pack(fill="x", padx=5, pady=(0, 4))
-        self.stats_label = ctk.CTkLabel(
+        self._stats_label = ctk.CTkLabel(
             stats_bar,
             text="Cargando...",
             text_color=COLORS['text'],
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
-        self.stats_label.pack(pady=4, padx=10, anchor="w")
+        self._stats_label.pack(pady=4, padx=10, anchor="w")
 
         self._create_controls(main)
         self._create_column_headers(main)
@@ -87,12 +87,12 @@ class ProcessWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.process_frame = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=self.process_frame, anchor="nw", width=DSI_WIDTH - 50)
-        self.process_frame.bind(
+        self._process_frame = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window((0, 0), window=self._process_frame, anchor="nw", width=DSI_WIDTH - 50)
+        self._process_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        self._content = self.process_frame
+        self._content = self._process_frame
 
     # ── Controles ─────────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ class ProcessWindow(ctk.CTkToplevel):
 
         search_entry = ctk.CTkEntry(
             search_frame,
-            textvariable=self.search_var,
+            textvariable=self._search_var,
             width=200,
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
@@ -136,7 +136,7 @@ class ProcessWindow(ctk.CTkToplevel):
             rb = ctk.CTkRadioButton(
                 filter_frame,
                 text=label,
-                variable=self.filter_var,
+                variable=self._filter_var,
                 value=filter_type,
                 command=self._on_filter_change,
                 text_color=COLORS['text'],
@@ -192,26 +192,23 @@ class ProcessWindow(ctk.CTkToplevel):
 
     def _on_sort_change(self, column: str):
         """Cambia el orden de procesos"""
-        self.update_paused = True
+        self._update_paused = True
 
-        if self.process_monitor.sort_by == column:
-            self.process_monitor.sort_reverse = not self.process_monitor.sort_reverse
-        else:
-            self.process_monitor.set_sort(column, reverse=True)
+        self._process_monitor.toggle_sort(column)
 
         self._update_now()
         self.after(2000, self._resume_updates)
 
     def _on_filter_change(self):
         """Cambia el filtro de procesos"""
-        self.update_paused = True
-        self.process_monitor.set_filter(self.filter_var.get())
+        self._update_paused = True
+        self._process_monitor.set_filter(self._filter_var.get())
         self._update_now()
         self.after(2000, self._resume_updates)
 
     def _on_search_change(self):
         """Callback cuando cambia la búsqueda — debounce 500 ms"""
-        self.update_paused = True
+        self._update_paused = True
 
         if hasattr(self, '_search_timer'):
             self.after_cancel(self._search_timer)
@@ -225,14 +222,14 @@ class ProcessWindow(ctk.CTkToplevel):
 
     def _resume_updates(self):
         """Reanuda las actualizaciones automáticas"""
-        self.update_paused = False
+        self._update_paused = False
 
     # ── Renderizado ───────────────────────────────────────────────────────────
 
     def _render_processes(self):
         """Actualiza stats y renderiza la lista de procesos (lógica compartida)."""
-        stats = self.process_monitor.get_system_stats()
-        self.stats_label.configure(
+        stats = self._process_monitor.get_system_stats()
+        self._stats_label.configure(
             text=(
                 f"Procesos: {stats['total_processes']} | "
                 f"CPU: {stats['cpu_percent']:.1f}% | "
@@ -242,14 +239,14 @@ class ProcessWindow(ctk.CTkToplevel):
             )
         )
 
-        for widget in self.process_frame.winfo_children():
+        for widget in self._process_frame.winfo_children():
             widget.destroy()
 
-        search_query = self.search_var.get()
+        search_query = self._search_var.get()
         processes = (
-            self.process_monitor.search_processes(search_query)
+            self._process_monitor.search_processes(search_query)
             if search_query
-            else self.process_monitor.get_processes(limit=20)
+            else self._process_monitor.get_processes(limit=20)
         )
 
         for i, proc in enumerate(processes):
@@ -260,9 +257,9 @@ class ProcessWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        if self.update_job:
-            self.after_cancel(self.update_job)
-            self.update_job = None
+        if self._update_job:
+            self.after_cancel(self._update_job)
+            self._update_job = None
 
         self._render_processes()
 
@@ -271,22 +268,22 @@ class ProcessWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        if not self.process_monitor.is_running():
+        if not self._process_monitor.is_running():
             StyleManager.show_service_stopped_banner(self._content, "Process Monitor")
             self.after(UPDATE_MS, self._update)
             return
 
-        if self.update_paused:
-            self.update_job = self.after(UPDATE_MS * 2, self._update)
+        if self._update_paused:
+            self._update_job = self.after(UPDATE_MS * 2, self._update)
             return
 
         self._render_processes()
-        self.update_job = self.after(UPDATE_MS * 2, self._update)
+        self._update_job = self.after(UPDATE_MS * 2, self._update)
 
     def _create_process_row(self, proc: dict, row: int):
         """Crea una fila para un proceso"""
         bg_color  = COLORS['bg_dark'] if row % 2 == 0 else COLORS['bg_medium']
-        row_frame = ctk.CTkFrame(self.process_frame, fg_color=bg_color)
+        row_frame = ctk.CTkFrame(self._process_frame, fg_color=bg_color)
         row_frame.pack(fill="x", pady=2, padx=10)
 
         row_frame.grid_columnconfigure(0, weight=1, minsize=70)
@@ -296,8 +293,8 @@ class ProcessWindow(ctk.CTkToplevel):
         row_frame.grid_columnconfigure(4, weight=1, minsize=80)
         row_frame.grid_columnconfigure(5, weight=1, minsize=100)
 
-        cpu_color = COLORS[self.process_monitor.get_process_color(proc['cpu'])]
-        mem_color = COLORS[self.process_monitor.get_process_color(proc['memory'])]
+        cpu_color = COLORS[self._process_monitor.get_process_color(proc['cpu'])]
+        mem_color = COLORS[self._process_monitor.get_process_color(proc['memory'])]
 
         # PID
         ctk.CTkLabel(
@@ -362,7 +359,7 @@ class ProcessWindow(ctk.CTkToplevel):
     def _kill_process(self, proc: dict):
         """Mata un proceso con confirmación"""
         def do_kill():
-            success, message = self.process_monitor.kill_process(proc['pid'])
+            success, message = self._process_monitor.kill_process(proc['pid'])
             title = "Proceso Terminado" if success else "Error"
             custom_msgbox(self, message, title)
             self._update_now()

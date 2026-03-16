@@ -11,7 +11,7 @@ class UpdatesWindow(ctk.CTkToplevel):
     def __init__(self, parent, update_monitor):
         super().__init__(parent)
         self.system_utils = SystemUtils()
-        self.monitor = update_monitor
+        self._monitor = update_monitor
         self._polling = False
         self._banner_shown = False
 
@@ -38,38 +38,38 @@ class UpdatesWindow(ctk.CTkToplevel):
     def _build_content(self, parent):
         """Construye el contenido normal de la ventana."""
         # Icono
-        self.status_icon = ctk.CTkLabel(parent, text=Icons.UPDATE_SCRIPT, font=(FONT_FAMILY, 60))
-        self.status_icon.pack(pady=(10, 5))
+        self._status_icon = ctk.CTkLabel(parent, text=Icons.UPDATE_SCRIPT, font=(FONT_FAMILY, 60))
+        self._status_icon.pack(pady=(10, 5))
 
         # Labels
-        self.status_label = ctk.CTkLabel(
+        self._status_label = ctk.CTkLabel(
             parent, text="Verificando...",
             font=(FONT_FAMILY, FONT_SIZES['xxlarge'], "bold")
         )
-        self.status_label.pack()
+        self._status_label.pack()
 
-        self.info_label = ctk.CTkLabel(
+        self._info_label = ctk.CTkLabel(
             parent, text="Estado de los paquetes",
             text_color=COLORS['text_dim'], font=(FONT_FAMILY, FONT_SIZES['medium'])
         )
-        self.info_label.pack(pady=5)
+        self._info_label.pack(pady=5)
 
         # Frame para botones
         btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
         btn_frame.pack(side="bottom", fill="x", pady=(10, 20))
 
-        self.search_btn = make_futuristic_button(
+        self._search_btn = make_futuristic_button(
             btn_frame, text=f"{Icons.SEARCH} Buscar",
             command=lambda: self._refresh_status(force=True), width=12
         )
-        self.search_btn.pack(side="left", padx=5, expand=True)
+        self._search_btn.pack(side="left", padx=5, expand=True)
 
-        self.update_btn = make_futuristic_button(
+        self._update_btn = make_futuristic_button(
             btn_frame, text=f"{Icons.UPDATE_SCRIPT}  Instalar",
             command=self._execute_update_script, width=12
         )
-        self.update_btn.pack(side="left", padx=5, expand=True)
-        self.update_btn.configure(state="disabled")
+        self._update_btn.pack(side="left", padx=5, expand=True)
+        self._update_btn.configure(state="disabled")
 
         close_btn = make_futuristic_button(
             btn_frame, text=f"{Icons.CROSS} Cerrar",
@@ -85,7 +85,7 @@ class UpdatesWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        if not self.monitor.is_running():
+        if not self._monitor.is_running():
             if not self._banner_shown:
                 for w in self._content.winfo_children():
                     w.destroy()
@@ -104,20 +104,20 @@ class UpdatesWindow(ctk.CTkToplevel):
 
     def _refresh_status(self, force=False):
         """Consulta el estado de actualizaciones"""
-        if not self.monitor.is_running():
+        if not self._monitor.is_running():
             return
         if force:
             self._polling = False
-            self.status_label.configure(text=f"{Icons.SEARCH} Buscando...", text_color=COLORS['warning'])
+            self._status_label.configure(text=f"{Icons.SEARCH} Buscando...", text_color=COLORS['warning'])
             self.update_idletasks()
 
-        res = self.monitor.check_updates(force=force)
+        res = self._monitor.check_updates(force=force)
 
         if res['status'] == "Unknown":
-            self.status_label.configure(text="Comprobando...", text_color=COLORS['text_dim'])
-            self.info_label.configure(text="Verificación inicial en curso")
-            self.status_icon.configure(text_color=COLORS['text_dim'])
-            self.update_btn.configure(state="disabled")
+            self._status_label.configure(text="Comprobando...", text_color=COLORS['text_dim'])
+            self._info_label.configure(text="Verificación inicial en curso")
+            self._status_icon.configure(text_color=COLORS['text_dim'])
+            self._update_btn.configure(state="disabled")
             if not self._polling:
                 self._polling = True
                 self._poll_until_ready()
@@ -125,10 +125,10 @@ class UpdatesWindow(ctk.CTkToplevel):
 
         self._polling = False
         color = COLORS['success'] if res['pending'] == 0 else COLORS['warning']
-        self.status_label.configure(text=res['status'], text_color=color)
-        self.info_label.configure(text=res['message'])
-        self.status_icon.configure(text_color=color)
-        self.update_btn.configure(state="normal" if res['pending'] > 0 else "disabled")
+        self._status_label.configure(text=res['status'], text_color=color)
+        self._info_label.configure(text=res['message'])
+        self._status_icon.configure(text_color=color)
+        self._update_btn.configure(state="normal" if res['pending'] > 0 else "disabled")
 
     def _poll_until_ready(self):
         """Reintenta _refresh_status cada 2s mientras el resultado sea Unknown"""
@@ -139,7 +139,7 @@ class UpdatesWindow(ctk.CTkToplevel):
                 return
         except Exception:
             return
-        res = self.monitor.check_updates(force=False)
+        res = self._monitor.check_updates(force=False)
         if res['status'] != "Unknown":
             self._refresh_status(force=False)
         else:

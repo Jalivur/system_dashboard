@@ -91,7 +91,7 @@ class HardwareInfoWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, system_monitor):
         super().__init__(parent)
-        self.system_monitor = system_monitor
+        self._system_monitor = system_monitor
 
         self.title("Información del Hardware")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -276,7 +276,7 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         if self._uptime_tick == 1 or self._uptime_tick >= _UPTIME_EVERY:
             self._uptime_tick = 1
             try:
-                uptime_str = self.system_monitor.get_current_stats().get(
+                uptime_str = self._system_monitor.get_current_stats().get(
                     "uptime_str", "--")
                 uptime_str = uptime_str.lstrip("" + Icons.UPTIME + " ").strip()
                 if self._uptime_label:

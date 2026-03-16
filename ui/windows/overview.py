@@ -24,11 +24,11 @@ class OverviewWindow(ctk.CTkToplevel):
     def __init__(self, parent, system_monitor, service_monitor,
                  pihole_monitor, network_monitor, disk_monitor):
         super().__init__(parent)
-        self.system_monitor  = system_monitor
-        self.service_monitor = service_monitor
-        self.pihole_monitor  = pihole_monitor
-        self.network_monitor = network_monitor
-        self.disk_monitor    = disk_monitor
+        self._system_monitor  = system_monitor
+        self._service_monitor = service_monitor
+        self._pihole_monitor  = pihole_monitor
+        self._network_monitor = network_monitor
+        self._disk_monitor    = disk_monitor
 
         self.title("Resumen del Sistema")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -71,15 +71,15 @@ class OverviewWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        self._inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
         canvas.create_window(
-            (0, 0), window=self.inner,
+            (0, 0), window=self._inner,
             anchor="nw", width=DSI_WIDTH - 50)
-        self.inner.bind(
+        self._inner.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        grid = ctk.CTkFrame(self.inner, fg_color="transparent")
+        grid = ctk.CTkFrame(self._inner, fg_color="transparent")
         grid.pack(fill="both", expand=True, padx=5, pady=5)
         grid.columnconfigure(0, weight=1)
         grid.columnconfigure(1, weight=1)
@@ -178,32 +178,31 @@ class OverviewWindow(ctk.CTkToplevel):
         return COLORS['primary']
 
     def _refresh_system(self):
-        if not self.system_monitor.is_running():
-            for key in ('cpu', 'ram', 'temp', 'disk'):
+        if self._system_monitor.is_running():
+            sys_stats = self._system_monitor.get_current_stats()
+            cpu  = sys_stats.get('cpu', 0)
+            ram  = sys_stats.get('ram', 0)
+            temp = sys_stats.get('temp', 0)
+            self._widgets['cpu'].configure(text=f"{cpu:.0f}%",   text_color=self._color_for(cpu,  CPU_WARN,  CPU_CRIT))
+            self._widgets['ram'].configure(text=f"{ram:.0f}%",   text_color=self._color_for(ram,  RAM_WARN,  RAM_CRIT))
+            self._widgets['temp'].configure(text=f"{temp:.0f}°C", text_color=self._color_for(temp, TEMP_WARN, TEMP_CRIT))
+        else:
+            for key in ('cpu', 'ram', 'temp'):
                 self._widgets[key].configure(text="-- (parado)", text_color=COLORS['text_dim'])
-            return
 
-        stats = self.system_monitor.get_current_stats()
-        cpu   = stats.get('cpu', 0)
-        ram   = stats.get('ram', 0)
-        temp  = stats.get('temp', 0)
-        disk  = stats.get('disk_usage', 0)
-
-        self._widgets['cpu'].configure(
-            text=f"{cpu:.0f}%", text_color=self._color_for(cpu, CPU_WARN, CPU_CRIT))
-        self._widgets['ram'].configure(
-            text=f"{ram:.0f}%", text_color=self._color_for(ram, RAM_WARN, RAM_CRIT))
-        self._widgets['temp'].configure(
-            text=f"{temp:.0f}°C", text_color=self._color_for(temp, TEMP_WARN, TEMP_CRIT))
-        self._widgets['disk'].configure(
-            text=f"{disk:.0f}%", text_color=self._color_for(disk, 80, 90))
+        if self._disk_monitor.is_running():
+            disk_stats = self._disk_monitor.get_current_stats()
+            disk = disk_stats.get('disk_usage', 0)
+            self._widgets['disk'].configure(text=f"{disk:.0f}%", text_color=self._color_for(disk, 80, 90))
+        else:
+            self._widgets['disk'].configure(text="-- (parado)", text_color=COLORS['text_dim'])
 
     def _refresh_services(self):
-        if not self.service_monitor.is_running():
+        if not self._service_monitor.is_running():
             self._widgets['services'].configure(text="-- (parado)", text_color=COLORS['text_dim'])
             return
 
-        stats  = self.service_monitor.get_stats()
+        stats  = self._service_monitor.get_stats()
         failed = stats.get('failed', 0)
         total  = stats.get('total', 0)
         color  = COLORS['danger'] if failed > 0 else COLORS['primary']
@@ -212,12 +211,12 @@ class OverviewWindow(ctk.CTkToplevel):
 
     def _refresh_net(self):
         """Refresca la tarjeta de red."""
-        if not self.network_monitor.is_running():
+        if not self._network_monitor.is_running():
             self._widgets['net'].configure(text="-- (parado)", text_color=COLORS['text_dim'])
             return
 
         try:
-            stats = self.network_monitor.get_current_stats()
+            stats = self._network_monitor.get_current_stats()
             dl    = stats.get('download_mb', 0)
             ul    = stats.get('upload_mb', 0)
             self._widgets['net'].configure(
@@ -228,13 +227,13 @@ class OverviewWindow(ctk.CTkToplevel):
             self._widgets['net'].configure(text="--")
 
     def _refresh_pihole(self):
-        if not self.pihole_monitor.is_running():
+        if not self._pihole_monitor.is_running():
             for k in ('pihole_blocked', 'pihole_pct', 'pihole_total', 'pihole_status'):
                 self._widgets[k].configure(text="-- (parado)", text_color=COLORS['text_dim'])
             return
 
         try:
-            stats = self.pihole_monitor.get_stats()
+            stats = self._pihole_monitor.get_stats()
             if not stats:
                 raise ValueError("sin datos")
 

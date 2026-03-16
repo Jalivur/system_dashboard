@@ -88,14 +88,14 @@ class WeatherWindow(ctk.CTkToplevel):
         StyleManager.style_scrollbar_ctk(scrollbar)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
-        canvas.create_window((0, 0), window=self.inner, anchor="nw", width=DSI_WIDTH - 50)
-        self.inner.bind(
+        self._inner = ctk.CTkFrame(canvas, fg_color=COLORS['bg_medium'])
+        canvas.create_window((0, 0), window=self._inner, anchor="nw", width=DSI_WIDTH - 50)
+        self._inner.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
         # ── Barra de búsqueda de ciudad ───────────────────────────────────────
-        search_frame = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        search_frame = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         search_frame.pack(fill="x", padx=8, pady=(4, 0))
 
         ctk.CTkLabel(
@@ -135,7 +135,7 @@ class WeatherWindow(ctk.CTkToplevel):
         self._refresh_btn.pack(side="left", padx=4, pady=10)
 
         # ── Barra de favoritos ────────────────────────────────────────────────
-        fav_frame = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        fav_frame = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         fav_frame.pack(fill="x", padx=8, pady=(4, 0))
 
         ctk.CTkLabel(
@@ -210,7 +210,7 @@ class WeatherWindow(ctk.CTkToplevel):
         self._fav_status_lbl.pack(side="left", padx=6, pady=8)
 
         # ── Última actualización + error ──────────────────────────────────────
-        info_row = ctk.CTkFrame(self.inner, fg_color="transparent")
+        info_row = ctk.CTkFrame(self._inner, fg_color="transparent")
         info_row.pack(fill="x", padx=12, pady=(3, 0))
 
         self._error_lbl = ctk.CTkLabel(
@@ -228,7 +228,7 @@ class WeatherWindow(ctk.CTkToplevel):
         self._last_update_lbl.pack(side="right")
 
         # ── Panel datos actuales ──────────────────────────────────────────────
-        self._current_frame = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        self._current_frame = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         self._current_frame.pack(fill="x", padx=8, pady=(6, 0))
         current_frame = self._current_frame
 
@@ -311,7 +311,7 @@ class WeatherWindow(ctk.CTkToplevel):
         self._aqi_lbl      = self._make_detail(detail_row, Icons.AIR,                 "Aire (AQI)",    "--")
 
         # ── Selector de vista de previsión ───────────────────────────────────
-        view_row = ctk.CTkFrame(self.inner, fg_color="transparent")
+        view_row = ctk.CTkFrame(self._inner, fg_color="transparent")
         view_row.pack(fill="x", padx=8, pady=(10, 2))
 
         ctk.CTkLabel(
@@ -352,7 +352,7 @@ class WeatherWindow(ctk.CTkToplevel):
         )
 
         # ── Área de previsión (scroll horizontal compartida) ──────────────────
-        forecast_outer = ctk.CTkFrame(self.inner, fg_color=COLORS['bg_dark'], corner_radius=8)
+        forecast_outer = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         forecast_outer.pack(fill="x", padx=8, pady=(0, 8))
 
         self._forecast_canvas = tk.Canvas(
@@ -545,7 +545,7 @@ class WeatherWindow(ctk.CTkToplevel):
         stats = self._svc.get_stats()
         
         if not self._svc.is_running():
-            StyleManager.show_service_stopped_banner(self.inner, "Weather Service")
+            StyleManager.show_service_stopped_banner(self._inner, "Weather Service")
             return
 
         if not stats:

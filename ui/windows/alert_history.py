@@ -36,7 +36,7 @@ class AlertHistoryWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, alert_service):
         super().__init__(parent)
-        self.alert_service = alert_service
+        self._alert_service = alert_service
 
         self.title("Historial de Alertas")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -107,7 +107,7 @@ class AlertHistoryWindow(ctk.CTkToplevel):
         for w in self._list_frame.winfo_children():
             w.destroy()
 
-        history = self.alert_service.get_history()
+        history = self._alert_service.get_history()
 
         if not history:
             ctk.CTkLabel(
@@ -188,5 +188,5 @@ class AlertHistoryWindow(ctk.CTkToplevel):
         )
 
     def _clear(self):
-        self.alert_service.clear_history()
+        self._alert_service.clear_history()
         self._load()

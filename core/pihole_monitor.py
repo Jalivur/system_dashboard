@@ -109,6 +109,12 @@ class PiholeMonitor:
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""
         return self._running
+    
+    def fetch_now(self) -> None:
+        """Fuerza un sondeo inmediato en background."""
+        if not self._running:
+            return
+        threading.Thread(target=self._fetch, daemon=True, name='PiholeFetchNow').start()
 
     def _poll_loop(self) -> None:
         while self._running:

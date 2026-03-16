@@ -203,11 +203,9 @@ class WiFiMonitor:
                 self._rx_hist.append(rx_mbps)
                 self._tx_hist.append(tx_mbps)
 
-            """logger.debug(
-                f"[WiFiMonitor] Poll: ssid={iw_data['ssid']} "
-                f"signal={iw_data['signal_dbm']}dBm "
-                f"rx={rx_mbps:.3f} tx={tx_mbps:.3f} MB/s"
-            )"""
+            logger.debug(
+                "[WiFiMonitor] Poll: ssid=%s signal=%s dBm rx=%.2f tx=%.2f Mb/s", iw_data['ssid'],iw_data['signal_dbm'], rx_mbps, tx_mbps
+            )
 
         except Exception as e:
             logger.error("[WiFiMonitor] Error en poll: %s", e)
