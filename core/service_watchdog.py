@@ -1,8 +1,8 @@
 """
-Service Watchdog v4.2 — Auto-restart servicios críticos del sistema.
+Service Watchdog v4.2 — Auto-restart servicios críticos del sistema (FIXED: maneja inactive).
 
 Monitoriza servicios críticos definidos en local_settings.py.
-Cada SERVICE_WATCHDOG_INTERVAL segs (default 60s), chequea si failed consecutivas >= THRESHOLD (default 3).
+Cada SERVICE_WATCHDOG_INTERVAL segs (default 60s), chequea si NO active consecutivas >= THRESHOLD (default 3).
 Si sí, auto-restart via service_monitor + log/alert + reset counter.
 
 Uso:
@@ -95,10 +95,11 @@ class ServiceWatchdog:
             if not service:
                 logger.warning("[ServiceWatchdog] Critical '%s' no encontrado", name)
                 continue
-            if service['active'] != 'failed':
+            if service['active'] == 'active':
                 self._consec_failed[name] = 0
                 continue
             self._consec_failed[name] = self._consec_failed.get(name, 0) + 1
+            logger.info("[ServiceWatchdog] Servicio '%s' NO active (consec: %d/%d)", name, self._consec_failed[name], self._threshold)
             if self._consec_failed[name] >= self._threshold:
                 self._auto_restart(name)
                 self._consec_failed[name] = 0
@@ -122,3 +123,4 @@ class ServiceWatchdog:
         if WD_STATE_FILE.exists():
             # Load logic if needed (reset daily)
             pass
+
