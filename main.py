@@ -18,6 +18,7 @@ from core.service_registry import ServiceRegistry
 from core.weather_service import WeatherService
 from core.i2c_monitor import I2CMonitor
 from core.gpio_monitor import OP_LIBRE
+from core.service_watchdog import ServiceWatchdog
 from ui.main_window import MainWindow
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -81,6 +82,8 @@ def main():
     i2c_monitor         = I2CMonitor()
     gpio_monitor        = GPIOMonitor(op_mode=OP_LIBRE)
 
+    service_watchdog    = ServiceWatchdog(service_monitor)
+
     data_service = DataCollectionService(
         system_monitor=system_monitor,
         fan_controller=fan_controller,
@@ -120,6 +123,8 @@ def main():
     weather_service.start()
     i2c_monitor.start()
     gpio_monitor.start()
+    service_watchdog.start()
+    
 
     # ── Registrar en el registry y aplicar configuración ─────────────────────
     registry = ServiceRegistry()
@@ -148,6 +153,7 @@ def main():
     registry.register("weather_service",      weather_service)
     registry.register("i2c_monitor",          i2c_monitor)
     registry.register("gpio_monitor",         gpio_monitor)
+    registry.register("service_watchdog",     service_watchdog)
     # Para los servicios configurados como False en services.json
     registry.apply_config()
 
@@ -192,6 +198,7 @@ def main():
         weather_service.stop()
         i2c_monitor.stop()
         gpio_monitor.stop()
+        service_watchdog.stop()
 
     # ── Crear interfaz ────────────────────────────────────────────────────────
     app = MainWindow(root, registry=registry, update_interval=UPDATE_MS)

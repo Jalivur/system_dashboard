@@ -49,6 +49,11 @@ RAM_CRIT = 85
 # Configuración de red
 NET_WARN = 2.0  # MB/s
 NET_CRIT = 6.0
+
+# Service Watchdog v4.2
+SERVICE_WATCHDOG_CRITICAL = []  # Lista nombres (ej. ['ssh', 'nginx'])
+SERVICE_WATCHDOG_INTERVAL = 60  # Segundos
+SERVICE_WATCHDOG_THRESHOLD = 3  # Failed checks consecutivos para restart
 NET_INTERFACE = None  # None = auto | "eth0" | "wlan0"
 NET_MAX_MB = 10.0
 NET_MIN_SCALE = 0.5
@@ -281,6 +286,7 @@ class UI:
                 "CRONTAB",
                 "HOMEBRIDGE",
                 "LANZADORES",
+                "SERVICE_WATCHDOG",
             ],
         ),
         (
@@ -351,3 +357,4 @@ try:
     from config.local_settings import *
 except ImportError:
     pass
+

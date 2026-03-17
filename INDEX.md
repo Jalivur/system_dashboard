@@ -1,4 +1,4 @@
-# 📚 Índice de Documentación - System Dashboard v4.1
+# 📚 Índice de Documentación - System Dashboard v4.2
 
 ---
 
@@ -139,15 +139,17 @@ Añadir una pestaña nueva es añadir una línea a `MENU_TABS`.
 | I²C buses vacíos | Habilitar I²C en `raspi-config` |
 | GPIO pin busy al arrancar | Pin ocupado por otro proceso — usar modo LIBRE |
 | GPIO no libera en Pi 5 | Usar botón "Liberar GPIO" desde la ventana GPIO |
+| Service Watchdog vacío | `systemctl list-units --type=service` verificar activos |
+| Valores inválidos Watchdog | Clamp automático en Apply (1-10 umbral, 30-300s intervalo) |
 | Ver errores | `grep ERROR data/logs/dashboard.log` |
 
 ---
 
-## 📊 Estadísticas del proyecto v4.1
+## 📊 Estadísticas del proyecto v4.2
 
-| Métrica | v4.0 | v4.1 |
+| Métrica | v4.0 | v4.2 |
 |---------|------|------|
-| Versión | 4.0 | **4.1** |
+| Versión | 4.0 | **4.2** |
 | Archivos Python | 73 | **79** |
 | Ventanas | 27 | **31** |
 | Temas | 15 | 15 |
@@ -156,7 +158,7 @@ Añadir una pestaña nueva es añadir una línea a `MENU_TABS`.
 | Módulos ui/main_* | 5 | 5 |
 | Documentos | 9 | 9 |
 
-### Nuevos módulos en v4.1
+### Nuevos módulos en v4.2
 - `core/audio_service.py` — `AudioService`: control ALSA sin thread
 - `core/weather_service.py` — `WeatherService`: Open-Meteo + AQI + favoritos
 - `core/i2c_monitor.py` — `I2CMonitor`: smbus2 solo lectura, daemon thread

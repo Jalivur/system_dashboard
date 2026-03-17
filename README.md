@@ -1,11 +1,11 @@
-# 🖥️ Sistema de Monitoreo y Control - Dashboard v4.1
+# 🖥️ Sistema de Monitoreo y Control - Dashboard v4.2
 
 Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, menú por pestañas con scroll táctil, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR, SMART extendido de NVMe, monitor WiFi, monitor SSH, editor de configuración local, control de audio ALSA, widget de clima, escáner I²C y monitor/control GPIO.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-4.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-4.2-orange.svg)]()
 
 ---
 
@@ -71,6 +71,12 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### ⚙️ **Monitor de Servicios systemd**
 - Gestión completa: Start/Stop/Restart, estado visual, logs en tiempo real
+
+### 🐕 **Service Watchdog** *(v4.2)*
+- Monitor servicios **críticos** con umbral fallos consecutivos + auto-reinicio
+- Umbral/Intervalo configurables via **text entries precisas** (1-10, 30-300s, debounce 400ms)
+- Gestión lista críticos persistente, stats globales, filtrado/búsqueda en vivo
+- [SERVICE_WATCHDOG.md](SERVICE_WATCHDOG.md)
 
 ### ⚙️ **Servicios Dashboard** *(v3.5/v3.6)*
 - ServiceRegistry: registro centralizado de todos los servicios
@@ -184,7 +190,7 @@ python3 main.py
 
 ---
 
-## 📊 Arquitectura del Proyecto (v4.1)
+## 📊 Arquitectura del Proyecto (v4.2)
 
 ```
 system_dashboard/
@@ -360,21 +366,22 @@ TELEGRAM_CHAT_ID=987654321
 
 | Métrica | v4.0 | v4.1 |
 |---------|------|------|
-| Versión | 4.0 | **4.1** |
+| Versión | 4.0 | **4.2** |
 | Archivos Python | 73 | **79** |
 | Ventanas | 27 | **31** |
 | Temas | 15 | 15 |
 | Badges en menú | 12 | **13** |
 | Servicios background | 16 | **20** |
 | Módulos ui/main_* | 5 | 5 |
-| Documentos | 9 | 9 |
+| Documentos | 9 | **10** |
 
 ---
 
 ## Changelog
 
-### **v4.1** - 2026-03-09 ⭐ ACTUAL
+### **v4.2** - 2024 ⭐ ACTUAL
 
+- ✅ **NUEVO**: **Service Watchdog** — monitor críticos systemd w/ text entries precisas + debounce, [SERVICE_WATCHDOG.md](SERVICE_WATCHDOG.md)
 - ✅ **NUEVO**: Control de Audio ALSA (`AudioService` + `AudioWindow`) — volumen, mute, VU meter, selector control
 - ✅ **NUEVO**: Widget de Clima (`WeatherService` + `WeatherWindow`) — Open-Meteo, AQI, drill-down, badge lluvia, fondo dinámico WMO
 - ✅ **NUEVO**: Escáner I²C (`I2CMonitor` + `I2CWindow`) — smbus2 solo lectura, cards por bus, badge hex por dispositivo

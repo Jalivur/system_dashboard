@@ -50,7 +50,8 @@ _DEFAULT_CONFIG = {
         "audio_service":       True,
         "weather_service":     True,
         "i2c_monitor":         True,
-        "gpio_monitor":        True
+        "gpio_monitor":        True,
+        "service_watchdog":    True
     },
     "ui": {
         "hardware_info":    True,
@@ -83,7 +84,8 @@ _DEFAULT_CONFIG = {
         "audio_window":     True,
         "weather_window":   True,
         "i2c_window":       True,
-        "gpio_window":      True
+        "gpio_window":      True,
+        "service_watchdog": True
 
     }
 }

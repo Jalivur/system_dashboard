@@ -98,10 +98,13 @@ class ServicesManagerWindow(ctk.CTkToplevel):
          "El control de Clima Widget desactivasdo."),
         ("i2c_monitor",
          "I2C Monitor", Icons.I2C,
-         "El monitor de bus I2C dejara de leer estados."),
+         "El monitor de bus I2C dejará de leer estados."),
         ("gpio_monitor",
          "GPIO Monitor", Icons.GPIO,
          "El monitor de pines GPIO dejará de leer estados. Los pines no se alteran."),
+        ("service_watchdog",
+         "Service Watchdog", Icons.SERVICIOS,
+         "Auto-restart de servicios críticos systemd quedará desactivado."),
     ]
 
     def __init__(self, parent, registry):
