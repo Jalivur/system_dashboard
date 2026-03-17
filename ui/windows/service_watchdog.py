@@ -22,6 +22,8 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
 
         self._search_var = ctk.StringVar(master=self)
         self._filter_var = ctk.StringVar(master=self, value="critical")
+        self._critical_entry = ctk.StringVar()
+        self._critical_list_label = None
         self._update_paused = False
         self._update_job = None
         self._umbral_var = ctk.IntVar(value=watchdog._threshold)
@@ -56,6 +58,36 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
             font=(FONT_FAMILY, FONT_SIZES['small'])
         )
         self._stats_label.pack(pady=4, padx=10, anchor="w")
+        
+        # CONFIG INFERIOR (GPIO STYLE)
+        config_frame = ctk.CTkFrame(main, fg_color=COLORS['bg_dark'], corner_radius=8)
+        config_frame.pack(fill="x", padx=8, pady=(0, 6))
+
+        # Umbral
+        ctk.CTkLabel(config_frame, text="Umbral:", font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), 
+                    text_color=COLORS['text']).pack(side="left", padx=(10,5), pady=8)
+        self._umbral_slider = ctk.CTkSlider(config_frame, from_=1, to=10, width=50, height=25,
+                                          command=self._on_umbral_change)
+        self._umbral_slider.pack(side="left", padx=5, pady=8)
+        self._umbral_val = ctk.CTkLabel(config_frame, text="3", width=40, font=(FONT_FAMILY, 16, "bold"))
+        self._umbral_val.pack(side="left", padx=5, pady=8)
+
+        # Intervalo
+        ctk.CTkLabel(config_frame, text="Intervalo(s):", font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), 
+                    text_color=COLORS['text']).pack(side="left", padx=(20,5), pady=8)
+        self._interval_slider = ctk.CTkSlider(config_frame, from_=30, to=300, width=70, height=25,
+                                            command=self._on_interval_change)
+        self._interval_slider.pack(side="left", padx=5, pady=8)
+        self._interval_val = ctk.CTkLabel(config_frame, text="60", width=50, font=(FONT_FAMILY, 16, "bold"))
+        self._interval_val.pack(side="left", padx=5, pady=8)
+
+        # Apply
+        make_futuristic_button(config_frame, text="APLIAR", width=8, height=6,
+                             command=self._apply_config).pack(side="right", padx=10, pady=8)
+
+        # Refresh
+        make_futuristic_button(config_frame, text="🔄 Refrescar", width=8, height=6,
+                             command=self._force_update).pack(side="right" ,pady=5)
 
         # CONTROLS
         self._create_controls(main)
@@ -64,7 +96,7 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         # SCROLL TABLE
         scroll_container = ctk.CTkFrame(main, fg_color=COLORS['bg_medium'])
         scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-        canvas = ctk.CTkCanvas(scroll_container, bg=COLORS['bg_medium'], highlightthickness=0, height=150)
+        canvas = ctk.CTkCanvas(scroll_container, bg=COLORS['bg_medium'], highlightthickness=0, height=80)
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar = ctk.CTkScrollbar(scroll_container, orientation="vertical", command=canvas.yview, width=30)
         scrollbar.pack(side="right", fill="y")
@@ -75,35 +107,7 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         canvas.create_window((0, 0), window=self._table_frame, anchor="nw", width=DSI_WIDTH - 50)
         self._table_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        # CONFIG INFERIOR (GPIO STYLE)
-        config_frame = ctk.CTkFrame(main, fg_color=COLORS['bg_dark'], corner_radius=8)
-        config_frame.pack(fill="x", padx=8, pady=(0, 6))
-
-        # Umbral
-        ctk.CTkLabel(config_frame, text="Umbral:", font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), 
-                    text_color=COLORS['text']).pack(side="left", padx=(10,5), pady=8)
-        self._umbral_slider = ctk.CTkSlider(config_frame, from_=1, to=10, width=150, height=25,
-                                          command=self._on_umbral_change)
-        self._umbral_slider.pack(side="left", padx=5, pady=8)
-        self._umbral_val = ctk.CTkLabel(config_frame, text="3", width=40, font=(FONT_FAMILY, 16, "bold"))
-        self._umbral_val.pack(side="left", padx=5, pady=8)
-
-        # Intervalo
-        ctk.CTkLabel(config_frame, text="Intervalo(s):", font=(FONT_FAMILY, FONT_SIZES['small'], "bold"), 
-                    text_color=COLORS['text']).pack(side="left", padx=(20,5), pady=8)
-        self._interval_slider = ctk.CTkSlider(config_frame, from_=30, to=300, width=150, height=25,
-                                            command=self._on_interval_change)
-        self._interval_slider.pack(side="left", padx=5, pady=8)
-        self._interval_val = ctk.CTkLabel(config_frame, text="60", width=50, font=(FONT_FAMILY, 16, "bold"))
-        self._interval_val.pack(side="left", padx=5, pady=8)
-
-        # Apply
-        make_futuristic_button(config_frame, text="APLIAR", width=80, height=30,
-                             command=self._apply_config).pack(side="right", padx=10, pady=8)
-
-        # Refresh
-        make_futuristic_button(main, text="🔄 Refrescar", width=120, height=35,
-                             command=self._force_update).pack(pady=5)
+        
 
     def _create_controls(self, parent):
         controls = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
@@ -121,6 +125,15 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
                           command=self._on_filter).pack(side="left", padx=5)
         ctk.CTkRadioButton(controls, text="Todos", variable=self._filter_var, value="all",
                           command=self._on_filter).pack(side="left", padx=5)
+        controls_second = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
+        controls_second.pack(fill="x", padx=10, pady=5)
+        # Add Crítico
+        ctk.CTkLabel(controls_second, text="Añadir crítico:", font=(FONT_FAMILY, FONT_SIZES['small'])).pack(side="left", padx=(20,5))
+        entry = ctk.CTkEntry(controls_second, textvariable=self._critical_entry, width=150, placeholder_text="ej. nginx")
+        entry.pack(side="left", padx=5)
+        make_futuristic_button(controls_second, text="AÑADIR", width=8, height=6, command=self._add_critical).pack(side="left", padx=5)
+        make_futuristic_button(controls_second, text="Guardar", width=8, height=6, command=self._save_criticals).pack(side="left", padx=5)
+
 
     def _create_column_headers(self, parent):
         headers = ctk.CTkFrame(parent, fg_color=COLORS['bg_light'])
@@ -220,4 +233,23 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         logs = self._service_monitor.get_logs(name)
         # Dialog or console - simplified
         print(f"LOGS {name}:\n{logs[:500]}")
+        
+    def _add_critical(self):
+        name = self._critical_entry.get().strip()
+        if not name:
+            return custom_msgbox(self, "Nombre vacío")
+        if name in self._watchdog._critical_services:
+            return custom_msgbox(self, f"{name} ya crítico")
+        self._watchdog._critical_services.append(name)
+        self._update_critical_label()
+        self._update_now()
+        custom_msgbox(self, f"'{name}' añadido a críticos")
+
+    def _save_criticals(self):
+        self._watchdog.set_critical_services(self._watchdog._critical_services)
+        custom_msgbox(self, "Lista críticos guardada")
+
+    def _update_critical_label(self):
+        if self._critical_list_label:
+            self._critical_list_label.configure(text=f"Críticos: {', '.join(self._watchdog._critical_services)}")
 
