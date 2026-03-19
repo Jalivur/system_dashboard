@@ -70,7 +70,7 @@ class MainWindow:
         self.weather_service     = registry.get("weather_service")
         self.i2c_monitor         = registry.get("i2c_monitor")
         self.gpio_monitor        = registry.get("gpio_monitor")
-        self.service_watchdog   = registry.get("service_watchdog")
+        self.service_watchdog    = registry.get("service_watchdog")
 
         self._menu_btns   = {}
         self._active_tab  = UICfg.MENU_TABS[0][0]
@@ -237,6 +237,7 @@ class MainWindow:
                 "pihole_monitor":     self.pihole_monitor,
                 "vpn_monitor":        self.vpn_monitor,
                 "service_monitor":    self.service_monitor,
+                "service_watchdog":   self.service_watchdog,
             },
             update_interval=self.update_interval,
             clock_label=clock_label,
@@ -373,7 +374,6 @@ class MainWindow:
             BL.I2C:               (lambda: self._wlm.open("i2c_window"),           []),
             BL.GPIO:              (lambda: self._wlm.open("gpio_window"),          []),
             BL.SERVICE_WATCHDOG:  (lambda: self._wlm.open("service_watchdog"),     ["service_watchdog_restarts"]),
-
         }
 
     # ── Cambio de pestaña ─────────────────────────────────────────────────────
@@ -459,6 +459,10 @@ class MainWindow:
 
         self._btn_area.update_idletasks()
         self._menu_canvas.configure(scrollregion=self._menu_canvas.bbox("all"))
+
+        # Redibujar badges sobre los botones recién creados tras el cambio de pestaña
+        if hasattr(self, '_update_loop') and self._update_loop._running:
+            self._update_loop._update_badges()
 
     # ── Estado de botones (usado por WindowLifecycleManager) ─────────────────
 

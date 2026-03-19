@@ -33,7 +33,7 @@ class UpdateMonitor:
         with self._lock:
             self._cached_result = {"pending": 0, "status": "Unknown", "message": "Servicio parado"}
         logger.info("[UpdateMonitor] Detenido")
-        
+
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""
         return self._running
@@ -75,24 +75,33 @@ class UpdateMonitor:
             if result.returncode != 0:
                 logger.warning("[UpdateMonitor] apt update retornó código %d", result.returncode)
 
-            cmd = "apt-get -s upgrade | grep '^Inst ' | wc -l"
-            output = subprocess.check_output(cmd, shell=True).decode().strip()
-            count = int(output) if output else 0
+            # Usar apt list --upgradable — más fiable que apt-get -s upgrade
+            # ya que detecta actualizaciones desde oldstable y otros casos edge.
+            # grep -vc excluye la línea de cabecera "Listando... Hecho".
+            # CalledProcessError cuando count==0 (grep -v devuelve 1) — se captura.
+            cmd = "apt list --upgradable 2>/dev/null | grep -vc '^Listando'"
+            try:
+                output = subprocess.check_output(cmd, shell=True).decode().strip()
+                count = int(output) if output else 0
+            except subprocess.CalledProcessError as e:
+                # grep -v devuelve código 1 si no hay líneas que no coincidan
+                output = e.output.decode().strip() if e.output else "0"
+                count = int(output) if output else 0
 
             if count > 0:
                 logger.info("[UpdateMonitor] %d paquetes pendientes de actualización", count)
             else:
                 logger.debug("[UpdateMonitor] Sistema al día, sin actualizaciones pendientes")
 
-            result= {
+            new_result = {
                 "pending": count,
-                "status": "Ready" if count > 0 else "Updated",
-                "message": f"{count} paquetes pendientes" if count > 0 else "Sistema al día"
+                "status":  "Ready"   if count > 0 else "Updated",
+                "message": f"{count} paquetes pendientes" if count > 0 else "Sistema al día",
             }
             with self._lock:
-                self._cached_result = result
-                self._last_check_time  = current_time
-            return result
+                self._cached_result   = new_result
+                self._last_check_time = current_time
+            return new_result
 
         except subprocess.TimeoutExpired:
             logger.error("[UpdateMonitor] check_updates: timeout ejecutando apt update (>60s)")

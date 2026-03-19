@@ -91,6 +91,11 @@ class BadgeManager:
         if key not in self._badges:
             return
         canvas, oval, txt, x_offset = self._badges[key]
+        try:
+            if not canvas.winfo_exists():
+                return
+        except Exception:
+            return
         if value > 0:
             display = str(value) if value < 100 else "99+"
             canvas.itemconfigure(txt, text=display)
@@ -117,6 +122,11 @@ class BadgeManager:
         if key not in self._badges:
             return
         canvas, oval, txt, x_offset = self._badges[key]
+        try:
+            if not canvas.winfo_exists():
+                return
+        except Exception:
+            return
         canvas.itemconfigure(txt, text=f"{temp}{Icons.DEGREE}")
         canvas.itemconfigure(oval, fill=color)
         txt_color = "black" if color == COLORS.get('warning', '#ffaa00') else "white"
@@ -128,6 +138,11 @@ class BadgeManager:
         if key not in self._badges:
             return
         canvas = self._badges[key][0]
+        try:
+            if not canvas.winfo_exists():
+                return
+        except Exception:
+            return
         canvas.place_forget()
 
     def __contains__(self, key: str) -> bool:

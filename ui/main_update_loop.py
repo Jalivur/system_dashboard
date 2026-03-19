@@ -115,7 +115,6 @@ class UpdateLoop:
         """Actualiza todos los badges del menu. Solo lee caches — nunca bloquea la UI."""
         if not self._running:
             return
-        # Procesar eventos publicados desde threads secundarios
         get_event_bus().process_events()
 
         self._update_misc_badges()
@@ -126,21 +125,34 @@ class UpdateLoop:
 
     def _update_misc_badges(self) -> None:
         bm = self._badge_mgr
+
         try:
             pending = (self._monitors["update_monitor"]
-                       .cached_result.get('pending', 0))
+                       .check_updates(force=False).get('pending', 0))
             bm.update("updates", pending)
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'updates' error: %s", e)
+
+        try:
             hb = self._monitors["homebridge_monitor"]
             bm.update("hb_offline", hb.get_offline_count())
             bm.update("hb_on",      hb.get_on_count(),
                       color=COLORS.get('warning', '#ffaa00'))
             bm.update("hb_fault",   hb.get_fault_count())
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'homebridge' error: %s", e)
+
+        try:
             bm.update("pihole_offline",
                       self._monitors["pihole_monitor"].get_offline_count())
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'pihole_offline' error: %s", e)
+
+        try:
             bm.update("vpn_offline",
                       self._monitors["vpn_monitor"].get_offline_count())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'vpn_offline' error: %s", e)
 
     def _update_service_badge(self) -> None:
         bm = self._badge_mgr
@@ -148,8 +160,8 @@ class UpdateLoop:
             stats  = self._monitors["service_monitor"].get_stats()
             failed = stats.get('failed', 0)
             bm.update("services", failed)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'services' error: %s", e)
 
     def _update_weather_badge(self) -> None:
         """Muestra badge en el botón de clima si hay lluvia probable en las próximas 3h."""
@@ -159,7 +171,6 @@ class UpdateLoop:
         try:
             stats    = self._weather_service.get_stats()
             forecast = stats.get("forecast", [])
-            # Buscar la probabilidad máxima de precipitación en las próximas 3 horas
             max_precip = max(
                 (item.get("precip_prob", 0) for item in forecast[:3]),
                 default=0
@@ -170,8 +181,8 @@ class UpdateLoop:
                 bm.update("weather_rain", 1, COLORS.get('warning', '#ffaa00'))
             else:
                 bm.update("weather_rain", 0)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'weather_rain' error: %s", e)
 
     def _update_system_badges(self) -> None:
         bm = self._badge_mgr
@@ -210,7 +221,7 @@ class UpdateLoop:
                 bm.update("ram", 0)
 
             # Disco
-            disk = stats['disk_usage']
+            disk = stats.get('disk_usage', 0)
             if disk >= bm.DISK_CRIT:
                 bm.update("disk", int(disk), COLORS['danger'])
             elif disk >= bm.DISK_WARN:
@@ -218,5 +229,5 @@ class UpdateLoop:
             else:
                 bm.update("disk", 0)
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[UpdateLoop] badge 'system' error: %s", e)

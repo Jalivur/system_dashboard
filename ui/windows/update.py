@@ -107,6 +107,7 @@ class UpdatesWindow(ctk.CTkToplevel):
         if not self._monitor.is_running():
             return
         if force:
+            self._update_btn.configure(state="disabled")
             self._polling = False
             self._status_label.configure(text=f"{Icons.SEARCH} Buscando...", text_color=COLORS['warning'])
             self.update_idletasks()
