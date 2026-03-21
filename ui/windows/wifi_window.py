@@ -49,6 +49,7 @@ class WiFiWindow(ctk.CTkToplevel):
         self._graph_rx:        GraphWidget  = None
         self._graph_tx:        GraphWidget  = None
         self._update_label:    ctk.CTkLabel = None
+        self._iface_var:       ctk.StringVar = None
 
         self._create_ui()
         self.after(100, self._update)
@@ -104,6 +105,48 @@ class WiFiWindow(ctk.CTkToplevel):
             bar, text="↺ Actualizar", command=self._force_refresh,
             width=12, height=5, font_size=14
         ).pack(side="right", padx=4)
+
+        # Selector de interfaz
+        self._build_iface_selector(self._header)
+
+    def _build_iface_selector(self, parent):
+        """Selector de interfaz WiFi en la barra inferior."""
+        interfaces = WiFiMonitor.get_available_interfaces()
+
+        # Si solo hay una interfaz (o ninguna) no mostrar el selector
+        if len(interfaces) <= 1:
+            return
+
+        self._iface_var = ctk.StringVar(
+            master=self, value=self._wifi_monitor.interface)
+
+        ctk.CTkLabel(
+            parent,
+            text="Interfaz:",
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            text_color=COLORS['text_dim'],
+        ).pack(side="left", padx=(0, 4))
+
+        ctk.CTkOptionMenu(
+            parent,
+            variable=self._iface_var,
+            values=interfaces,
+            width=100,
+            font=(FONT_FAMILY, FONT_SIZES['small']),
+            fg_color=COLORS['bg_medium'],
+            button_color=COLORS['primary'],
+            command=self._on_iface_change,
+        ).pack(side="left", padx=(0, 4))
+
+    def _on_iface_change(self, iface: str):
+        """Cambia la interfaz monitorizada y actualiza el label del header."""
+        self._wifi_monitor.set_interface(iface)
+        self._lbl_iface.configure(text=iface)
+        # Forzar refresco inmediato para reflejar el cambio
+        if self._refresh_job:
+            self.after_cancel(self._refresh_job)
+        self.after(200, self._update)
+        logger.info("[WiFiWindow] Interfaz seleccionada: %s", iface)
 
     def _build_connection_card(self):
         """Tarjeta superior: SSID, señal, calidad, bitrate."""
@@ -301,7 +344,7 @@ class WiFiWindow(ctk.CTkToplevel):
         self._graph_tx = GraphWidget(cell_tx, width=_COL_W - 16, height=_GRAPH_H)
         self._graph_tx.pack(padx=4, pady=(0, 6))
 
-    # ── Actualización de valores (sin recrear widgets) ─────────────────────────
+    # ── Actualización de valores (sin recrear widgets) ────────────────────────
 
     def _update(self):
         if not self.winfo_exists():
@@ -316,7 +359,7 @@ class WiFiWindow(ctk.CTkToplevel):
         self._refresh_traffic(stats)
 
         # Header
-        if info["connected"]:
+        if info.get("connected"):
             dbm_str = f"{info['signal_dbm']} dBm" if info['signal_dbm'] is not None else ""
             self._header.status_label.configure(
                 text=f"{info['ssid']}  ·  {dbm_str}")
@@ -333,15 +376,17 @@ class WiFiWindow(ctk.CTkToplevel):
 
     def _refresh_connection(self, info: dict):
         """Actualiza widgets de conexión sin recrearlos."""
-        
+
+        # Interfaz (puede haber cambiado)
+        self._lbl_iface.configure(text=self._wifi_monitor.interface)
 
         # SSID
         self._lbl_ssid.configure(
-            text=info["ssid"] if info["connected"] else "Sin conexión",
-            text_color=COLORS['text'] if info["connected"] else COLORS['warning'])
+            text=info.get("ssid") or "Sin conexión",
+            text_color=COLORS['text'] if info.get("connected") else COLORS['warning'])
 
         # Señal
-        dbm   = info["signal_dbm"]
+        dbm   = info.get("signal_dbm")
         color = WiFiMonitor.signal_color(dbm, COLORS)
         pct   = WiFiMonitor.signal_quality_pct(dbm)
 
@@ -353,43 +398,34 @@ class WiFiWindow(ctk.CTkToplevel):
         self._lbl_signal_bar.configure(text=f"{bars}  {pct}%", text_color=color)
 
         # Calidad link
-        lq     = info["link_quality"]
-        lq_max = info["link_quality_max"]
+        lq     = info.get("link_quality")
+        lq_max = info.get("link_quality_max")
         if lq is not None and lq_max:
-            self._lbl_quality.configure(
-                text=f"{lq}/{lq_max}",
-                text_color=color)
+            self._lbl_quality.configure(text=f"{lq}/{lq_max}", text_color=color)
         else:
             self._lbl_quality.configure(text="—", text_color=COLORS['text_dim'])
 
         # Ruido
-        noise = info["noise_dbm"]
+        noise = info.get("noise_dbm")
         self._lbl_noise.configure(
             text=f"Ruido: {noise} dBm" if noise is not None else "",
             text_color=COLORS['text_dim'])
 
         # Bitrate
         self._lbl_bitrate.configure(
-            text=info["bitrate"] if info["bitrate"] else "—",
+            text=info.get("bitrate") or "—",
             text_color=COLORS['text'])
 
-        # Gráfica señal — invertir signo para mostrar "más es mejor"
+        # Gráfica señal
         signal_hist = self._wifi_monitor.get_signal_history()
         if signal_hist:
-            # Normalizar: convertir dBm negativos a valores positivos para GraphWidget
-            # -30 → 100, -90 → 0
             normalized = [max(0.0, min(100.0, 2.0 * (v + 100))) for v in signal_hist]
             self._graph_signal.update(normalized, 100.0, color)
 
     def _refresh_traffic(self, stats: dict):
         """Actualiza widgets de tráfico sin recrearlos."""
-
         rx = stats["rx_mbps"]
         tx = stats["tx_mbps"]
-
-        # Colores dinámicos usando mismo criterio que network_monitor
-        
-        
 
         rx_color = NetworkMonitor.net_color(rx)
         tx_color = NetworkMonitor.net_color(tx)
@@ -400,7 +436,7 @@ class WiFiWindow(ctk.CTkToplevel):
         rx_hist = stats["rx_hist"]
         tx_hist = stats["tx_hist"]
 
-        peak = max(max(rx_hist, default=0.0), max(tx_hist, default=0.0), 0.5)
+        peak  = max(max(rx_hist, default=0.0), max(tx_hist, default=0.0), 0.5)
         scale = peak * 1.2
 
         self._graph_rx.update(rx_hist, scale, rx_color)

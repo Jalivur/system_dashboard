@@ -12,7 +12,6 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_BOOT_TIME = psutil.boot_time()  # se lee una sola vez al importar
 
 
 class SystemMonitor:
@@ -84,7 +83,8 @@ class SystemMonitor:
             vm   = psutil.virtual_memory()
             temp = self._system_utils.get_cpu_temp()
 
-            uptime_s = time.time() - _BOOT_TIME
+            with open("/proc/uptime") as f:
+                uptime_s = float(f.read().split()[0])
             days     = int(uptime_s // 86400)
             hours    = int((uptime_s % 86400) // 3600)
             minutes  = int((uptime_s % 3600) // 60)
