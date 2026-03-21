@@ -26,6 +26,8 @@ class LaunchersWindow(ctk.CTkToplevel):
         self.resizable(False, False)
         
         self._create_ui()
+        logger.info("[LaunchersWindow] Ventana Abierta")
+
     
     def _create_ui(self):
         """Crea la interfaz de usuario"""

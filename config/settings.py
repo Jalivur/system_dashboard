@@ -103,6 +103,7 @@ class Icons:
     ACTUALIZACIONES     = "\U000f01a7"          # 󰆧
     HOMEBRIDGE          = "\U000f07d0"          # 󰟐
     VISOR_LOGS          = "\U000f0dd0"          # 󰷐
+    LOG_CONFIG          = "\U000f0560"
     RED_LOCAL           = "\U0001f5a7"          # 🖧
     PIHOLE              = "\U0001f573"          # 🕳
     VPN                 = "\U0001f512"          # 🔒
@@ -297,6 +298,7 @@ class UI:
                 "HISTORICO",
                 "HISTORIAL_ALERTAS",
                 "VISOR_LOGS",
+                "LOG_CONFIG",
             ],
         ),
         (

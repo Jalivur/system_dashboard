@@ -24,7 +24,7 @@ from ui.windows import (FanControlWindow, MonitorWindow, NetworkWindow, USBWindo
                         NetworkLocalWindow, PiholeWindow, AlertHistoryWindow, DisplayWindow, VpnWindow, OverviewWindow,
                         LedWindow, CameraWindow, ServicesManagerWindow, LogViewerWindow, ButtonManagerWindow, CrontabWindow,
                         HardwareInfoWindow, SSHWindow, WiFiWindow, ConfigEditorWindow, AudioWindow, WeatherWindow,
-                        I2CWindow, GPIOWindow, ServiceWatchdogWindow)
+                        I2CWindow, GPIOWindow, ServiceWatchdogWindow, LogConfigWindow)
 from ui.window_manager import WindowManager
 from ui.window_lifecycle import WindowLifecycleManager
 from ui.main_badges import BadgeManager
@@ -293,6 +293,8 @@ class MainWindow:
             badge_keys=["hb_offline", "hb_on", "hb_fault"])
         r("log_viewer",           BL.VISOR_LOGS,
             lambda: LogViewerWindow(root))
+        r("log_config_window",    BL.LOG_CONFIG,
+            lambda: LogConfigWindow(root))
         r("network_local",        BL.RED_LOCAL,
             lambda: NetworkLocalWindow(root, network_scanner=self.network_scanner))
         r("pihole",               BL.PIHOLE,
@@ -358,6 +360,7 @@ class MainWindow:
             BL.ACTUALIZACIONES:   (lambda: self._wlm.open("update_window"),        ["updates"]),
             BL.HOMEBRIDGE:        (lambda: self._wlm.open("homebridge"),           ["hb_offline", "hb_on", "hb_fault"]),
             BL.VISOR_LOGS:        (lambda: self._wlm.open("log_viewer"),           []),
+            BL.LOG_CONFIG:        (lambda: self._wlm.open("log_config_window"),    []),
             BL.RED_LOCAL:         (lambda: self._wlm.open("network_local"),        []),
             BL.PIHOLE:            (lambda: self._wlm.open("pihole"),               ["pihole_offline"]),
             BL.VPN:               (lambda: self._wlm.open("vpn_window"),           ["vpn_offline"]),
@@ -396,6 +399,7 @@ class MainWindow:
         "update_window":        BL.ACTUALIZACIONES,
         "homebridge":           BL.HOMEBRIDGE,
         "log_viewer":           BL.VISOR_LOGS,
+        "log_config_window":    BL.LOG_CONFIG,
         "network_local":        BL.RED_LOCAL,
         "pihole":               BL.PIHOLE,
         "vpn_window":           BL.VPN,

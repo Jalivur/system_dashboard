@@ -7,6 +7,9 @@ from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH,
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets import GraphWidget
 from utils.system_utils import SystemUtils
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 _COL_W   = (DSI_WIDTH - 70) // 2
 _GRAPH_H = 110
@@ -31,6 +34,8 @@ class NetworkWindow(ctk.CTkToplevel):
 
         self._create_ui()
         self._update()
+        logger.info("[NetworkWindow] Ventana Abierta")
+
 
     # ── UI ────────────────────────────────────────────────────────────────────
 

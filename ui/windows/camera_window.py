@@ -43,6 +43,7 @@ class CameraWindow(ctk.CTkToplevel):
         self._create_ui()
         self._refresh_photo_list()
         self._refresh_scan_list()
+        logger.info("[CameraWindow] Ventana Abierta")
 
     # ── Estructura principal ──────────────────────────────────────────────────
 

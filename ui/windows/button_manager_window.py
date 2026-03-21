@@ -46,6 +46,8 @@ _BTN_LABELS = {
     "weather_window":       BL.CLIMA,
     "i2c_window":           BL.I2C,
     "gpio_window":          BL.GPIO,
+    "service_watchdog":     BL.SERVICE_WATCHDOG,
+    "log_config_window":    BL.LOG_CONFIG,
 }
 
 

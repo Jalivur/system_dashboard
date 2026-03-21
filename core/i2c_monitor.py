@@ -153,7 +153,7 @@ class I2CMonitor:
                         pass   # Sin ACK — dirección vacía
                 bus.close()
             except Exception as e:
-                #logger.debug("[I2CMonitor] Bus %d error: %s", bus_num, e)
+                logger.debug("[I2CMonitor] Bus %d error: %s", bus_num, e)
                 pass
             result_buses.append({
                 "bus":     bus_num,
@@ -169,5 +169,5 @@ class I2CMonitor:
                 "buses": result_buses,
                 "total": total,
             }
-        logger.info("[I2CMonitor] Escaneo completado: %d dispositivo(s) en %d bus(es)",
+        logger.debug("[I2CMonitor] Escaneo completado: %d dispositivo(s) en %d bus(es)",
                     total, len(buses))

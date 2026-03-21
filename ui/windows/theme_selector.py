@@ -8,6 +8,10 @@ from ui.styles import make_futuristic_button, StyleManager, make_window_header
 from ui.widgets import custom_msgbox, confirm_dialog
 import sys
 import os
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class ThemeSelector(ctk.CTkToplevel):
     """Ventana de selección de temas"""
@@ -28,6 +32,8 @@ class ThemeSelector(ctk.CTkToplevel):
         
         # Crear interfaz
         self._create_ui()
+        logger.info("[ThemeSelector] Ventana Abierta")
+
     
     def _create_ui(self):
         """Crea la interfaz de usuario"""

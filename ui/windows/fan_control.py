@@ -10,7 +10,9 @@ from ui.widgets import custom_msgbox
 from core.fan_controller import FanController
 from core.system_monitor import SystemMonitor
 from utils.file_manager import FileManager
+from utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 class FanControlWindow(ctk.CTkToplevel):
     """Ventana de control de ventiladores y curvas PWM"""
@@ -54,6 +56,8 @@ class FanControlWindow(ctk.CTkToplevel):
         # Iniciar bucles
         self._update_pwm_display()
         self._update_service_status()
+        logger.info("[FanControlWindow] Ventana Abierta")
+
 
     def _load_initial_state(self):
         """Carga el estado inicial desde archivo"""

@@ -40,6 +40,8 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
 
         self._create_ui()
         self._update()
+        logger.info("[ServiceWatchdogWindow] Ventana Abierta")
+
 
     def _create_ui(self):
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])

@@ -3,6 +3,9 @@ from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIG
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets.dialogs import terminal_dialog
 from utils import SystemUtils
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class UpdatesWindow(ctk.CTkToplevel):
@@ -22,6 +25,8 @@ class UpdatesWindow(ctk.CTkToplevel):
 
         self._create_ui()
         self._update()
+        logger.info("[UpdatesWidnow] Ventana Abierta")
+
 
     def _create_ui(self):
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
@@ -148,9 +153,11 @@ class UpdatesWindow(ctk.CTkToplevel):
 
     def _execute_update_script(self):
         """Lanza el script de terminal y refresca al terminar"""
+        logger.info("[UpdatesWidnow] Ejecutando update.sh")
         script_path = str(SCRIPTS_DIR / "update.sh")
 
         def al_terminar_actualizacion():
+            logger.info("[UpdatesWidnow] Ejecucion completada de update.sh")
             self._refresh_status(force=True)
 
         terminal_dialog(

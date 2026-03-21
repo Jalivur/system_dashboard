@@ -52,6 +52,8 @@ class HistoryWindow(ctk.CTkToplevel):
 
         # Cargar datos iniciales
         self._update_data()
+        logger.info("[HistoryWindow] Ventana Abierta")
+
 
     # ─────────────────────────────────────────────
     # Construcción de la UI
