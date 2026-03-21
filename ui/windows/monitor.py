@@ -9,6 +9,9 @@ from config.settings import (COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH,
 from ui.styles import StyleManager, make_window_header
 from ui.widgets import GraphWidget
 from core.system_monitor import SystemMonitor
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 _COL_W       = (DSI_WIDTH - 70) // 2
 _GRAPH_H_TOP = 90
@@ -32,6 +35,8 @@ class MonitorWindow(ctk.CTkToplevel):
 
         self._create_ui()
         self._update()
+        logger.info("[MonitorWindow] Ventana Abierta")
+
 
     def _create_ui(self):
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])

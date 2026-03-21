@@ -57,6 +57,7 @@ class AudioWindow(ctk.CTkToplevel):
         self._create_ui()
         self._load_state()
         self._vu_tick()
+        logger.info("[AudioWindow] Ventana Abierta")
 
     # ── Construcción UI ───────────────────────────────────────────────────────
 

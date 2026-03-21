@@ -6,6 +6,9 @@ from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIG
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets import confirm_dialog, custom_msgbox
 from core.process_monitor import ProcessMonitor
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ProcessWindow(ctk.CTkToplevel):
@@ -35,6 +38,8 @@ class ProcessWindow(ctk.CTkToplevel):
 
         # Iniciar actualización
         self._update()
+        logger.info("[ProcessWindow] Ventana Abierta")
+
 
     # ── UI ────────────────────────────────────────────────────────────────────
 

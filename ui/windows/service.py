@@ -6,6 +6,10 @@ from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIG
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
 from ui.widgets import confirm_dialog, custom_msgbox
 from core.service_monitor import ServiceMonitor
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 
 class ServiceWindow(ctk.CTkToplevel):
@@ -29,6 +33,8 @@ class ServiceWindow(ctk.CTkToplevel):
 
         self._create_ui()
         self._update()
+        logger.info("[ServiceWindow] Ventana Abierta")
+
 
     # ── UI ────────────────────────────────────────────────────────────────────
 

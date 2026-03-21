@@ -28,6 +28,8 @@ class USBWindow(ctk.CTkToplevel):
         
         self._create_ui()
         self._refresh_devices()
+        logger.info("[USBWindow] Ventana Abierta")
+
     
     def _create_ui(self):
         """Crea la interfaz de usuario"""

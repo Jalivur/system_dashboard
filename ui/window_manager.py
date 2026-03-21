@@ -41,6 +41,7 @@ class WindowManager:
         "i2c_window":           BL.I2C,
         "gpio_window":          BL.GPIO,
         "service_watchdog":     BL.SERVICE_WATCHDOG,
+        "log_config_window":    BL.LOG_CONFIG,
     }
 
     _ALWAYS_VISIBLE = [

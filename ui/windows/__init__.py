@@ -34,6 +34,7 @@ from .weather_window import WeatherWindow
 from .i2c_window import I2CWindow
 from .gpio_window import GPIOWindow
 from .service_watchdog import ServiceWatchdogWindow
+from .log_config_window import LogConfigWindow
 
 
 __all__ = [
@@ -69,5 +70,6 @@ __all__ = [
     'WeatherWindow',
     'I2CWindow',
     'GPIOWindow',
-    'ServiceWatchdogWindow'
+    'ServiceWatchdogWindow',
+    'LogConfigWindow'
 ]

@@ -68,6 +68,8 @@ class LogViewerWindow(ctk.CTkToplevel):
 
         self._create_ui()
         self._load_log()
+        logger.info("[LogViewerWindow] Ventana Abierta")
+
 
     # ── Placeholder helpers ──────────────────────────────────────────────────
 
