@@ -512,10 +512,13 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         # (puede haber cambiado desde que se abrió la ventana, p.ej. favoritos de clima)
         current_params, current_icons = _load_local_settings()
 
-        merged_params = current_params
+        merged_params = current_params.copy()
         merged_params.update(param_overrides)
-        merged_params = {k: v for k, v in merged_params.items()
-                         if v != getattr(_settings, k, None)}
+        # Filtrar solo los parámetros que se acaban de modificar y son igual al default
+        # Los parámetros existentes se mantienen intactos
+        for k, v in param_overrides.items():
+            if v == getattr(_settings, k, None):
+                merged_params.pop(k, None)
 
         merged_icons = current_icons
         merged_icons.update(icon_overrides)

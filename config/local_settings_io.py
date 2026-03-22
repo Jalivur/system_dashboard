@@ -107,6 +107,32 @@ def update_params(new_params: dict) -> None:
     write(params, icons)
 
 
+def write_params(param_overrides: dict) -> None:
+    """
+    Escribe solo parámetros, preservando los iconos existentes.
+    """
+    _, icons = read()
+    write(param_overrides, icons)
+
+
+def write_icons(icon_overrides: dict) -> None:
+    """
+    Escribe solo iconos, preservando los parámetros existentes.
+    """
+    params, _ = read()
+    write(params, icon_overrides)
+
+
+def update_icons(new_icons: dict) -> None:
+    """
+    Merge seguro: lee el estado actual, aplica new_icons encima y escribe.
+    Los parámetros y el resto de iconos existentes se conservan intactos.
+    """
+    params, icons = read()
+    icons.update(new_icons)
+    write(params, icons)
+
+
 def get_param(key: str, default=None):
     """Lee un único parámetro de local_settings.py sin importar el módulo."""
     params, _ = read()
