@@ -1,10 +1,1 @@
-# TODO: Añadir docstrings faltantes
-
-## styles.py (completado)
-✅ Docstrings añadidos a funciones internas
-
-## window_manager.py
-✅ Crear/editar TODO.md (completado)
-✅ Añadir docstrings a WindowManager class y apply_config
-✅ Verificar con read_file
-- [ ] Completar tarea
+# Todas las docstrings añadidas exitosamente.&#10;&#10;✅ Tarea completada: Docstrings en español añadidos a todos los métodos privados de ConfigEditorWindow en config_editor_window.py.&#10;&#10;No se tocó ningún código, solo docstrings profesionales y descriptivos.

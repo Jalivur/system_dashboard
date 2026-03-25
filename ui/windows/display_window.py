@@ -25,6 +25,12 @@ class DisplayWindow(ctk.CTkToplevel):
     """Ventana de control de brillo de pantalla."""
 
     def __init__(self, parent, display_service):
+        """Inicializa la ventana de control de brillo de pantalla.
+
+        Args:
+            parent: Ventana padre.
+            display_service: Servicio de control de display.
+        """
         super().__init__(parent)
         self._display_service = display_service
 
@@ -48,7 +54,9 @@ class DisplayWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+        """Crea la estructura principal de la interfaz de usuario de la ventana."""
+
+        main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium']) 
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
         self._header = make_window_header(
@@ -207,7 +215,9 @@ class DisplayWindow(ctk.CTkToplevel):
     # ── Loop de actualización con banner ──────────────────────────────────────
 
     def _update(self):
-        if not self.winfo_exists():
+        """Actualiza la ventana periódicamente, mostrando banner si el servicio está detenido."""
+
+        if not self.winfo_exists(): 
             return
 
         if not self._display_service.is_running():
@@ -228,30 +238,46 @@ class DisplayWindow(ctk.CTkToplevel):
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     def _on_slider(self, value):
-        self._display_service.set_brightness(int(value))
+        """Maneja cambios en el slider de brillo, aplicando el nuevo valor."""
+
+        self._display_service.set_brightness(int(value)) 
         self._refresh()
 
     def _set_quick(self, value):
-        self._display_service.set_brightness(value)
+        """Establece un nivel de brillo rápido predefinido.
+
+        Args:
+            value (int): Nivel de brillo (0-100).
+        """
+
+        self._display_service.set_brightness(value) 
         self._slider_var.set(value)
         self._refresh()
 
     def _screen_on(self):
-        self._display_service.screen_on()
+        """Enciende la pantalla al 100% de brillo."""
+
+        self._display_service.screen_on() 
         self._refresh()
 
     def _screen_off(self):
-        self._display_service.screen_off()
+        """Apaga la pantalla (brillo 0%)."""
+
+        self._display_service.screen_off() 
         self._refresh()
 
     def _toggle_dim(self):
-        if self._dim_switch.get():
+        """Activa o desactiva el modo de atenuado automático por inactividad."""
+
+        if self._dim_switch.get(): 
             self._display_service.enable_dim_on_idle()
         else:
             self._display_service.disable_dim_on_idle()
 
     def _refresh(self):
-        if not self._display_service.is_available():
+        """Actualiza la etiqueta y slider con el brillo actual."""
+
+        if not self._display_service.is_available(): 
             return
         if not hasattr(self, "_brightness_label"):
             return

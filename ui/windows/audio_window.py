@@ -1,3 +1,12 @@
+"""
+Ventana de control de audio del dashboard de sistema.
+Caracteristicas:
+
+VU meter animado con zonas verde/amarillo/rojo
+Control de volumen por canal (Master, PCM, etc.) con slider y botones rapidos
+Mute/unmute con test de sonido
+Interfaz responsive para DSI
+"""
 # ── Imports ───────────────────────────────────────────────────────────────────
 import threading
 import tkinter as tk
@@ -34,6 +43,7 @@ class AudioWindow(ctk.CTkToplevel):
     """Ventana de control de audio — volumen, mute, VU meter y accesos rápidos."""
 
     def __init__(self, parent, audio_service: AudioService):
+        """Inicializa la ventana de control de audio."""
         super().__init__(parent)
         self._svc     = audio_service
         self._control = ctk.StringVar(master=self, value=AudioService.DEFAULT_CONTROL)
@@ -62,6 +72,8 @@ class AudioWindow(ctk.CTkToplevel):
     # ── Construcción UI ───────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea todos los elementos de la interfaz de usuario."""
+        
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
@@ -234,7 +246,7 @@ class AudioWindow(ctk.CTkToplevel):
     # ── VU meter animado ──────────────────────────────────────────────────────
 
     def _vu_tick(self):
-        """Tick de animación del VU meter — suaviza y dibuja."""
+        """Actualiza la animación del VU meter — suaviza y dibuja."""
         if not self.winfo_exists():
             return
 
@@ -253,7 +265,7 @@ class AudioWindow(ctk.CTkToplevel):
         self._vu_job = self.after(_VU_REFRESH_MS, self._vu_tick)
 
     def _draw_vu(self, level: float):
-        """Colorea los segmentos del VU meter según el nivel actual."""
+        """Dibuja los segmentos del VU meter según el nivel."""
         lit = int(level)
         for i, rect in enumerate(self._vu_segments):
             if i < lit:
@@ -277,6 +289,7 @@ class AudioWindow(ctk.CTkToplevel):
     def _run_async(self, fn, *args, on_done=None):
         """Ejecuta fn(*args) en un thread daemon. on_done se llama en el hilo UI."""
         def _worker():
+            """Worker para funciones asíncronas."""
             result = fn(*args)
             if on_done and self.winfo_exists():
                 self.after(0, lambda: on_done(result))
@@ -285,7 +298,9 @@ class AudioWindow(ctk.CTkToplevel):
     # ── Lógica ────────────────────────────────────────────────────────────────
 
     def _load_state(self):
+        """Carga el estado actual del volumen y mute."""
         def _worker():
+            """Worker para funciones asíncronas."""
             control = self._control.get()
             vol     = self._svc.get_volume(control)
             muted   = self._svc.is_muted(control)
@@ -294,6 +309,7 @@ class AudioWindow(ctk.CTkToplevel):
         threading.Thread(target=_worker, daemon=True, name="AudioLoad").start()
 
     def _apply_state(self, vol: int, muted: bool):
+        """Aplica el estado de volumen y mute a la UI."""
         if not self.winfo_exists():
             return
         if vol >= 0:
@@ -304,6 +320,7 @@ class AudioWindow(ctk.CTkToplevel):
         self._update_mute_ui()
 
     def _on_slider(self, value):
+        """Maneja cambio en el slider de volumen."""
         vol = int(value)
         self._pct_label.configure(text=f"{vol}%")
         self._set_vu_from_vol(vol)
@@ -313,6 +330,7 @@ class AudioWindow(ctk.CTkToplevel):
         self._run_async(self._svc.set_volume, vol, self._control.get())
 
     def _set_quick(self, pct: int):
+        """Establece volumen con botones rápidos."""
         if self._busy:
             return
         self._busy = True
@@ -324,29 +342,35 @@ class AudioWindow(ctk.CTkToplevel):
             self._update_mute_ui()
 
         def _worker():
+            """Worker para funciones asíncronas."""
             self._svc.set_volume(pct, self._control.get())
             if self.winfo_exists():
                 self.after(0, self._unlock)
         threading.Thread(target=_worker, daemon=True, name="AudioQuick").start()
 
     def _unlock(self):
+        """Desbloquea la UI después de operación rápida."""
         self._busy = False
 
     def _on_control_change(self, _value):
+        """Recarga estado al cambiar canal de control."""
         self._load_state()
 
     def _toggle_mute(self):
+        """Alterna estado de mute."""
         if self._busy:
             return
         self._busy = True
 
         def _worker():
+            """Worker para funciones asíncronas."""
             muted = self._svc.toggle_mute(self._control.get())
             if self.winfo_exists():
                 self.after(0, lambda: self._apply_mute(muted))
         threading.Thread(target=_worker, daemon=True, name="AudioMute").start()
 
     def _apply_mute(self, muted: bool):
+        """Aplica estado mute a la UI."""
         if not self.winfo_exists():
             return
         self._muted = muted
@@ -361,6 +385,7 @@ class AudioWindow(ctk.CTkToplevel):
         ).start()
 
     def _update_mute_ui(self):
+        """Actualiza elementos UI según estado de mute."""
         if not self.winfo_exists():
             return
         if self._muted:
@@ -383,6 +408,7 @@ class AudioWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
+        """Maneja cierre de la ventana."""
         if self._vu_job:
             self.after_cancel(self._vu_job)
         logger.info("[AudioWindow] Ventana cerrada")

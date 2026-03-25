@@ -22,7 +22,17 @@ _SMART_EVERY = 30
 class DiskWindow(ctk.CTkToplevel):
     """Ventana de monitoreo de disco"""
 
+
     def __init__(self, parent, disk_monitor: DiskMonitor):
+        """
+        Inicializa la ventana de monitoreo de disco con el monitor de disco proporcionado.
+        
+        Configura título, geometría, colores y lanza creación de UI + bucle de actualizaciones.
+        
+        Args:
+            parent: Widget padre (ctk.CTkToplevel).
+            disk_monitor: Instancia de DiskMonitor para obtener estadísticas de disco.
+        """
         super().__init__(parent)
         self._disk_monitor = disk_monitor
         self._widgets = {}
@@ -43,6 +53,14 @@ class DiskWindow(ctk.CTkToplevel):
 
 
     def _create_ui(self):
+        """
+        Construye toda la interfaz gráfica de la ventana:
+        
+        - Header con título y botón de cierre.
+        - Contenedor scrollable con canvas.
+        - Grid 2x2 de celdas con labels, valores numéricos y widgets GraphWidget.
+        - Tarjeta inferior para métricas SMART NVMe (2 filas x 3 columnas).
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -171,6 +189,15 @@ class DiskWindow(ctk.CTkToplevel):
     # ── Update ────────────────────────────────────────────────────────────────
 
     def _update(self):
+        """
+        Actualiza la interfaz con datos actuales e históricos del DiskMonitor.
+        
+        - Refresca labels, colores y gráficos de métricas (% uso, temp, I/O).
+        - Actualiza header status.
+        - SMART cada _SMART_EVERY ciclos (lento).
+        - Llama recursivamente cada UPDATE_MS ms.
+        - Maneja si monitor no corre (muestra banner stopped).
+        """
         if not self.winfo_exists():
             return
         if not self._disk_monitor.is_running():
@@ -269,6 +296,15 @@ class DiskWindow(ctk.CTkToplevel):
 
     @staticmethod
     def _fmt_hours(hours) -> str:
+        """
+        Convierte horas totales de uso en formato legible 'Dd Hh'.
+        
+        Args:
+            hours (float | None): Horas totales.
+        
+        Returns:
+            str: Formato '125d 3h' o '--'.
+        """
         if hours is None:
             return "--"
         d = hours // 24
@@ -277,10 +313,28 @@ class DiskWindow(ctk.CTkToplevel):
 
     @staticmethod
     def _fmt_int(val) -> str:
+        """
+        Formatea valor entero o None como string.
+        
+        Args:
+            val (int | None): Valor a formatear.
+        
+        Returns:
+            str: str(val) o '--'.
+        """
         return "--" if val is None else str(val)
 
     @staticmethod
     def _fmt_tb(val) -> str:
+        """
+        Formatea terabytes en TB o GB según magnitud.
+        
+        Args:
+            val (float | None): TB a formatear.
+        
+        Returns:
+            str: '1.23 TB', '456 GB' o '--'.
+        """
         if val is None:
             return "--"
         if val < 1.0:
@@ -290,6 +344,17 @@ class DiskWindow(ctk.CTkToplevel):
     # ── Métricas originales — sin cambios ────────────────────────────────────
 
     def _update_metric(self, key, value, history, unit, warn, crit):
+        """
+        Actualiza label, color y gráfico de una métrica con umbral.
+        
+        Args:
+            key (str): ID métrica.
+            value (float): Valor actual.
+            history (list): Historial para gráfico.
+            unit (str): Unidad ('%', '°C').
+            warn (float): Umbral warning.
+            crit (float): Umbral crítico.
+        """
         color = self._disk_monitor.level_color(value, warn, crit)
         self._widgets[f"{key}_value"].configure(text=f"{value:.1f} {unit}", text_color=color)
         self._widgets[f"{key}_label"].configure(text_color=color)
@@ -297,6 +362,16 @@ class DiskWindow(ctk.CTkToplevel):
         g['widget'].update(history, g['max_val'], color)
 
     def _update_io(self, key, value, history):
+        """
+        Actualiza label, color y gráfico para métricas de I/O (lectura/escritura).
+        
+        Usa umbrales fijos: warn=10, crit=50 MB/s.
+        
+        Args:
+            key (str): 'disk_read' o 'disk_write'.
+            value (float): MB/s actual.
+            history (list): Historial.
+        """
         color = self._disk_monitor.level_color(value, 10, 50)
         self._widgets[f"{key}_value"].configure(text=f"{value:.1f} MB/s", text_color=color)
         self._widgets[f"{key}_label"].configure(text_color=color)

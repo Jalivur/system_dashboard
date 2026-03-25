@@ -35,6 +35,7 @@ class AlertHistoryWindow(ctk.CTkToplevel):
     """Ventana de historial de alertas."""
 
     def __init__(self, parent, alert_service):
+        """Inicializa la ventana de historial de alertas."""
         super().__init__(parent)
         self._alert_service = alert_service
 
@@ -53,6 +54,7 @@ class AlertHistoryWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea todos los elementos de la interfaz de usuario."""
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -180,6 +182,7 @@ class AlertHistoryWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _confirm_clear(self):
+        """Muestra diálogo de confirmación para borrar el historial."""
         confirm_dialog(
             parent=self,
             text="¿Borrar todo el historial de alertas?\n\nEsta acción no se puede deshacer.",
@@ -188,5 +191,6 @@ class AlertHistoryWindow(ctk.CTkToplevel):
         )
 
     def _clear(self):
+        """Borra el historial de alertas y recarga la vista."""
         self._alert_service.clear_history()
         self._load()

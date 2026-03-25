@@ -81,6 +81,13 @@ class ButtonManagerWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """
+        Crea la interfaz completa de la ventana:
+        - Frame principal con header de ventana
+        - Contenedor desplazable con canvas y scrollbar
+        - Lista de filas con etiquetas y switches para cada botón del menú
+        - Panel inferior con botones de acción (Guardar predeterminado, Activar/Desactivar todos)
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 

@@ -116,6 +116,16 @@ def _get_editable_icons() -> list:
 
 
 def _surrogate_to_cp(high: int, low: int) -> int:
+    """Convierte par de surrogates UTF-16 high/low a codepoint Unicode scalar.
+    
+    Args:
+        high: Primer surrogate (0xD800-0xDBFF).
+        low: Segundo surrogate (0xDC00-0xDFFF).
+    
+    Returns:
+        Codepoint int (U+10000 a U+10FFFF).
+    """
+
     return 0x10000 + (high - 0xD800) * 0x400 + (low - 0xDC00)
 
 
@@ -163,6 +173,11 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     """Editor de configuración local del dashboard."""
 
     def __init__(self, parent):
+        """Inicializa la ventana editor de configuración.
+        
+        Args:
+            parent: Ventana principal (CTk) para modalidad transient."""
+
         super().__init__(parent)
 
         self.title("Editor de Configuración")
@@ -190,6 +205,9 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     # ── Construcción UI ───────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea y configura toda la interfaz de usuario de la ventana.
+        Incluye header, secciones de parámetros, iconos y botones de acción."""
+
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -254,6 +272,13 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     # ── Secciones de parámetros ───────────────────────────────────────────────
 
     def _build_section(self, parent, section: dict):
+        """Construye una sección de parámetros con su tarjeta visual y filas de entrada.
+        
+        Args:
+            parent: Contenedor padre para la sección.
+            section: Diccionario con 'title', 'color' y lista de 'params'.
+        """
+
         color = COLORS.get(section["color"], COLORS['primary'])
         card = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         card.pack(fill="x", padx=10, pady=(6, 2))
@@ -274,6 +299,17 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         ctk.CTkFrame(card, fg_color="transparent", height=6).pack()
 
     def _build_param_row(self, parent, key, label, typ, vmin, vmax, step, desc):
+        """Crea una fila editable para un parámetro numérico con botones +/- y descripción.
+        
+        Args:
+            parent: Frame contenedor de la fila.
+            key: Clave del parámetro en settings.
+            label: Etiqueta visible.
+            typ: 'int' o 'float'.
+            vmin, vmax, step: Límites y paso.
+            desc: Descripción tooltip.
+        """
+
         current = getattr(_settings, key, None)
         if key in self._saved_params:
             current = self._saved_params[key]
@@ -333,6 +369,15 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     # ── Sección de iconos — carga diferida ────────────────────────────────────
 
     def _build_icons_header(self, parent):
+        """Construye la cabecera de la sección de iconos con instrucciones y loader.
+        
+        Args:
+            parent: Contenedor padre.
+        
+        Returns:
+            Tuple (card_frame, loading_label).
+        """
+
         card = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         card.pack(fill="x", padx=10, pady=(6, 2))
 
@@ -367,6 +412,10 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         return card, loading
 
     def _build_icon_batch(self):
+        """Construye lotes de filas de iconos de forma asíncrona (after()) para evitar bloqueo UI.
+        Llama recursivamente hasta completar todos los iconos editables.
+        """
+
         if not self.winfo_exists():
             return
 
@@ -390,6 +439,14 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             ctk.CTkFrame(self._icon_card, fg_color="transparent", height=6).pack()
 
     def _build_icon_row(self, parent, attr: str, current_char: str):
+        """Crea una fila editable para un icono específico con preview y entry codepoint.
+        
+        Args:
+            parent: Frame contenedor.
+            attr: Nombre del atributo Icons (ej. 'HOME').
+            current_char: Carácter Unicode actual.
+        """
+
         var = ctk.StringVar(master=self, value="")
         self._icon_vars[attr] = var
 
@@ -439,6 +496,15 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     # ── Lógica de edición ─────────────────────────────────────────────────────
 
     def _step_value(self, key, typ, delta, vmin, vmax):
+        """Ajusta el valor de un parámetro numérico con botones +/-, respetando límites.
+        
+        Args:
+            key: Clave del parámetro.
+            typ: 'int' o 'float'.
+            delta: Incremento/decremento.
+            vmin, vmax: Límites opcionales.
+        """
+
         try:
             if typ == "int":
                 val = int(float(self._vars[key].get())) + int(delta)
@@ -454,6 +520,15 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             pass
 
     def _update_icon_preview(self, attr: str, var: ctk.StringVar, preview: ctk.CTkLabel):
+        """Actualiza la previsualización del icono en tiempo real al editar el codepoint.
+        Muestra verde si válido, rojo con cruz si inválido.
+        
+        Args:
+            attr: Nombre del icono.
+            var: StringVar con el input raw.
+            preview: Label para mostrar el carácter.
+        """
+
         raw = var.get().strip()
         if not raw:
             preview.configure(text="")
@@ -467,6 +542,12 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     # ── Recoger y validar ─────────────────────────────────────────────────────
 
     def _collect(self):
+        """Recopila todos los valores editados, valida rangos/formato y filtra solo overrides vs defaults.
+        
+        Returns:
+            Tuple (param_overrides: dict, icon_overrides: dict, errors: list).
+        """
+
         param_overrides = {}
         icon_overrides  = {}
         errors          = []
@@ -528,6 +609,10 @@ class ConfigEditorWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _save(self):
+        """Guarda los cambios validados en local_settings.py y muestra confirmación.
+        No reinicia la aplicación.
+        """
+
         param_overrides, icon_overrides, errors = self._collect()
         if errors:
             custom_msgbox(self, "Errores:\n\n" + "\n".join(f"• {e}" for e in errors), "Error")
@@ -550,6 +635,10 @@ class ConfigEditorWindow(ctk.CTkToplevel):
             custom_msgbox(self, f"Error al guardar:\n{e}", "Error")
 
     def _save_and_restart(self):
+        """Guarda cambios y reinicia el dashboard completo vía os.execv.
+        Requiere confirmación del usuario.
+        """
+
         param_overrides, icon_overrides, errors = self._collect()
         if errors:
             custom_msgbox(self, "Errores:\n\n" + "\n".join(f"• {e}" for e in errors), "Error")
@@ -560,6 +649,8 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         n = len(param_overrides) + len(icon_overrides)
 
         def do_save_restart():
+            """Callback interna para guardar overrides y reiniciar dashboard vía execv."""
+
             try:
                 _write_local_settings(param_overrides, icon_overrides)
             except Exception as e:
@@ -580,7 +671,13 @@ class ConfigEditorWindow(ctk.CTkToplevel):
         )
 
     def _restore_defaults(self):
+        """Restaura todos los campos a valores default y elimina local_settings.py.
+        Requiere confirmación y reinicio manual.
+        """
+
         def do_restore():
+            """Callback interna para restaurar defaults, limpiar vars y borrar local_settings.py."""
+
             for section in _SECTIONS:
                 for key, *_ in section["params"]:
                     default = getattr(_settings, key, None)
