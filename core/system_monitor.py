@@ -1,5 +1,7 @@
 """
 Monitor del sistema
+Monitor centralizado de métricas CPU, RAM, temperatura y uptime con histórico para UI.
+Thread background no-bloqueante, thread-safe con lock.
 """
 import time
 import threading
@@ -24,6 +26,12 @@ class SystemMonitor:
     """
 
     def __init__(self):
+        """
+        Inicializa el monitor del sistema.
+
+        Crea SystemUtils, deques históricos maxlen=HISTORY, cache inicial,
+        configura lock y parámetros de polling. Inicia automáticamente el thread.
+        """
         self._system_utils = SystemUtils()
 
         self._cpu_hist  = deque(maxlen=HISTORY)
@@ -44,6 +52,11 @@ class SystemMonitor:
         self.start()
 
     def start(self) -> None:
+        """
+        Inicia el thread de sondeo background (daemon=True).
+
+        Idempotente. Log de inicio con intervalo.
+        """
         if self._running:
             return
         self._running = True
@@ -54,6 +67,11 @@ class SystemMonitor:
         logger.info("[SystemMonitor] Sondeo iniciado (cada %.1fs)", self._interval_s)
 
     def stop(self) -> None:
+        """
+        Detiene el monitor limpiamente.
+
+        Join thread timeout 3s, resetea cache. Log de detención.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -66,10 +84,18 @@ class SystemMonitor:
         logger.info("[SystemMonitor] Sondeo detenido")
     
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Indica si el monitor está activo.
+
+        Returns:
+            bool: True si el thread de polling está corriendo.
+        """
         return self._running
 
     def _poll_loop(self) -> None:
+        """
+        Bucle principal del thread de sondeo background (daemon=True).
+        """
         self._do_poll()
         while self._running:
             self._stop_evt.wait(timeout=self._interval_s)
@@ -78,6 +104,10 @@ class SystemMonitor:
             self._do_poll()
 
     def _do_poll(self) -> None:
+        """
+        Captura rápida de métricas CPU/RAM/TEMP/UPTIME y actualiza caché.
+        Maneja exceptions silenciosamente.
+        """
         try:
             cpu  = psutil.cpu_percent()
             vm   = psutil.virtual_memory()
@@ -109,6 +139,12 @@ class SystemMonitor:
             logger.error("[SystemMonitor] Error en _do_poll: %s", e)
 
     def get_current_stats(self) -> Dict:
+        """
+        Obtiene métricas actuales del cache (thread-safe).
+
+        Returns:
+            Dict: {'cpu': float, 'ram': float, 'ram_used': int, 'temp': float, 'uptime_str': str}
+        """
         if not self._running:
             return {
                 'cpu': 0.0, 'ram': 0.0, 'temp': 0.0, 'uptime_str': '--',
@@ -119,11 +155,23 @@ class SystemMonitor:
     get_cached_stats = get_current_stats
 
     def update_history(self, stats: Dict) -> None:
+        """
+        Actualiza deques históricos para gráficos (últimos HISTORY puntos).
+
+        Args:
+            stats (Dict): Métricas actuales CPU/RAM/TEMP.
+        """
         self._cpu_hist.append(stats['cpu'])
         self._ram_hist.append(stats['ram'])
         self._temp_hist.append(stats['temp'])
 
     def get_history(self) -> Dict:
+        """
+        Retorna listas históricas para UI/gráficos.
+
+        Returns:
+            Dict: {'cpu': [...], 'ram': [...], 'temp': [...]}
+        """
         return {
             'cpu':  list(self._cpu_hist),
             'ram':  list(self._ram_hist),
@@ -132,8 +180,20 @@ class SystemMonitor:
 
     @staticmethod
     def level_color(value: float, warn: float, crit: float) -> str:
+        """
+        Determina color semáforo por umbrales (primary/warning/danger).
+
+        Args:
+            value (float): Valor métrica (CPU%, RAM%, TEMP).
+            warn (float): Umbral warning.
+            crit (float): Umbral crítico.
+
+        Returns:
+            str: Clase color de config.COLORS.
+        """
         if value >= crit:
             return COLORS['danger']
         elif value >= warn:
             return COLORS['warning']
         return COLORS['primary']
+

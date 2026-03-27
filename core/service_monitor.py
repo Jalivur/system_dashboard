@@ -24,6 +24,14 @@ class ServiceMonitor:
     """
 
     def __init__(self):
+        """
+        Inicializa el monitor de servicios con configuración por defecto.
+        
+        Configuración inicial:
+        - sort_by: 'name' (name | state)
+        - sort_reverse: False
+        - filter_type: 'all' (all | active | inactive | failed)
+        """
         self.sort_by      = "name"   # name | state
         self.sort_reverse = False
         self.filter_type  = "all"    # all | active | inactive | failed
@@ -65,16 +73,31 @@ class ServiceMonitor:
         logger.info("[ServiceMonitor] Sondeo detenido")
         
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Verifica si el monitor de servicios está corriendo activamente.
+        
+        Returns:
+            bool: True si el sondeo está activo
+        """
         return self._running
 
     def toggle_sort(self, column: str) -> None:
+        """
+        Alterna el criterio de ordenación o invierte el orden actual.
+        
+        Args:
+            column: Columna para ordenar ('name', 'state')
+        """
         if self.sort_by == column:
             self.sort_reverse = not self.sort_reverse
         else:
             self.set_sort(column, reverse=False)
         
     def _poll_loop(self) -> None:
+        """
+        Bucle principal de sondeo en background (método privado).
+        Se ejecuta cada SERVICES_POLL_INTERVAL segundos.
+        """
         self._do_poll()
         while self._running:
             self._stop_evt.wait(timeout=SERVICES_POLL_INTERVAL)
@@ -83,7 +106,10 @@ class ServiceMonitor:
             self._do_poll()
 
     def refresh_now(self) -> None:
-        """Fuerza un refresco inmediato del caché en background."""
+        """
+        Fuerza un refresco inmediato de la lista de servicios en background.
+        Útil para actualizar datos sin esperar al intervalo de sondeo.
+        """
         threading.Thread(
             target=self._do_poll, daemon=True, name="ServiceMonitor-ForceRefresh"
         ).start()
@@ -91,7 +117,9 @@ class ServiceMonitor:
     # ── Sondeo ────────────────────────────────────────────────────────────────
 
     def _do_poll(self) -> None:
-        """Ejecuta systemctl en background y actualiza el caché."""
+        """
+        Realiza un sondeo único de servicios y actualiza los cachés (método privado).
+        """
         try:
             services = self._fetch_services()
             stats    = self._compute_stats(services)
@@ -179,6 +207,15 @@ class ServiceMonitor:
         return enabled
 
     def _compute_stats(self, services: List[Dict]) -> Dict:
+        """
+        Calcula estadísticas resumidas a partir de la lista de servicios (método privado).
+        
+        Args:
+            services: Lista de diccionarios de servicios
+            
+        Returns:
+            Dict con conteos: total, active, inactive, failed, enabled
+        """
         return {
             'total':    len(services),
             'active':   sum(1 for s in services if s['active'] == 'active'),
@@ -217,36 +254,92 @@ class ServiceMonitor:
     # ── Control de servicios ──────────────────────────────────────────────────
 
     def start_service(self, name: str) -> tuple:
+        """
+        Inicia un servicio systemd.
+        
+        Args:
+            name: Nombre del servicio (sin .service)
+            
+        Returns:
+            tuple: (éxito, mensaje)
+        """
         ok, msg = self._run_systemctl("start", name)
         if ok:
             self.refresh_now()
         return ok, msg
 
     def stop_service(self, name: str) -> tuple:
+        """
+        Detiene un servicio systemd.
+        
+        Args:
+            name: Nombre del servicio (sin .service)
+            
+        Returns:
+            tuple: (éxito, mensaje)
+        """
         ok, msg = self._run_systemctl("stop", name)
         if ok:
             self.refresh_now()
         return ok, msg
 
     def restart_service(self, name: str) -> tuple:
+        """
+        Reinicia un servicio systemd.
+        
+        Args:
+            name: Nombre del servicio (sin .service)
+            
+        Returns:
+            tuple: (éxito, mensaje)
+        """
         ok, msg = self._run_systemctl("restart", name)
         if ok:
             self.refresh_now()
         return ok, msg
 
     def enable_service(self, name: str) -> tuple:
+        """
+        Habilita un servicio systemd para inicio automático.
+        
+        Args:
+            name: Nombre del servicio (sin .service)
+            
+        Returns:
+            tuple: (éxito, mensaje)
+        """
         ok, msg = self._run_systemctl("enable", name, sudo=False)
         if ok:
             self.refresh_now()
         return ok, msg
 
     def disable_service(self, name: str) -> tuple:
+        """
+        Deshabilita un servicio systemd para evitar inicio automático.
+        
+        Args:
+            name: Nombre del servicio (sin .service)
+            
+        Returns:
+            tuple: (éxito, mensaje)
+        """
         ok, msg = self._run_systemctl("disable", name, sudo=False)
         if ok:
             self.refresh_now()
         return ok, msg
 
     def _run_systemctl(self, action: str, name: str, sudo: bool = True) -> tuple:
+        """
+        Ejecuta un comando systemctl y devuelve resultado (método privado).
+        
+        Args:
+            action: Acción ('start', 'stop', 'restart', 'enable', 'disable')
+            name: Nombre del servicio (sin .service)
+            sudo: Si usar sudo (por defecto True, False para enable/disable)
+            
+        Returns:
+            tuple: (éxito, mensaje descriptivo)
+        """
         cmd = (["sudo"] if sudo else []) + ["systemctl", action, f"{name}.service"]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
@@ -275,14 +368,36 @@ class ServiceMonitor:
     # ── Configuración de vista ────────────────────────────────────────────────
 
     def set_sort(self, column: str, reverse: bool = False) -> None:
+        """
+        Establece el criterio de ordenación de la lista de servicios.
+        
+        Args:
+            column: Columna para ordenar ('name', 'state')
+            reverse: Si ordenar de forma descendente (por defecto False)
+        """
         self.sort_by      = column
         self.sort_reverse = reverse
 
     def set_filter(self, filter_type: str) -> None:
+        """
+        Establece el filtro de visualización de servicios.
+        
+        Args:
+            filter_type: Tipo de filtro ('all', 'active', 'inactive', 'failed')
+        """
         self.filter_type = filter_type
 
     @staticmethod
     def get_state_color(state: str) -> str:
+        """
+        Obtiene el color CSS según el estado del servicio.
+        
+        Args:
+            state: Estado del servicio ('active', 'inactive', 'failed', etc.)
+            
+        Returns:
+            Clave de color ('success', 'danger', 'text_dim')
+        """
         if state == "active":
             return "success"
         elif state == "failed":

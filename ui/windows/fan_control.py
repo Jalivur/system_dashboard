@@ -19,6 +19,18 @@ class FanControlWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, fan_controller: FanController,
                  system_monitor: SystemMonitor, fan_service=None):
+        """
+        Constructor de la ventana de control de ventiladores.
+        
+        Inicializa dependencias, variables de estado, carga configuración previa,
+        configura geometría de ventana DSI y crea la UI completa.
+        
+        Args:
+            parent: Ventana padre (root).
+            fan_controller: Instancia de FanController para control PWM.
+            system_monitor: Instancia de SystemMonitor para lecturas temp.
+            fan_service: Servicio opcional de ventiladores (puede ser None).
+        """
         super().__init__(parent)
 
         # Referencias
@@ -290,11 +302,31 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Helpers de placeholder ────────────────────────────────────────────────
 
     def _entry_focus_in(self, entry, var, placeholder):
+        """
+        Maneja el evento de foco entrando en un campo de entrada.
+        
+        Limpia el placeholder si está presente y ajusta el color del texto.
+        
+        Args:
+            entry: Widget CTkEntry que recibe el foco.
+            var: Variable StringVar asociada al campo.
+            placeholder: Texto placeholder original.
+        """
         if var.get() == placeholder:
             var.set("")
             entry.configure(text_color=COLORS['text'])
 
     def _entry_focus_out(self, entry, var, placeholder):
+        """
+        Maneja el evento de foco saliendo de un campo de entrada.
+        
+        Restaura el placeholder si el campo está vacío.
+        
+        Args:
+            entry: Widget CTkEntry que pierde el foco.
+            var: Variable StringVar asociada al campo.
+            placeholder: Texto placeholder original.
+        """
         if var.get().strip() == "":
             var.set(placeholder)
             entry.configure(text_color=COLORS['text_dim'])
@@ -302,6 +334,12 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Lógica de añadir punto ────────────────────────────────────────────────
 
     def _add_curve_point_from_entries(self):
+        """
+        Añade un nuevo punto a la curva temperatura-PWM desde los campos de entrada.
+        
+        Valida rangos (temp 0-100, PWM 0-255), actualiza controlador, refresca UI
+        y muestra confirmación.
+        """
         temp_raw = self._new_temp_var.get().strip()
         pwm_raw  = self._new_pwm_var.get().strip()
 
@@ -334,6 +372,12 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Curva ─────────────────────────────────────────────────────────────────
 
     def _refresh_curve_points(self):
+        """
+        Refresca la visualización de puntos de la curva.
+        
+        Limpia frame actual, carga curva desde archivo y recrea labels/botones
+        para cada punto. Muestra mensaje si no hay puntos.
+        """
         for widget in self._points_frame.winfo_children():
             widget.destroy()
 
@@ -370,12 +414,24 @@ class FanControlWindow(ctk.CTkToplevel):
             ).pack(side="right", padx=5)
 
     def _remove_curve_point(self, temp: int):
+        """
+        Elimina un punto específico de la curva por temperatura.
+        
+        Args:
+            temp: Temperatura del punto a eliminar (int).
+        """
         self._fan_controller.remove_curve_point(temp)
         self._refresh_curve_points()
 
     # ── Botones inferiores ────────────────────────────────────────────────────
 
     def _create_bottom_buttons(self, parent):
+        """
+        Crea los botones inferiores de la interfaz.
+        
+        Args:
+            parent: Frame contenedor para los botones.
+        """
         bottom = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         bottom.pack(fill="x", pady=10, padx=10)
 
@@ -389,6 +445,15 @@ class FanControlWindow(ctk.CTkToplevel):
     # ── Callbacks modo / PWM ──────────────────────────────────────────────────
 
     def _on_mode_change(self, mode: str):
+        """
+        Callback al cambiar el modo de operación (Auto, Silent, etc.).
+        
+        Calcula PWM objetivo basado en modo/temperatura actual, actualiza UI
+        y guarda estado.
+        
+        Args:
+            mode: Nuevo modo seleccionado ('auto', 'silent', etc.).
+        """
         temp = self._system_monitor.get_current_stats()['temp']
         target_pwm = self._fan_controller.get_pwm_for_mode(
             mode=mode, temp=temp, manual_pwm=self._manual_pwm_var.get())
@@ -398,6 +463,14 @@ class FanControlWindow(ctk.CTkToplevel):
         self._file_manager.write_state({"mode": mode, "target_pwm": target_pwm})
 
     def _on_pwm_change(self, value):
+        """
+        Callback al cambiar el valor del slider PWM manual.
+        
+        Actualiza label de visualización y guarda estado si modo es 'manual'.
+        
+        Args:
+            value: Nuevo valor PWM del slider (float).
+        """
         pwm = int(float(value))
         percent = int(pwm / 255 * 100)
         self._pwm_value_label.configure(text=f"Valor: {pwm} ({percent}%)")
@@ -405,6 +478,12 @@ class FanControlWindow(ctk.CTkToplevel):
             self._file_manager.write_state({"mode": "manual", "target_pwm": pwm})
 
     def _update_pwm_display(self):
+        """
+        Actualización periódica (cada 2s) del display PWM.
+        
+        Recalcula PWM basado en modo/temperatura actual si no es manual,
+        y programación recursiva.
+        """
         if not self.winfo_exists():
             return
         mode = self._mode_var.get()

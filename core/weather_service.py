@@ -9,7 +9,7 @@ Flujo:
 Favoritos:
   - add_favorite(city)    → añade ciudad a la lista (respeta max_favorites)
   - remove_favorite(city) → elimina ciudad de la lista
-  - get_favorites()       → devuelve lista de ciudades guardadas
+  - get_favorites()       → devuelve lista ciudades guardadas
   - set_max_favorites(n)  → cambia el límite máximo
   - Todo se persiste en config/local_settings.py
 
@@ -23,7 +23,6 @@ import json
 from typing import Optional, List
 import urllib.request
 import urllib.parse
-import urllib.request
 from datetime import datetime, date
 from config.local_settings_io import update_params, read
 from utils.logger import get_logger
@@ -71,10 +70,18 @@ def _wmo_label(code: int) -> tuple:
 
 class WeatherService:
     """
-    Servicio meteorológico thread-safe con cache y actualización periódica.
+    Servicio meteorológico thread-safe con cache y actualización periódica profesional.
+
+    Soporta ciudad activa, favoritos persistidos, previsión horaria/diaria 14 días,
+    calidad del aire, WMO codes con emojis españoles.
     """
 
     def __init__(self):
+        """
+        Inicializa el servicio meteorológico.
+
+        Configura lock, event, estado inicial, carga datos persistidos de local_settings.
+        """
         self._lock        = threading.Lock()
         self._stop_evt    = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -98,7 +105,11 @@ class WeatherService:
     # ── Arranque / parada ─────────────────────────────────────────────────────
 
     def start(self) -> None:
-        """Arranca el thread daemon de actualización periódica."""
+        """
+        Arranca el thread daemon de actualización periódica.
+
+        Idempotente, log de inicio.
+        """
         if self._running:
             return
         self._running = True
@@ -109,7 +120,11 @@ class WeatherService:
         logger.info("[WeatherService] Iniciado")
 
     def stop(self) -> None:
-        """Detiene el thread daemon."""
+        """
+        Detiene el thread daemon.
+
+        Join timeout 3s, resetea stats. Log.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -119,6 +134,12 @@ class WeatherService:
         logger.info("[WeatherService] Detenido")
 
     def is_running(self) -> bool:
+        """
+        Estado del servicio.
+
+        Returns:
+            bool: True si thread activo.
+        """
         return self._running
 
     # ── API pública — ciudad activa ───────────────────────────────────────────
@@ -127,9 +148,10 @@ class WeatherService:
         """
         Cambia la ciudad activa: hace geocoding y dispara fetch inmediato.
 
+        Persiste lat/lon. 
+
         Returns:
-            {"ok": True, "city": ..., "country": ...}  si éxito
-            {"ok": False, "error": ...}                si falla
+            dict: {"ok": bool, "city": str|None, "lat": float|None, "lon": float|None, "error": str|None}
         """
         city = city.strip()
         if not city:
@@ -151,7 +173,10 @@ class WeatherService:
 
     def get_stats(self) -> dict:
         """
-        Devuelve la caché actual. acquire(blocking=False) — nunca bloquea la UI.
+        Devuelve la caché actual de forma no bloqueante.
+
+        Returns:
+            dict: Métricas actuales + forecast hourly/daily + AQI.
         """
         if self._lock.acquire(blocking=False):
             try:
@@ -161,10 +186,20 @@ class WeatherService:
         return {}
 
     def get_city(self) -> str:
+        """
+        Ciudad activa actual.
+
+        Returns:
+            str: Nombre ciudad o vacío.
+        """
         return self._city
 
     def fetch_now(self) -> None:
-        """Fuerza una actualización inmediata en background."""
+        """
+        Fuerza fetch inmediato en thread background.
+
+        No bloquea caller.
+        """
         threading.Thread(
             target=self._fetch_weather, daemon=True, name="WeatherFetch"
         ).start()
@@ -184,9 +219,10 @@ class WeatherService:
         """
         Añade la ciudad a favoritos si no existe ya y no se supera el máximo.
 
+        Persiste. 
+
         Returns:
-            {"ok": True}                    si éxito
-            {"ok": False, "error": ...}     si falla
+            dict: {"ok": bool, "error": str|None}
         """
         city = city.strip()
         if not city:
@@ -206,7 +242,7 @@ class WeatherService:
         return {"ok": True}
 
     def remove_favorite(self, city: str) -> None:
-        """Elimina una ciudad de favoritos."""
+        """Elimina una ciudad de favoritos y persiste."""
         with self._lock:
             if city in self._favorites:
                 self._favorites.remove(city)
@@ -216,7 +252,9 @@ class WeatherService:
         logger.info("[WeatherService] Favorito eliminado: %s", city)
 
     def set_max_favorites(self, n: int) -> None:
-        """Cambia el límite máximo de favoritos y persiste."""
+        """
+        Cambia el límite máximo de favoritos, trunca lista si necesario, persiste.
+        """
         n = max(1, int(n))
         with self._lock:
             self._max_favorites = n
@@ -242,7 +280,12 @@ class WeatherService:
     # ── Geocoding ─────────────────────────────────────────────────────────────
 
     def _geocode(self, city: str) -> dict:
-        """Busca coordenadas para una ciudad via Open-Meteo Geocoding API."""
+        """
+        Busca coordenadas para una ciudad via Open-Meteo Geocoding API (privado).
+
+        Returns:
+            dict: {"ok": bool, "city": str, "lat": float, "lon": float, "country": str}
+        """
         try:
             params = urllib.parse.urlencode({
                 "name":     city,
@@ -273,7 +316,11 @@ class WeatherService:
     # ── Fetch meteorológico ───────────────────────────────────────────────────
 
     def _fetch_weather(self) -> None:
-        """Consulta Open-Meteo y actualiza la caché."""
+        """
+        Consulta Open-Meteo forecast + air quality y actualiza caché (privado).
+
+        Incluye current, hourly 12h, daily 14d, AQI. WMO emojis. Thread-safe.
+        """
         with self._lock:
             lat  = self._lat
             lon  = self._lon
@@ -281,6 +328,21 @@ class WeatherService:
 
         if lat is None or lon is None:
             return
+
+        def _hhmm(val: str) -> str:
+            """
+            Extrae HH:MM de timestamp ISO (privado, helper para sunrise/sunset).
+
+            Args:
+                val (str): e.g. "2024-03-07T07:23"
+
+            Returns:
+                str: "07:23" or "--"
+            """
+            try:
+                return val[11:16]
+            except Exception:
+                return "--"
 
         try:
             params = urllib.parse.urlencode({
@@ -322,7 +384,7 @@ class WeatherService:
             code = cur.get("weather_code", 0)
             desc, icon = _wmo_label(code)
 
-            # Previsión: próximas 12 horas desde la hora actual
+            # Previsión horaria próximas 12h
             hourly   = data.get("hourly", {})
             h_times  = hourly.get("time", [])
             h_temps  = hourly.get("temperature_2m", [])
@@ -347,29 +409,29 @@ class WeatherService:
                     "weather_icon": h_icon,
                 })
 
-            # Todas las horas agrupadas por fecha — para drill-down días
-            hourly_by_date: dict = {}
+            # Hourly agrupado por fecha
+            hourly_by_date = {}
             for i, t in enumerate(h_times):
-                date_key = t[:10]   # "2024-03-07"
-                h_code   = h_codes[i] if i < len(h_codes) else 0
+                date_key = t[:10]
+                h_code = h_codes[i] if i < len(h_codes) else 0
                 _, h_icon = _wmo_label(h_code)
                 hourly_by_date.setdefault(date_key, []).append({
                     "hour":         t[11:16],
-                    "temp":         h_temps[i]  if i < len(h_temps)  else "--",
+                    "temp":         h_temps[i] if i < len(h_temps) else "--",
                     "precip_prob":  h_precip[i] if i < len(h_precip) else 0,
                     "weather_code": h_code,
                     "weather_icon": h_icon,
                 })
 
-            # Previsión diaria: 14 días
-            daily      = data.get("daily", {})
-            d_times    = daily.get("time", [])
-            d_codes    = daily.get("weather_code", [])
-            d_max      = daily.get("temperature_2m_max", [])
-            d_min      = daily.get("temperature_2m_min", [])
-            d_precip   = daily.get("precipitation_probability_max", [])
-            d_sunrise  = daily.get("sunrise", [])
-            d_sunset   = daily.get("sunset", [])
+            # Daily 14 días
+            daily = data.get("daily", {})
+            d_times = daily.get("time", [])
+            d_codes = daily.get("weather_code", [])
+            d_max = daily.get("temperature_2m_max", [])
+            d_min = daily.get("temperature_2m_min", [])
+            d_precip = daily.get("precipitation_probability_max", [])
+            d_sunrise = daily.get("sunrise", [])
+            d_sunset = daily.get("sunset", [])
 
             _DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
             forecast_daily = []
@@ -380,25 +442,18 @@ class WeatherService:
                     d = date.fromisoformat(d_times[i])
                     label = "Hoy" if i == 0 else _DAY_NAMES[d.weekday()]
                     date_str = d.strftime("%d/%m")
-                except Exception:
+                except:
                     label = d_times[i]
                     date_str = ""
-                # Sunrise / sunset: vienen como "2024-03-07T07:23" → extraer HH:MM
-                def _hhmm(val):
-                    try:
-                        return val[11:16]
-                    except Exception:
-                        return "--"
-
                 forecast_daily.append({
                     "label":        label,
                     "date":         date_str,
-                    "date_iso":     d_times[i],   # "2024-03-07" — para drill-down
-                    "temp_max":     d_max[i]     if i < len(d_max)     else "--",
-                    "temp_min":     d_min[i]     if i < len(d_min)     else "--",
-                    "precip_prob":  d_precip[i]  if i < len(d_precip)  else 0,
+                    "date_iso":     d_times[i],
+                    "temp_max":     d_max[i] if i < len(d_max) else "--",
+                    "temp_min":     d_min[i] if i < len(d_min) else "--",
+                    "precip_prob":  d_precip[i] if i < len(d_precip) else 0,
                     "sunrise":      _hhmm(d_sunrise[i]) if i < len(d_sunrise) else "--",
-                    "sunset":       _hhmm(d_sunset[i])  if i < len(d_sunset)  else "--",
+                    "sunset":       _hhmm(d_sunset[i]) if i < len(d_sunset) else "--",
                     "weather_code": d_code,
                     "weather_icon": d_icon,
                 })
@@ -420,13 +475,13 @@ class WeatherService:
                 "weather_icon": icon,
                 "uv_index":     cur.get("uv_index", "--"),
                 "sunrise":      _hhmm(d_sunrise[0]) if d_sunrise else "--",
-                "sunset":       _hhmm(d_sunset[0])  if d_sunset  else "--",
-                "forecast":         forecast,
-                "forecast_daily":   forecast_daily,
-                "hourly_by_date":   hourly_by_date,
+                "sunset":       _hhmm(d_sunset[0]) if d_sunset else "--",
+                "forecast":     forecast,
+                "forecast_daily": forecast_daily,
+                "hourly_by_date": hourly_by_date,
             }
 
-            # ── Calidad del aire (llamada independiente, fallo silencioso) ──────
+            # Calidad del aire (independiente)
             try:
                 aq_params = urllib.parse.urlencode({
                     "latitude":  lat,
@@ -438,33 +493,34 @@ class WeatherService:
                 with urllib.request.urlopen(aq_url, timeout=8) as aq_resp:
                     aq_data = json.loads(aq_resp.read().decode())
                 aq_cur = aq_data.get("current", {})
-                stats["aqi"]    = aq_cur.get("european_aqi", "--")
-                stats["pm2_5"]  = aq_cur.get("pm2_5",        "--")
-                stats["pm10"]   = aq_cur.get("pm10",         "--")
+                stats["aqi"] = aq_cur.get("european_aqi", "--")
+                stats["pm2_5"] = aq_cur.get("pm2_5", "--")
+                stats["pm10"] = aq_cur.get("pm10", "--")
             except Exception as aq_err:
                 logger.debug("[WeatherService] AQI no disponible: %s", aq_err)
-                stats["aqi"]   = "--"
+                stats["aqi"] = "--"
                 stats["pm2_5"] = "--"
-                stats["pm10"]  = "--"
+                stats["pm10"] = "--"
 
             with self._lock:
-                self._stats       = stats
+                self._stats = stats
                 self._last_update = stats["last_update"]
-                self._error       = ""
+                self._error = ""
 
-            logger.info("[WeatherService] Actualizado: %s %.1f°C %s",
-                        city, stats["temp"], desc)
+            logger.info("[WeatherService] Actualizado: %s %.1f°C %s", city, stats["temp"], desc)
 
         except Exception as e:
             logger.error("[WeatherService] Fetch error: %s", e)
             with self._lock:
-                self._error          = f"Error de conexión: {e}"
+                self._error = f"Error de conexión: {e}"
                 self._stats["error"] = self._error
 
     # ── Persistencia ─────────────────────────────────────────────────────────
 
     def _persist_location(self, city: str, lat: float, lon: float) -> None:
-        """Guarda ciudad activa y coordenadas en config/local_settings.py."""
+        """
+        Persiste ciudad activa y coordenadas en local_settings.py (privado).
+        """
         try:
             update_params({
                 "WEATHER_CITY": city,
@@ -475,7 +531,9 @@ class WeatherService:
             logger.error("[WeatherService] Error persistiendo ubicación: %s", e)
 
     def _persist_favorites(self, favorites: List[str], max_fav: int) -> None:
-        """Guarda lista de favoritos y máximo en config/local_settings.py."""
+        """
+        Persiste lista favoritos y máximo en local_settings.py (privado).
+        """
         try:
             update_params({
                 "WEATHER_FAVORITES":     favorites,
@@ -485,7 +543,9 @@ class WeatherService:
             logger.error("[WeatherService] Error persistiendo favoritos: %s", e)
 
     def _load_persisted_location(self) -> None:
-        """Carga ciudad, coordenadas, favoritos y máximo desde local_settings."""
+        """
+        Carga persistidos desde local_settings: ciudad, coords, favoritos (privado).
+        """
         try:
             params, _ = read()
 
@@ -507,3 +567,4 @@ class WeatherService:
 
         except Exception as e:
             logger.error("[WeatherService] Error cargando datos: %s", e)
+

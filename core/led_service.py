@@ -32,6 +32,9 @@ class LedService:
     """
 
     def __init__(self):
+        """
+        Constructor: carga estado desde led_state.json, inicializa lock.
+        """
         self._lock    = threading.Lock()
         self._state   = self._load()
         self._running = True
@@ -40,6 +43,9 @@ class LedService:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Activa el servicio (habilita set_mode/set_color).
+        """
         self._running = True
         logger.info("[LedService] Iniciado")
 
@@ -50,20 +56,36 @@ class LedService:
         logger.info("[LedService] Detenido — LEDs apagados")
         
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Estado del servicio.
+
+        Returns:
+            bool: True si activo.
+        """
         return self._running
 
     # ── API pública ───────────────────────────────────────────────────────────
 
     def get_state(self) -> dict:
+        """
+        Lee estado actual thread-safe (modo/color).
+
+        Returns:
+            dict: {'mode': str, 'r': int, 'g': int, 'b': int}
+        """
         with self._lock:
             return dict(self._state)
 
     def set_mode(self, mode: str, r: int = 0, g: int = 255, b: int = 0) -> bool:
         """
-        Cambia el modo y el color de los LEDs.
-        mode: uno de LED_MODES
-        r, g, b: 0-255 (solo se usan en static/follow/breathing)
+        Cambia modo LED y RGB, valida, guarda led_state.json atomically.
+
+        Args:
+            mode (str): 'auto'|'off'|'static'|... (LED_MODES)
+            r, g, b (int): Colores 0-255 clamped.
+
+        Returns:
+            bool: True si guardado OK.
         """
         if not self._running:
             logger.warning("[LedService] set_mode() ignorado — servicio parado")
@@ -81,7 +103,15 @@ class LedService:
         return ok
 
     def set_color(self, r: int, g: int, b: int) -> bool:
-        """Cambia el color sin cambiar el modo."""
+        """
+        Actualiza solo RGB manteniendo modo actual.
+
+        Args:
+            r, g, b (int): Colores 0-255 clamped.
+
+        Returns:
+            bool: True si guardado OK (via set_mode).
+        """
         if not self._running:
             return False
         with self._lock:
@@ -91,6 +121,12 @@ class LedService:
     # ── Persistencia ──────────────────────────────────────────────────────────
 
     def _save(self, state: dict) -> bool:
+        """
+        Guarda estado atomically a data/led_state.json (.tmp → replace).
+
+        Returns:
+            bool: True si escrito OK.
+        """
         try:
             _LED_FILE.parent.mkdir(parents=True, exist_ok=True)
             tmp = str(_LED_FILE) + ".tmp"
@@ -103,6 +139,12 @@ class LedService:
             return False
 
     def _load(self) -> dict:
+        """
+        Carga led_state.json o retorna default.
+
+        Returns:
+            dict: Estado parseado o {'mode':'auto','r':0,'g':255,'b':0}
+        """
         try:
             if _LED_FILE.exists():
                 with open(_LED_FILE) as f:

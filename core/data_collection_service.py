@@ -18,14 +18,25 @@ class DataCollectionService:
     _lock = threading.Lock()
  
     def __new__(cls, *args, **kwargs):
+        """
+        Implementa patrón singleton thread-safe.
+        """
         if not cls._instance:
             with cls._lock:
                 if not cls._instance:
                     cls._instance = super().__new__(cls)
         return cls._instance
+
  
     def __init__(self, system_monitor, fan_controller, network_monitor,
                  disk_monitor, update_monitor, interval_minutes: int = 5):
+        """
+        Inicializa singleton DataCollectionService.
+
+        Args:
+            system_monitor, fan_controller, network_monitor, disk_monitor, update_monitor: Fuentes métricas.
+            interval_minutes (int): Minutos entre recolecciones (default 5).
+        """
         if hasattr(self, '_initialized'):
             return
  
@@ -42,6 +53,7 @@ class DataCollectionService:
         self._thread      = None
  
         self._initialized = True
+
  
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
  

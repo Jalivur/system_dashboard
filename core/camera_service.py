@@ -18,8 +18,12 @@ MAX_PHOTOS = 20
 
 
 def _ensure_dirs():
+    """
+    Crea directorios PHOTO_DIR y SCAN_DIR si no existen.
+    """
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
     SCAN_DIR.mkdir(parents=True, exist_ok=True)
+
 
 
 # ── Captura ───────────────────────────────────────────────────────────────────

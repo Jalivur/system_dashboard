@@ -15,6 +15,12 @@ class ProcessWindow(ctk.CTkToplevel):
     """Ventana de monitor de procesos"""
 
     def __init__(self, parent, process_monitor: ProcessMonitor):
+        """Inicializa la ventana de monitor de procesos.
+
+        Args:
+            parent: Ventana padre (CTkToplevel).
+            process_monitor (ProcessMonitor): Instancia del monitor de procesos para obtener datos en tiempo real.
+        """
         super().__init__(parent)
 
         # Referencias
@@ -364,6 +370,7 @@ class ProcessWindow(ctk.CTkToplevel):
     def _kill_process(self, proc: dict):
         """Mata un proceso con confirmación"""
         def do_kill():
+            """Ejecuta la terminación del proceso seleccionado."""
             success, message = self._process_monitor.kill_process(proc['pid'])
             title = "Proceso Terminado" if success else "Error"
             custom_msgbox(self, message, title)

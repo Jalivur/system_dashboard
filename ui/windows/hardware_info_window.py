@@ -90,6 +90,12 @@ class HardwareInfoWindow(ctk.CTkToplevel):
     """Ventana de información del hardware — datos estáticos + uptime dinámico."""
 
     def __init__(self, parent, system_monitor):
+        """Inicializa la ventana de información del hardware.
+
+        Args:
+            parent: Ventana padre (CTkToplevel).
+            system_monitor: Instancia para obtener uptime dinámico.
+        """
         super().__init__(parent)
         self._system_monitor = system_monitor
 
@@ -135,6 +141,7 @@ class HardwareInfoWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea la estructura de la interfaz de usuario principal con scroll y placeholder de carga."""
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -171,6 +178,11 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         ).pack(pady=40)
     
     def _build_content(self, inner):
+        """Construye secciones de contenido con datos reales del hardware (Sistema, CPU, RAM, Uptime).
+
+        Args:
+            inner: Frame contenedor para los widgets de secciones.
+        """
         info = self._info
 
         # ── Tarjeta: Placa / Sistema ──────────────────────────────────────────

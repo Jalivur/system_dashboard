@@ -16,6 +16,14 @@ class ProcessMonitor:
     """Monitor de procesos en tiempo real"""
 
     def __init__(self):
+        """
+        Inicializa el monitor de procesos con configuración por defecto.
+        
+        Configuración inicial:
+        - sort_by: 'cpu' (cpu | memory | name | pid)
+        - sort_reverse: True
+        - filter_type: 'all' (all | user | system)
+        """
         self.sort_by      = "cpu"   # cpu | memory | name | pid
         self.sort_reverse = True
         self.filter_type  = "all"   # all | user | system
@@ -54,16 +62,31 @@ class ProcessMonitor:
         logger.info("[ProcessMonitor] Sondeo detenido")
     
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Verifica si el monitor de procesos está corriendo activamente.
+        
+        Returns:
+            bool: True si el sondeo está activo
+        """
         return self._running
 
     def toggle_sort(self, column: str) -> None:
+        """
+        Alterna el criterio de ordenación o invierte el orden actual.
+        
+        Args:
+            column: Columna para ordenar ('cpu', 'memory', 'name', 'pid')
+        """
         if self.sort_by == column:
             self.sort_reverse = not self.sort_reverse
         else:
             self.set_sort(column, reverse=True)
             
     def _poll_loop(self) -> None:
+        """
+        Bucle principal de sondeo en background (método privado).
+        Se ejecuta cada PROCESS_POLL_INTERVAL segundos.
+        """
         self._do_poll()
         while self._running:
             self._stop_evt.wait(timeout=PROCESS_POLL_INTERVAL)
@@ -72,12 +95,18 @@ class ProcessMonitor:
             self._do_poll()
 
     def refresh_now(self) -> None:
-        """Fuerza un refresco inmediato del caché en background."""
+        """
+        Fuerza un refresco inmediato de la lista de procesos en background.
+        Útil para actualizar datos sin esperar al intervalo de sondeo.
+        """
         threading.Thread(
             target=self._do_poll, daemon=True, name="ProcessMonitor-ForceRefresh"
         ).start()
 
     def _do_poll(self) -> None:
+        """
+        Realiza un sondeo único de procesos y actualiza el caché (método privado).
+        """
         try:
             processes = self.get_processes()
             with self._lock:
@@ -240,10 +269,23 @@ class ProcessMonitor:
     # ── Configuración de vista ────────────────────────────────────────────────
 
     def set_sort(self, column: str, reverse: bool = True):
+        """
+        Establece el criterio de ordenación de la lista de procesos.
+        
+        Args:
+            column: Columna para ordenar ('cpu', 'memory', 'name', 'pid')
+            reverse: Si ordenar de forma descendente (por defecto True)
+        """
         self.sort_by      = column
         self.sort_reverse = reverse
 
     def set_filter(self, filter_type: str):
+        """
+        Establece el filtro de visualización de procesos.
+        
+        Args:
+            filter_type: Tipo de filtro ('all', 'user', 'system')
+        """
         self.filter_type = filter_type
 
     @staticmethod

@@ -38,11 +38,18 @@ def _sound(metric: str, level: str) -> str:
 
 
 class _MetricState:
+    """
+    Estado interno por métrica: zone ('ok'/'warn'/'crit'), last_played ts.
+    """
     __slots__ = ("zone", "last_played")
 
     def __init__(self):
+        """
+        Inicializa zone 'ok', last_played 0.
+        """
         self.zone        = "ok"
         self.last_played = 0.0
+
 
 
 class AudioAlertService:
@@ -54,6 +61,13 @@ class AudioAlertService:
     """
     
     def __init__(self, system_monitor, service_monitor=None):
+        """
+        Inicializa AudioAlertService.
+
+        Args:
+            system_monitor: Fuente de métricas CPU/RAM/TEMP.
+            service_monitor (optional): Fuente servicios caídos.
+        """
         self._system_monitor = system_monitor
         self._service_monitor = service_monitor
 
@@ -68,9 +82,13 @@ class AudioAlertService:
             key: _MetricState() for key in _THRESHOLDS
         }
 
+
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self):
+        """
+        Inicia thread daemon _loop para polling alertas sonoras.
+        """
         if self._running:
             return
         self._running = True
@@ -81,34 +99,64 @@ class AudioAlertService:
         self._thread.start()
         logger.info("[AudioAlertService] Iniciado")
 
+
     def stop(self):
+        """
+        Detiene thread limpiamente (join 5s timeout).
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
         logger.info("[AudioAlertService] Detenido")
+
     
     def is_running(self) -> bool:
+        """
+        Estado activo del servicio.
+        Returns:
+            bool
+        """
         return self._running
 
+
     def set_enabled(self, enabled: bool):
+        """
+        Activa/desactiva alertas sonoras (thread-safe).
+
+        Args:
+            enabled (bool): True para habilitar sonidos.
+        """
         with self._lock:
             self._enabled = enabled
         logger.info("[AudioAlertService] %s", "Activado" if enabled else "Desactivado")
 
+
     def is_enabled(self) -> bool:
+        """
+        Estado habilitado sonidos (thread-safe).
+        Returns:
+            bool
+        """
         with self._lock:
             return self._enabled
 
+
     def play_test(self):
-        """Prueba: reproduce temp_crit.wav"""
+        """
+        Test: Reproduce temp_crit.wav async thread.
+        """
         threading.Thread(
             target=self._play, args=(_sound("temp", "crit"),), daemon=True, name="AudioAlert-PlayWav"
         ).start()
 
+
     # ── Bucle ─────────────────────────────────────────────────────────────────
 
     def _loop(self):
+        """
+        Bucle polling thread daemon: _check cada min(CRIT_REPEAT_S,10)s.
+        """
         loop_interval = min(CRIT_REPEAT_S, 10)
         while self._running:
             try:
@@ -119,10 +167,15 @@ class AudioAlertService:
             if self._stop_evt.is_set():
                 break
 
+
     # ── Lógica principal ──────────────────────────────────────────────────────
 
     def _check(self):
+        """
+        Evalúa métricas vs THRESHOLDS: crit/warn/ok zones, play WAV según repeat/edge.
+        """
         with self._lock:
+
             if not self._enabled:
                 return
 
@@ -196,7 +249,10 @@ class AudioAlertService:
     # ── Reproducción ─────────────────────────────────────────────────────────
 
     def _play(self, sound_file: str):
-        """Un solo aplay activo a la vez."""
+        """
+        Reproduce WAV serial (lock), try aplay/paplay, timeout 15s.
+        """
+
         with self._play_lock:
             if not os.path.exists(sound_file):
                 logger.warning("[AudioAlertService] Archivo no encontrado: %s", sound_file)

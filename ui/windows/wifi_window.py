@@ -22,6 +22,20 @@ class WiFiWindow(ctk.CTkToplevel):
     """Ventana de monitor de conexión WiFi."""
 
     def __init__(self, parent, wifi_monitor):
+        """Inicializa la ventana de monitor WiFi.
+        
+        Args:
+            parent: Ventana padre (principal del dashboard).
+            wifi_monitor (WiFiMonitor): Instancia del monitor WiFi para obtener datos en tiempo real.
+        
+        Configuración inicial:
+        - Título, colores, geometría fija para pantalla DSI.
+        - No redimensionable, modal sobre padre, foco automático.
+        - Inicializa _refresh_job y todas referencias de widgets (None).
+        - Crea UI estática con _create_ui().
+        - Agenda primer _update() en 100ms.
+        - Registra apertura en logger.
+        """
         super().__init__(parent)
         self._wifi_monitor = wifi_monitor
 
@@ -58,6 +72,19 @@ class WiFiWindow(ctk.CTkToplevel):
     # ── Construcción UI (una sola vez) ────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea toda la interfaz de usuario de la ventana WiFi de forma estática (una sola vez).
+        
+        Estructura completa:
+        - Frame principal y header personalizable con título y estado dinámico.
+        - Contenedor scrollable con canvas para contenido extensible.
+        - Tarjetas dedicadas para estado de conexión y tráfico de red.
+        - Gráficas históricas (GraphWidget) para evolución de señal, RX y TX.
+        - Barra inferior con timestamp de última actualización y botón de refresco manual.
+        - Selector de interfaz (dropdown) si hay múltiples adaptadores WiFi disponibles.
+        
+        Inicializa todas las referencias a widgets actualizables como atributos de instancia
+        (_lbl_ssid, _graph_rx, etc.) para su posterior actualización sin recrearlos.
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -110,7 +137,15 @@ class WiFiWindow(ctk.CTkToplevel):
         self._build_iface_selector(self._header)
 
     def _build_iface_selector(self, parent):
-        """Selector de interfaz WiFi en la barra inferior."""
+        """Construye el selector (dropdown) de interfaz WiFi en el header de la ventana.
+        
+        Args:
+            parent: Frame padre donde insertar el selector (header).
+        
+        Solo se muestra si hay múltiples interfaces WiFi disponibles (WiFiMonitor.get_available_interfaces()).
+        Crea label 'Interfaz:', CTkStringVar para valor actual, y CTkOptionMenu con lista de interfaces.
+        Al cambiar selección, llama a self._on_iface_change().
+        """
         interfaces = WiFiMonitor.get_available_interfaces()
 
         # Si solo hay una interfaz (o ninguna) no mostrar el selector
@@ -139,7 +174,17 @@ class WiFiWindow(ctk.CTkToplevel):
         ).pack(side="left", padx=(0, 4))
 
     def _on_iface_change(self, iface: str):
-        """Cambia la interfaz monitorizada y actualiza el label del header."""
+        """Callback ejecutado al seleccionar nueva interfaz WiFi desde el dropdown.
+        
+        Args:
+            iface (str): Nombre de la nueva interfaz seleccionada (ej: 'wlan0').
+        
+        Acciones:
+        - Cambia la interfaz activa en self._wifi_monitor.
+        - Actualiza el label _lbl_iface con el nuevo nombre.
+        - Cancela refresco pendiente y agenda _update() en 200ms para reflejar cambios.
+        - Registra cambio en logger.
+        """
         self._wifi_monitor.set_interface(iface)
         self._lbl_iface.configure(text=iface)
         # Forzar refresco inmediato para reflejar el cambio
@@ -149,7 +194,18 @@ class WiFiWindow(ctk.CTkToplevel):
         logger.info("[WiFiWindow] Interfaz seleccionada: %s", iface)
 
     def _build_connection_card(self):
-        """Tarjeta superior: SSID, señal, calidad, bitrate."""
+        """Construye la tarjeta superior de estado de conexión WiFi.
+        
+        Incluye:
+        - Header con título 'CONEXIÓN' y label de interfaz actual (_lbl_iface).
+        - Fila SSID con label principal.
+        - Grid 1x2 para métricas: señal (dBm + barra + %) y calidad link (LQ/max).
+        - Fila bitrate con valor actual.
+        - Gráfica histórica de señal (_graph_signal, toda el ancho).
+        
+        Todos los labels métricos (_lbl_signal_val, etc.) referenciados para _update().
+        Usa colores dinámicos basados en calidad de señal (WiFiMonitor.signal_color()).
+        """
         card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         card.pack(fill="x", padx=10, pady=(6, 4))
 
@@ -281,7 +337,17 @@ class WiFiWindow(ctk.CTkToplevel):
         self._graph_signal.pack(padx=10, pady=(0, 10))
 
     def _build_traffic_card(self):
-        """Tarjeta inferior: tráfico RX/TX con gráficas."""
+        """Construye la tarjeta inferior de tráfico de red (RX/TX).
+        
+        Estructura:
+        - Header con título 'TRÁFICO'.
+        - Grid 1x2 para celdas descarga (RX) y subida (TX).
+        - Cada celda contiene: label métrica, valor actual (_lbl_rx/_lbl_tx),
+          gráfica histórica dedicada (_graph_rx/_graph_tx).
+        
+        Ancho de gráficas ajustado a _COL_W. Colores dinámicos via NetworkMonitor.net_color().
+        Referencias inicializadas para actualización en _refresh_traffic().
+        """
         card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         card.pack(fill="x", padx=10, pady=(4, 6))
 
@@ -347,6 +413,19 @@ class WiFiWindow(ctk.CTkToplevel):
     # ── Actualización de valores (sin recrear widgets) ────────────────────────
 
     def _update(self):
+        """Actualiza todos los valores de widgets cada _REFRESH_MS (5s).
+        
+        Proceso:
+        1. Verifica existencia de ventana.
+        2. Si monitor no corre, muestra banner 'stopped'.
+        3. Obtiene stats de WiFiMonitor.get_stats().
+        4. Actualiza conexión (_refresh_connection), tráfico (_refresh_traffic).
+        5. Actualiza header status con SSID + dBm o 'Sin conexión'.
+        6. Muestra timestamp última actualización.
+        7. Agenda próximo _update().
+        
+        Centraliza lógica de refresco periódico.
+        """
         if not self.winfo_exists():
             return
         if not self._wifi_monitor.is_running():
@@ -375,8 +454,19 @@ class WiFiWindow(ctk.CTkToplevel):
         self._refresh_job = self.after(_REFRESH_MS, self._update)
 
     def _refresh_connection(self, info: dict):
-        """Actualiza widgets de conexión sin recrearlos."""
-
+        """Actualiza solo los valores de la tarjeta de conexión (SSID, señal, calidad, bitrate, gráfica).
+        
+        Args:
+            info (dict): Datos de conexión de WiFiMonitor ('ssid', 'signal_dbm', etc.).
+        
+        Actualiza:
+        - SSID con color warning si desconectado.
+        - Señal: valor dBm, barras visuales (self._signal_bars), % con color dinámico.
+        - Calidad link: LQ/max.
+        - Ruido dBm.
+        - Bitrate.
+        - Gráfica señal: normaliza historia [-100..0] -> [0..100], color dinámico.
+        """
         # Interfaz (puede haber cambiado)
         self._lbl_iface.configure(text=self._wifi_monitor.interface)
 
@@ -423,7 +513,16 @@ class WiFiWindow(ctk.CTkToplevel):
             self._graph_signal.update(normalized, 100.0, color)
 
     def _refresh_traffic(self, stats: dict):
-        """Actualiza widgets de tráfico sin recrearlos."""
+        """Actualiza valores de tráfico de red (RX/TX) y gráficas históricas.
+        
+        Args:
+            stats (dict): Estadísticas completas de WiFiMonitor.get_stats()
+                          ('rx_mbps', 'tx_mbps', 'rx_hist', 'tx_hist', etc.).
+        
+        Actualiza:
+        - Velocidades actuales _lbl_rx/_lbl_tx con 3 decimales y colores (NetworkMonitor.net_color).
+        - Historia RX/TX: escala a peak*1.2, colores dinámicos.
+        """
         rx = stats["rx_mbps"]
         tx = stats["tx_mbps"]
 
@@ -444,7 +543,21 @@ class WiFiWindow(ctk.CTkToplevel):
 
     @staticmethod
     def _signal_bars(pct: int) -> str:
-        """Devuelve representación visual de barras de señal."""
+        """Genera representación visual Unicode de barras de intensidad de señal WiFi.
+        
+        Args:
+            pct (int): Porcentaje de calidad de señal (0-100).
+        
+        Returns:
+            str: 4 caracteres Unicode:
+                 - ▂▄▆█ (≥80%)
+                 - ▂▄▆░ (≥60%)
+                 - ▂▄░░ (≥40%)
+                 - ▂░░░ (≥20%)
+                 - ░░░░ (<20%)
+        
+        Usado en _lbl_signal_bar para display intuitivo.
+        """
         if pct >= 80:
             return "▂▄▆█"
         if pct >= 60:
@@ -456,6 +569,11 @@ class WiFiWindow(ctk.CTkToplevel):
         return "░░░░"
 
     def _force_refresh(self):
+        """Refresca inmediatamente todos los datos cancelando job pendiente.
+        
+        Callback del botón '↺ Actualizar' en barra inferior.
+        Cancela _refresh_job actual y llama _update() directo.
+        """
         if self._refresh_job:
             self.after_cancel(self._refresh_job)
         self._update()
@@ -463,6 +581,13 @@ class WiFiWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
+        """Maneja el cierre de la ventana limpiando recursos.
+        
+        Callback del botón cerrar en header.
+        - Cancela job de refresco pendiente.
+        - Registra cierre en logger.
+        - Destruye ventana.
+        """
         if self._refresh_job:
             self.after_cancel(self._refresh_job)
         logger.info("[WiFiWindow] Ventana cerrada")

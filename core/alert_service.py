@@ -68,6 +68,13 @@ class AlertService:
     """
 
     def __init__(self, system_monitor, service_monitor):
+        """
+        Inicializa AlertService con monitors.
+
+        Args:
+            system_monitor: Para métricas CPU/TEMP/RAM/DISK.
+            service_monitor: Para servicios FAILED.
+        """
         self._system_monitor  = system_monitor
         self._service_monitor = service_monitor
 
@@ -91,6 +98,11 @@ class AlertService:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Inicia el thread daemon de monitoreo alertas.
+
+        Pollea cada CHECK_INTERVAL segs métricas/servicios.
+        """
         if self._running:
             return
         self._running = True
@@ -101,19 +113,35 @@ class AlertService:
         self._thread.start()
         logger.info("[AlertService] Servicio iniciado (cada %ds)", CHECK_INTERVAL)
 
+
     def stop(self) -> None:
+        """
+        Detiene el thread de alertas limpiamente.
+
+        Join timeout 5s, log.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
         logger.info("[AlertService] Servicio detenido")
+
     
     def is_running(self) -> bool:
+        """
+        Estado activo del servicio.
+        """
         return self._running
+
 
     # ── Bucle principal ───────────────────────────────────────────────────────
 
     def _loop(self) -> None:
+        """
+        Bucle principal thread daemon.
+
+        Check métricas/servicios cada CHECK_INTERVAL s.
+        """
         while self._running:
             try:
                 self._check_metrics()
@@ -124,8 +152,13 @@ class AlertService:
             if self._stop_evt.is_set():
                 break
 
+
     def _check_metrics(self) -> None:
+        """
+        Chequea TEMP/CPU/RAM/DISK vs THRESHOLDS, trigger si warn/crit.
+        """
         stats = self._system_monitor.get_current_stats()
+
         checks = [
             ('temp', stats.get('temp',       0), '°C', '🌡️ Temperatura'),
             ('cpu',  stats.get('cpu',         0), '%',  '🔥 CPU'),
@@ -154,7 +187,11 @@ class AlertService:
                     self._reset(f"{key}_{suffix}")
 
     def _check_services(self) -> None:
+        """
+        Chequea servicios FAILED, trigger si >0.
+        """
         stats  = self._service_monitor.get_stats()
+
         failed = stats.get('failed', 0)
         key    = 'services_failed'
         if failed > 0:
@@ -219,7 +256,12 @@ class AlertService:
             logger.error("[AlertService] Error guardando historial: %s", e)
 
     def get_history(self) -> list:
-        """Devuelve el historial completo (más reciente al final)."""
+        """
+        Historial alertas enviadas desde JSON data/alert_history.json.
+
+        Returns:
+            list[dict]: Entradas ts/key/level/value/unit/message, reciente último.
+        """
         try:
             if _HISTORY_FILE.exists():
                 with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
@@ -227,6 +269,7 @@ class AlertService:
         except Exception:
             pass
         return []
+
 
     def clear_history(self) -> None:
         """Borra el historial de alertas."""

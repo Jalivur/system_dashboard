@@ -47,6 +47,9 @@ def custom_msgbox(parent, text: str, title: str = "Info") -> None:
 
     # Botón OK
     def _close_msgbox():
+        """
+        Cierra el mensajebox liberando grab
+        """
         try:
             popup.grab_release()
         except Exception:
@@ -127,6 +130,9 @@ def confirm_dialog(parent, text: str, title: str = "Confirmar",
     btn_frame.pack()
 
     def _on_confirm():
+        """
+        Maneja confirmación del diálogo
+        """
         try:
             popup.grab_release()
         except Exception:
@@ -136,6 +142,9 @@ def confirm_dialog(parent, text: str, title: str = "Confirmar",
             on_confirm()
 
     def _on_cancel():
+        """
+        Maneja cancelación del diálogo
+        """
         try:
             popup.grab_release()
         except Exception:
@@ -179,6 +188,15 @@ def confirm_dialog(parent, text: str, title: str = "Confirmar",
     popup.after(150, popup.focus_set)
 
 def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=None):
+    """
+    Muestra un diálogo de terminal/consola para ejecutar scripts del sistema
+
+    Args:
+        parent: Ventana padre
+        script_path: Ruta al script bash a ejecutar
+        title: Título del diálogo
+        on_close: Callback opcional al cerrar
+    """
     popup = ctk.CTkToplevel(parent)
     popup.transient(parent)
     popup.overrideredirect(True)
@@ -207,6 +225,12 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
     # ── Suscriptores EventBus ─────────────────────────────────────────────────
 
     def handle_terminal_line(data):
+        """
+        Callback del EventBus para añadir línea de terminal al console
+
+        Args:
+            data: Diccionario con 'console' y 'line'
+        """
         try:
             c    = data.get("console")
             line = data.get("line")
@@ -217,6 +241,12 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
             pass
 
     def handle_terminal_done(data):
+        """
+        Callback del EventBus para habilitar botón de cierre cuando termina
+
+        Args:
+            data: Diccionario con 'btn'
+        """
         try:
             btn = data.get("btn")
             if btn:
@@ -225,6 +255,12 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
             pass
 
     def handle_terminal_error(data):
+        """
+        Callback del EventBus para mostrar errores de terminal
+
+        Args:
+            data: Diccionario con 'error'
+        """
         try:
             error = data.get("error")
             console.insert("end", f"\n❌ Error: {error}\n")
@@ -241,6 +277,9 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
     # ── Cierre explícito — limpia suscriptores ANTES de destruir el popup ────
 
     def _on_close():
+        """
+        Maneja cierre del diálogo terminal limpiando suscriptores y esperando thread
+        """
         # 1. Desuscribir primero — ningún evento llegará tras este punto
         bus.unsubscribe("terminal.line",  handle_terminal_line)
         bus.unsubscribe("terminal.done",  handle_terminal_done)
@@ -266,6 +305,9 @@ def terminal_dialog(parent, script_path, title="Consola de Sistema", on_close=No
     # ── Thread del script ─────────────────────────────────────────────────────
 
     def run_command():
+        """
+        Ejecuta el script bash en thread separado publicando output via EventBus
+        """
         try:
             process = subprocess.Popen(
                 ["bash", script_path],

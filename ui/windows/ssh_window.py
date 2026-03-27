@@ -111,6 +111,12 @@ class SSHWindow(ctk.CTkToplevel):
     """Ventana de monitor de sesiones SSH."""
 
     def __init__(self, parent, ssh_monitor):
+        """Inicializa la ventana de monitor SSH.
+
+        Args:
+            parent: Ventana padre (CTkToplevel).
+            ssh_monitor: Instancia de SSHMonitor para obtener estadísticas en tiempo real.
+        """
         super().__init__(parent)
         self._ssh_monitor = ssh_monitor
 
@@ -138,7 +144,13 @@ class SSHWindow(ctk.CTkToplevel):
     # ── Construcción UI (una sola vez) ────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea toda la interfaz de usuario una sola vez al inicializar la ventana.
+
+        Incluye header, scrollable canvas, tarjetas de sesiones e historial,
+        y barra de controles con botón de actualización manual.
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
+
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
         self._header = make_window_header(
@@ -331,7 +343,17 @@ class SSHWindow(ctk.CTkToplevel):
     # ── Actualización de valores (sin recrear widgets) ─────────────────────────
 
     def _update(self):
+        """Actualiza los datos visuales de sesiones activas e historial de conexiones.
+
+        Obtiene estadísticas del SSHMonitor, refresca widgets sin recrearlos,
+        maneja estado parado del monitor, y programa la próxima actualización
+        cada 30 segundos.
+
+        Returns:
+            None
+        """
         if not self.winfo_exists():
+
             return
         if not self._ssh_monitor.is_running():
             StyleManager.show_service_stopped_banner(self._inner, "SSH Monitor")
@@ -353,7 +375,17 @@ class SSHWindow(ctk.CTkToplevel):
         self._refresh_job = self.after(_REFRESH_MS, self._update)
 
     def _refresh_sessions(self, sessions: list):
+        """Refresca la visualización de las sesiones SSH activas actuales.
+
+        Muestra hasta 10 filas; oculta filas extras y mensaje 'Ninguna' si vacío.
+        Actualiza badges de conteo y colores de estado.
+
+        Args:
+            sessions: Lista de dicts con claves 'user', 'tty', 'ip' (opcional),
+                      'date' (opcional), 'time'.
+        """
         n = len(sessions)
+
 
         if n == 0:
             self._session_badge.configure(
@@ -378,7 +410,16 @@ class SSHWindow(ctk.CTkToplevel):
                 widgets["row"].pack_forget()
 
     def _refresh_history(self, history: list):
+        """Refresca la visualización del historial reciente de conexiones SSH.
+
+        Muestra hasta 50 entradas con colores alternos; oculta extras si vacío.
+
+        Args:
+            history: Lista de dicts con claves 'user', 'tty', 'ip' (opcional),
+                     'time_info' (cadena con detalles de tiempo).
+        """
         n = len(history)
+
         if n == 0:
             self._history_empty.pack(pady=(4, 10))
         else:
@@ -396,14 +437,24 @@ class SSHWindow(ctk.CTkToplevel):
                 widgets["row"].pack_forget()
 
     def _force_refresh(self):
+        """Fuerza una actualización inmediata de todos los datos SSH.
+
+        Cancela el job automático pendiente y llama a _update directamente.
+        """
         if self._refresh_job:
+
             self.after_cancel(self._refresh_job)
         self._update()
 
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
+        """Limpia recursos y cierra la ventana de forma segura.
+
+        Cancela jobs de refresco pendientes y registra cierre en logger.
+        """
         if self._refresh_job:
+
             self.after_cancel(self._refresh_job)
         logger.info("[SSHWindow] Ventana cerrada")
         self.destroy()

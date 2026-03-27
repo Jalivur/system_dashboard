@@ -23,6 +23,12 @@ class HistoryWindow(ctk.CTkToplevel):
     """Ventana de visualización de histórico"""
 
     def __init__(self, parent, cleanup_service: CleanupService):
+        """Inicializa la ventana de histórico de datos del sistema.
+
+        Args:
+            parent: Ventana padre CTkToplevel.
+            cleanup_service: Instancia de CleanupService para gestión de limpieza.
+        """
         super().__init__(parent)
 
         # Referencias
@@ -60,6 +66,7 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea la interfaz de usuario completa de la ventana, incluyendo frames, canvas y widgets principales."""
         self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         self._main.pack(fill="both", expand=True, padx=5, pady=5) 
         # ── Header unificado ──────────────────────────────────────────────────
@@ -200,6 +207,7 @@ class HistoryWindow(ctk.CTkToplevel):
         self._apply_btn.pack(side="right", padx=(10, 5))
 
     def _create_graphs_area(self, parent):
+        """Crea el área de gráficas utilizando matplotlib integrado en Tkinter con canvas y toolbar."""
         graphs_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         graphs_frame.pack(fill="both", expand=True, padx=(0, 10), pady=(0, 10))
 
@@ -233,6 +241,7 @@ class HistoryWindow(ctk.CTkToplevel):
         self._canvas.mpl_connect('motion_notify_event',  self._on_motion)
 
     def _create_stats_area(self, parent):
+        """Crea el frame y label para mostrar las estadísticas calculadas de los datos."""
         stats_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         stats_frame.pack(fill="x", padx=10, pady=5)
 
@@ -253,6 +262,7 @@ class HistoryWindow(ctk.CTkToplevel):
         self._stats_label.pack(pady=(0, 10), padx=20)
 
     def _create_buttons(self, parent):
+        """Crea los botones de acción: actualizar datos, exportar CSV y limpiar archivos antiguos."""
         buttons = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         buttons.pack(fill="x", pady=10, padx=10)
 
@@ -412,6 +422,7 @@ class HistoryWindow(ctk.CTkToplevel):
     ]
 
     def _update_graphs(self, hours: int):
+        """Actualiza todas las gráficas de métricas para un período fijo en horas."""
         self._fig.clear()
         axes = [self._fig.add_subplot(8, 1, i) for i in range(1, 9)]
         for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
@@ -421,6 +432,7 @@ class HistoryWindow(ctk.CTkToplevel):
         self._canvas.draw()
 
     def _update_graphs_between(self, start: datetime, end: datetime):
+        """Actualiza todas las gráficas de métricas para un rango de fechas personalizado."""
         self._fig.clear()
         axes = [self._fig.add_subplot(8, 1, i) for i in range(1, 9)]
         for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
@@ -430,6 +442,7 @@ class HistoryWindow(ctk.CTkToplevel):
         self._canvas.draw()
 
     def _draw_metric(self, ax, timestamps, values, ylabel: str, color: str):
+        """Dibuja una métrica específica en su eje subplot: configura estilo, grid y plotea datos."""
         ax.set_facecolor(COLORS['bg_dark'])
         ax.tick_params(colors=COLORS['text'])
         ax.set_ylabel(ylabel, color=COLORS['text'])
@@ -443,6 +456,7 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _export_csv(self):
+        """Exporta los datos del período actual (fijo o custom) a archivo CSV en el directorio de exports."""
         if self._using_custom_range:
             start = self._custom_start
             end   = self._custom_end
@@ -476,6 +490,7 @@ class HistoryWindow(ctk.CTkToplevel):
         status = self._cleanup_service.get_status()
 
         def do_clean():
+            """Ejecuta la limpieza forzada y muestra resultados en mensaje."""
             try:
                 result = self._cleanup_service.force_cleanup()
                 msg = (
@@ -506,6 +521,7 @@ class HistoryWindow(ctk.CTkToplevel):
         )
 
     def _export_figure_image(self):
+        """Exporta la figura actual de gráficas como imagen PNG al directorio de screenshots."""
         
         try:
             save_dir = str(EXPORTS_SCR_DIR)
@@ -534,11 +550,14 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _on_click(self, event):
+        """Maneja el evento de clic del mouse en el canvas de las gráficas."""
         if event.inaxes:
             logger.debug("Click en gráfica: x=%s, y=%s", event.xdata, event.ydata)
 
     def _on_release(self, event):
+        """Maneja el evento de liberación del botón del mouse en el canvas."""
         pass
 
     def _on_motion(self, event):
+        """Maneja el evento de movimiento del mouse sobre el canvas de gráficas."""
         pass

@@ -29,7 +29,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # "Exception ignored in:" no pasa por sys.stderr — requiere sys.unraisablehook.
 
 def _unraisable_filter(unraisable):
-    """Filtra RuntimeError de Variable.__del__ — deja pasar todo lo demás."""
+    """
+    Filtra bug cosmético CustomTkinter Variable.__del__ en shutdown.
+    
+    Ignora solo RuntimeError específico de Tkinter GC en exit, pasa resto exceptions.
+    
+    Args:
+        unraisable: sys.unraisablehook tuple (exc_type, exc_value, exc_traceback, err_msg, object).
+    """
     if (unraisable.exc_type is RuntimeError
             and "main thread is not in main loop" in str(unraisable.exc_value)
             and unraisable.object is not None
@@ -43,7 +50,10 @@ sys.unraisablehook = _unraisable_filter
 
 
 def main():
-    """Función principal"""
+    """
+    Punto de entrada: Inicializa registry, servicios, UI MainWindow.
+    Configura DSI position DSI_X/Y, fullscreen kiosk.
+    """
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("dark-blue")
 
@@ -168,6 +178,10 @@ def main():
     _cleaned = False
 
     def cleanup():
+        """
+        Cleanup ordenado: root.destroy() → stop servicios → libera recursos.
+        Llamado en finally root.mainloop().
+        """
         nonlocal _cleaned
         if _cleaned:
             return

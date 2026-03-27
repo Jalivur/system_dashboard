@@ -9,17 +9,34 @@ logger = get_logger(__name__)
 
 
 class FanController:
-    """Controlador para gestión de ventiladores"""
+    """
+    Controlador stateless para cálculo PWM según modo/curva de temperatura.
+    Lee/escribe fan_state.json y fan_curve.json via FileManager.
+    """
+
     
     def __init__(self):
+        """
+        Inicializa controlador stateless (sin estado interno).
+        FileManager para JSON state/curva.
+        """
         self._file_manager = FileManager()
         self._running = True  # stateless — siempre activo
 
+
     def start(self) -> None:
+        """
+        Activa controlador (stateless, siempre activo).
+        """
         self._running = True
 
+
     def stop(self) -> None:
+        """
+        Desactiva controlador (stateless, efecto mínimo).
+        """
         self._running = False
+
         
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""

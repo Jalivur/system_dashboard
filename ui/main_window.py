@@ -40,6 +40,16 @@ class MainWindow:
     """Ventana principal del dashboard"""
 
     def __init__(self, root, registry, update_interval=2000):
+        """
+        Inicializa MainWindow principal dashboard.
+        
+        Args:
+            root (CTk): Ventana root DSI fullscreen.
+            registry (ServiceRegistry): Todos monitors/servicios.
+            update_interval (int): ms badges/UI update (default 2000).
+        
+        Inyecta self.services, build UI, managers, pestañas inicial overview.
+        """
         self.root            = root
         self.registry        = registry
         self.update_interval = update_interval
@@ -84,6 +94,10 @@ class MainWindow:
     # ── Construcción de la UI ─────────────────────────────────────────────────
 
     def _create_ui(self):
+        """
+        Construye layout completo: header (hostname/clock), pestañas scroll H/V, área botones, footer (gestor/reiniciar/salir).
+        Inicializa managers (Badge, WindowLifecycle, WindowManager, UpdateLoop).
+        """
         main_frame = ctk.CTkFrame(self.root, fg_color=COLORS['bg_medium'])
         main_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -251,6 +265,10 @@ class MainWindow:
     # ── Registro de ventanas hijas ────────────────────────────────────────────
 
     def _register_windows(self):
+        """
+        Registra ~35 ventanas hijas en WindowLifecycleManager con label/badge_keys.
+        Lambdas inyectan self.services donde needed.
+        """
         r    = self._wlm.register
         root = self.root
 
@@ -343,6 +361,14 @@ class MainWindow:
     # ── Mapa de botones: label → (command, [badge_keys]) ─────────────────────
 
     def _build_buttons_meta(self):
+        """
+        Mapea button_labels.BL → (lambda abrir ventana, list badge keys).
+        
+        Usado en _switch_tab para render botones pestañas dinámicamente.
+        
+        Returns:
+            dict: label → (command, [badges]).
+        """
         return {
             BL.HARDWARE_INFO:     (lambda: self._wlm.open("hardware_info"),        []),
             BL.FAN_CONTROL:       (lambda: self._wlm.open("fan_control"),          ["temp_fan"]),
@@ -419,6 +445,12 @@ class MainWindow:
     }.items()}
 
     def _switch_tab(self, key: str) -> None:
+        """
+        Cambia pestaña activa, destruye botones viejos, renderiza nuevos basados en pestaña/UI config.
+        
+        Args:
+            key (str): ID pestaña (e.g., 'overview', 'services').
+        """
         self._active_tab = key
 
         for k, btn in self._tab_buttons.items():
@@ -471,6 +503,12 @@ class MainWindow:
     # ── Estado de botones (usado por WindowLifecycleManager) ─────────────────
 
     def _btn_active(self, text_key: str) -> None:
+        """
+        Resalta botón activo (llamado por WindowLifecycleManager).
+
+        Args:
+            text_key (str): Label botón desde button_labels.py.
+        """
         btn = self._menu_btns.get(text_key)
         if btn:
             try:
@@ -480,6 +518,12 @@ class MainWindow:
                 pass
 
     def _btn_idle(self, text_key: str) -> None:
+        """
+        Restaura estilo idle botón (llamado por WindowLifecycleManager).
+        
+        Args:
+            text_key (str): Label botón desde button_labels.py.
+        """
         btn = self._menu_btns.get(text_key)
         if btn:
             try:

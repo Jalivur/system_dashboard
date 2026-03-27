@@ -1,5 +1,7 @@
 """
-Monitor de actualizaciones del sistema
+Monitor de actualizaciones del sistema.
+Verifica paquetes pendientes via 'apt list --upgradable' con caché de 12h y lock thread-safe.
+Ejecuta 'sudo apt update' solo cuando necesario (force o timeout caché).
 """
 import subprocess
 import time
@@ -11,9 +13,27 @@ logger = get_logger(__name__)
 
 
 class UpdateMonitor:
-    """Lógica para verificar actualizaciones del sistema con caché"""
+    """
+    Monitor profesional de actualizaciones APT con sistema de caché inteligente.
+
+    Características:
+    * Caché de 12 horas (_check_interval) para evitar consultas frecuentes.
+    * Thread-safe con lock para acceso concurrente.
+    * Ejecución real de 'sudo apt update' solo si force=True o caché expirada.
+    * Conteo preciso de paquetes upgradable ignorando headers.
+    * Manejo completo de errores (timeout, apt no encontrado, parse, etc.).
+    * Estados: Ready/Updated/Error/Stopped con mensajes descriptivos.
+
+    Uso: monitor.check_updates(force=False) → dict{pending, status, message}
+    """
 
     def __init__(self):
+        """
+        Inicializa el monitor de actualizaciones.
+
+        Configura estado corriendo, lock, caché inicial 'Unknown', timestamp actual,
+        intervalo de 12h. No inicia threads automáticos — llamar start().
+        """
         self._running = True
         self._lock          = threading.Lock()
         # Inicializar con tiempo actual para que la caché sea válida desde el inicio
@@ -25,10 +45,20 @@ class UpdateMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Inicia el servicio (setea running=True).
+
+        Logging de inicio. Idempotente.
+        """
         self._running = True
         logger.info("[UpdateMonitor] Iniciado")
 
     def stop(self) -> None:
+        """
+        Detiene el servicio.
+
+        Setea running=False, resetea caché a 'Servicio parado'. Logging.
+        """
         self._running = False
         with self._lock:
             self._cached_result = {"pending": 0, "status": "Unknown", "message": "Servicio parado"}
@@ -45,10 +75,14 @@ class UpdateMonitor:
         Verifica actualizaciones pendientes con sistema de caché.
 
         Args:
-            force: Si True, ignora el caché y ejecuta apt update real
+            force (bool): Si True, ignora caché e intervalos — ejecuta apt update inmediatamente.
 
         Returns:
-            Diccionario con pending, status y message
+            Dict: {
+                "pending": int (número de paquetes upgradable),
+                "status": str ("Ready", "Updated", "Error", "Stopped"),
+                "message": str (descriptivo)
+            }
         """
         if not self._running:
             logger.warning("[UpdateMonitor] check_updates() ignorado — servicio parado")
@@ -115,3 +149,4 @@ class UpdateMonitor:
         except Exception as e:
             logger.error("[UpdateMonitor] check_updates: error inesperado: %s", e)
             return {"pending": 0, "status": "Error", "message": str(e)}
+

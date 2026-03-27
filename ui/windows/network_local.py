@@ -20,6 +20,15 @@ class NetworkLocalWindow(ctk.CTkToplevel):
     """Panel de dispositivos en la red local."""
 
     def __init__(self, parent, network_scanner):  # ── MODIFICADO: recibe scanner ──
+        """Inicializa y configura la ventana emergente del panel de red local.
+
+            Esta ventana muestra dispositivos detectados en la red mediante arp-scan,
+            mostrando IP, MAC, fabricante y hostname. Configura geometría, UI y escaneo inicial.
+
+            Args:
+                parent: Ventana principal (CTkToplevel) padre de esta ventana.
+                network_scanner: Instancia del escáner de red externa para obtener dispositivos.
+            """
         super().__init__(parent)
         self._scanner     = network_scanner  # ── MODIFICADO: usa el scanner externo ──
         self._auto_job    = None
@@ -41,6 +50,13 @@ class NetworkLocalWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Construye toda la interfaz de usuario de la ventana.
+
+        Crea:
+            - Header con título y controles de ventana
+            - Canvas scrollable para lista de dispositivos
+            - Frame inferior con contador y botón de escaneo manual
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -225,6 +241,13 @@ class NetworkLocalWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
+        """Gestiona el cierre ordenado de la ventana.
+
+        Cancela:
+            - Tareas de refresco automático (_auto_job)
+            - Polling de resultados de escaneo (_poll_job)
+        Registra cierre en logs y destruye la ventana.
+        """
         if self._auto_job:
             self.after_cancel(self._auto_job)
         if self._poll_job:

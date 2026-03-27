@@ -20,6 +20,17 @@ class PiholeWindow(ctk.CTkToplevel):
     """Ventana de estadísticas de Pi-hole."""
 
     def __init__(self, parent, pihole_monitor: PiholeMonitor):
+        """
+        Inicializa la ventana de estadísticas de Pi-hole.
+        
+        Configura el título, geometría, posición y propiedades de la ventana Toplevel.
+        Crea la interfaz de usuario, programa la primera actualización automática
+        y registra la apertura en el logger.
+        
+        Args:
+            parent: Ventana padre (generalmente la ventana principal del dashboard).
+            pihole_monitor (PiholeMonitor): Instancia del monitor para obtener estadísticas.
+        """
         super().__init__(parent)
         self._pihole = pihole_monitor
         self._update_job = None
@@ -39,8 +50,14 @@ class PiholeWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """
+        Crea toda la interfaz gráfica de usuario (UI) de la ventana.
         
-        
+        Construye el frame principal, el header con título y estado, el contenedor
+        con scroll, el canvas, el grid de 6 tarjetas métricas (queries, bloqueadas,
+        % bloqueado, dominios, clientes, estado), y el botón de actualización manual.
+        Inicializa labels para valores dinámicos.
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
         
@@ -121,11 +138,26 @@ class PiholeWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _schedule_update(self):
+        """
+        Programa la primera actualización/renderizado de la interfaz.
+        
+        Utiliza self.after(100ms) para llamar a _render inicialmente, iniciando
+        el ciclo de actualizaciones automáticas.
+        """
         self._update_job = self.after(100, self._render)
 
-    def _force_refresh(self):
-        """Pide al monitor que sondee de inmediato (en background)."""
-        if not self._pihole.is_running():
+    def _force_refresh(self):        
+        """        
+        Fuerza actualización manual de estadísticas Pi-hole en background.        
+        
+        1. Verifica monitor activo       
+        2. Lanza thread daemon -> self._pihole.fetch_now()        
+        3. Status -> "Actualizando..."        
+        4. self._render() @2000ms        
+        
+        Non-blocking UI.        
+        """        
+        if not self._pihole.is_running():            
             return
 
         threading.Thread(
@@ -180,6 +212,14 @@ class PiholeWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
+        """
+        Maneja el cierre ordenado de la ventana de Pi-hole.
+        
+        Realiza cleanup:
+        - Cancela el job de actualización pendiente
+        - Registra el cierre en logs
+        - Destruye la ventana
+        """
         if self._update_job:
             self.after_cancel(self._update_job)
         logger.info("[PiholeWindow] Ventana cerrada")

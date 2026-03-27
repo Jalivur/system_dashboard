@@ -17,6 +17,9 @@ class DiskMonitor:
     """Monitor de disco con historial"""
 
     def __init__(self):
+        """
+        Inicializa monitor disco, histories deque(HISTORY), cache thread-safe, deltas IO.
+        """
         self._system_utils = SystemUtils()
 
         self._usage_hist    = deque(maxlen=HISTORY)
@@ -40,7 +43,11 @@ class DiskMonitor:
 
         self.start()
 
+
     def start(self):
+        """
+        Inicia thread daemon polling cada _interval_s.
+        """
         if self._running:
             return
         self._running = True
@@ -51,7 +58,11 @@ class DiskMonitor:
         self._thread.start()
         logger.info("[DiskMonitor] sondeo iniciado (cada %.1fs)", self._interval_s)
 
+
     def stop(self):
+        """
+        Detiene polling, limpia cache, join thread (timeout 5s).
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -64,12 +75,16 @@ class DiskMonitor:
                 'nvme_temp':    0.0,
             }
         logger.info("[DiskMonitor] Detenido")
+
         
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""
         return self._running
 
     def _poll_loop(self) -> None:
+        """
+        Bucle daemon principal: _do_poll() cada self._interval_s segs.
+        """
         self._do_poll()
         while self._running:
             self._stop_evt.wait(timeout=self._interval_s)
@@ -77,7 +92,11 @@ class DiskMonitor:
                 break
             self._do_poll()
 
+
     def _do_poll(self):
+        """
+        Sondeo disk_usage% / delta IO MB/s / nvme_temp, update cache/history.
+        """
         try:
             disk_usage = psutil.disk_usage('/').percent
 
@@ -104,7 +123,12 @@ class DiskMonitor:
         except Exception as e:
             logger.error("[DiskMonitor] Error en _do_poll: %s", e)
 
+
     def get_current_stats(self) -> Dict:
+        """
+        Retorna stats cache actuales disk_usage%/read/write MB/s/nvme_temp.
+        Thread-safe, 0s si stopped.
+        """
         if not self._running:
             return {
                 'disk_usage':   0.0,
@@ -114,6 +138,7 @@ class DiskMonitor:
             }
         with self._cache_lock:
             return dict(self._cache)
+
 
     get_cached_stats = get_current_stats
 

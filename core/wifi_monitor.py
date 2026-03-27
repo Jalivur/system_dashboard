@@ -1,7 +1,8 @@
 """
-Monitor de conexión WiFi.
-Recopila SSID, señal, bitrate y tráfico de la interfaz inalámbrica.
-Corre en thread daemon con refresco cada 5 segundos.
+Monitor de conexión WiFi profesional.
+Recopila SSID, señal (dBm), calidad link, bitrate, ruido, tráfico RX/TX Mbps.
+Thread daemon cada 5s, históricos, cambio interfaz en caliente, persistencia.
+Fallback ip/iwconfig/ifconfig.
 """
 import re
 import subprocess
@@ -23,7 +24,11 @@ WIFI_SIGNAL_WARN = -75
 
 
 def _run(cmd: list) -> str:
-    """Ejecuta un comando y devuelve stdout o string vacío si falla."""
+    """
+    Ejecuta comando shell y retorna stdout limpio o vacío en fallo.
+
+    Timeout 5s. Log warning en exceptions.
+    """
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=5
@@ -36,10 +41,11 @@ def _run(cmd: list) -> str:
 
 def _parse_iwconfig(raw: str) -> dict:
     """
-    Parsea la salida de `iwconfig <iface>` y extrae los campos relevantes.
+    Parsea salida `iwconfig <iface>` → métricas WiFi.
 
-    Devuelve dict con claves:
-        ssid, signal_dbm, link_quality, link_quality_max, bitrate, noise_dbm
+    Returns:
+        dict: {"ssid": str, "signal_dbm": int|None, "link_quality": int|None, 
+               "link_quality_max": int|None, "bitrate": str, "noise_dbm": int|None}
     """
     data = {
         "ssid":              "",
@@ -76,9 +82,10 @@ def _parse_iwconfig(raw: str) -> dict:
 
 def _parse_iw_link(raw: str) -> dict:
     """
-    Parsea la salida de `iw dev <iface> link` como fuente alternativa/complementaria.
+    Parsea salida `iw dev <iface> link` como fallback.
 
-    Devuelve dict con claves: ssid, signal_dbm, bitrate
+    Returns:
+        dict: {"ssid": str, "signal_dbm": int|None, "bitrate": str}
     """
     data = {"ssid": "", "signal_dbm": None, "bitrate": ""}
 
@@ -98,9 +105,19 @@ def _parse_iw_link(raw: str) -> dict:
 
 
 class WiFiMonitor:
-    """Servicio de monitoreo de conexión WiFi."""
+    """
+    Monitor completo de WiFi con históricos, tráfico realtime, cambio interfaz dinámica.
+
+    Thread-safe, persistencia interfaz, umbrales dBm, métricas iwconfig/iw fallback.
+    """
 
     def __init__(self, interface: Optional[str] = None):
+        """
+        Inicializa monitor.
+
+        Args:
+            interface (str, optional): wlan0/wlan1. Prioridad: arg → settings → wlan0.
+        """
         # Prioridad: argumento explícito → local_settings → constante por defecto
         self._iface    = interface or self._load_saved_interface() or _IFACE_DEFAULT
         self._running  = False
@@ -135,6 +152,11 @@ class WiFiMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self):
+        """
+        Inicia thread daemon de polling cada 5s.
+
+        Idempotente, log interfaz.
+        """
         if self._running:
             return
         self._running = True
@@ -146,6 +168,11 @@ class WiFiMonitor:
         logger.info("[WiFiMonitor] Servicio iniciado — interfaz: %s", self._iface)
 
     def stop(self):
+        """
+        Detiene servicio.
+
+        Join 6s, resetea estado. Log.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -155,9 +182,21 @@ class WiFiMonitor:
         logger.info("[WiFiMonitor] Servicio detenido")
 
     def is_running(self) -> bool:
+        """
+        Estado running.
+
+        Returns:
+            bool
+        """
         return self._running
 
     def get_signal_history(self) -> list:
+        """
+        Histórico señal dBm (últimos HISTORY puntos).
+
+        Returns:
+            list[int]
+        """
         with self._lock:
             return list(self._signal_hist)
 
@@ -165,10 +204,9 @@ class WiFiMonitor:
 
     def set_interface(self, iface: str) -> None:
         """
-        Cambia la interfaz monitorizada en caliente.
-        Resetea históricos y contadores para evitar datos mezclados.
-        El próximo poll del loop usará la nueva interfaz automáticamente.
-        Persiste la elección en local_settings.py.
+        Cambia interfaz en runtime.
+
+        Resetea históricos/tráfico. Persiste. Próximo poll usa nueva iface.
         """
         with self._lock:
             self._iface    = iface
@@ -198,8 +236,10 @@ class WiFiMonitor:
     @staticmethod
     def get_available_interfaces() -> list:
         """
-        Devuelve la lista de interfaces inalámbricas disponibles
-        leyendo /proc/net/dev y filtrando las que empiezan por 'wlan'.
+        Lista wlan* interfaces desde /proc/net/dev.
+
+        Returns:
+            list[str]: sorted wlan0, wlan1...
         """
         interfaces = []
         try:
@@ -218,18 +258,25 @@ class WiFiMonitor:
 
     @staticmethod
     def _load_saved_interface() -> Optional[str]:
-        """Lee la interfaz guardada en local_settings.py."""
+        """
+        Carga interfaz desde local_settings.py.
+
+        Returns:
+            str or None
+        """
         try:
-            from config.local_settings_io import get_param  # noqa: PLC0415
+            from config.local_settings_io import get_param
             return get_param("wifi_interface", None)
         except Exception:
             return None
 
     @staticmethod
     def _persist_interface(iface: str) -> None:
-        """Guarda la interfaz seleccionada en local_settings.py."""
+        """
+        Persiste iface en local_settings.py.
+        """
         try:
-            from config.local_settings_io import update_params  # noqa: PLC0415
+            from config.local_settings_io import update_params
             update_params({"wifi_interface": iface})
         except Exception as e:
             logger.warning("[WiFiMonitor] No se pudo persistir interfaz: %s", e)
@@ -237,11 +284,17 @@ class WiFiMonitor:
     # ── Loop interno ──────────────────────────────────────────────────────────
 
     def _loop(self):
+        """
+        Thread loop: poll inicial + repeat cada _POLL_INTERVAL.
+        """
         self._poll()
         while not self._stop_evt.wait(_POLL_INTERVAL):
             self._poll()
 
     def _poll(self):
+        """
+        Ciclo de polling: iwconfig/iw + proc/net/dev → update info/hist/tráfico.
+        """
         try:
             # Capturar interfaz actual bajo lock para evitar race con set_interface
             with self._lock:
@@ -293,7 +346,12 @@ class WiFiMonitor:
             logger.error("[WiFiMonitor] Error en poll: %s", e)
 
     def _read_proc_net_dev(self, iface: str) -> tuple:
-        """Lee rx_bytes y tx_bytes de /proc/net/dev para la interfaz."""
+        """
+        Lee bytes RX/TX desde /proc/net/dev para iface.
+
+        Returns:
+            tuple[int, int]: (rx_bytes, tx_bytes)
+        """
         try:
             with open("/proc/net/dev", "r") as f:
                 for line in f:
@@ -305,7 +363,14 @@ class WiFiMonitor:
         return 0, 0
 
     def _calc_speed(self, rx: int, tx: int) -> tuple:
-        """Calcula velocidad MB/s respecto a la medición anterior."""
+        """
+        Calcula Mbps desde bytes prev/current div _POLL_INTERVAL.
+
+        Actualiza _prev_rx/tx. Wrap around manejo max(0, delta).
+
+        Returns:
+            tuple[float, float]: (rx_mbps, tx_mbps)
+        """
         rx_mbps = 0.0
         tx_mbps = 0.0
 
@@ -322,7 +387,12 @@ class WiFiMonitor:
     # ── Acceso a datos ────────────────────────────────────────────────────────
 
     def get_stats(self) -> dict:
-        """Lectura no bloqueante — si el lock está cogido devuelve snapshot vacío."""
+        """
+        Snapshot completo thread-safe no-bloqueante.
+
+        Returns:
+            dict: info, velocidades, históricos, timestamp.
+        """
         acquired = self._lock.acquire(blocking=False)
         if not acquired:
             return {
@@ -349,11 +419,26 @@ class WiFiMonitor:
 
     @property
     def interface(self) -> str:
+        """
+        Interfaz actual (read-only).
+
+        Returns:
+            str: e.g. "wlan0"
+        """
         return self._iface
 
     @staticmethod
     def signal_color(dbm: Optional[int], colors: dict) -> str:
-        """Devuelve color según nivel de señal dBm."""
+        """
+        Color semáforo por dBm.
+
+        Args:
+            dbm (int|None): Nivel señal.
+            colors (dict): {'success', 'warning', 'danger', 'text_dim'}
+
+        Returns:
+            str: Clave color.
+        """
         if dbm is None:
             return colors['text_dim']
         if dbm >= WIFI_SIGNAL_GOOD:
@@ -364,8 +449,14 @@ class WiFiMonitor:
 
     @staticmethod
     def signal_quality_pct(dbm: Optional[int]) -> int:
-        """Convierte dBm a porcentaje de calidad (0-100)."""
+        """
+        Convierte dBm → % calidad (0-100, no lineal).
+
+        Returns:
+            int: 0 (pésimo) - 100 (excelente)
+        """
         if dbm is None:
             return 0
         pct = 2 * (dbm + 100)
         return max(0, min(100, pct))
+

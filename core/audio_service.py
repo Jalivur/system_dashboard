@@ -1,20 +1,36 @@
+"""
+Servicio de AudioService para control volumen/mute via amixer y play_test con aplay.
+Operaciones síncronas, sin threads. Compatible Raspberry Pi OS.
+"""
 # ── Imports ───────────────────────────────────────────────────────────────────
 import subprocess
+
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-
+"""
+Servicio de AudioService para control volumen/mute via amixer y play_test con aplay.
+Operaciones síncronas, sin threads. Compatible Raspberry Pi OS.
+"""
 # ── AudioService ──────────────────────────────────────────────────────────────
 
 class AudioService:
+
     """
     Servicio de control de audio via amixer/aplay.
     No usa thread daemon — las operaciones son síncronas y puntuales.
     Cero imports de tkinter/ctk.
     """
 
+    def __init__(self):
+        """
+        Inicializa AudioService (no requiere parámetros).
+        """
+
+        
     DEFAULT_CONTROL = "Master"
+
 
     # ── API pública ───────────────────────────────────────────────────────────
 

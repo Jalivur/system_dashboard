@@ -1,11 +1,11 @@
 # 💡 IDEAS_EXPANSION.md
-## Expansión y Roadmap — Sistema de Monitoreo v4.1
+## Expansión y Roadmap — Sistema de Monitoreo v4.2
 
 ---
 
 ## ✅ Implementado
 
-### v4.1 (actual) — Audio + Clima + I²C + GPIO
+### v4.2 (actual) — Audio + Clima + I²C + GPIO + ServiceWatchdog + LogConfig
 
 - **Control de Audio ALSA** (`AudioService` + `AudioWindow`)
   - Control de volumen y mute via `amixer` desde la UI
@@ -34,9 +34,30 @@
   - Pines reservados por fase1.py protegidos automáticamente: {2, 3, 12, 13, 14, 15, 18, 19}
   - Arranque por defecto en modo LIBRE
 
+- **Service Watchdog** (`ServiceWatchdog` + `ServiceWatchdogWindow`)
+  - Monitor de servicios críticos con umbral de fallos consecutivos + auto-reinicio
+  - Umbral e intervalo configurables, gestión de lista de críticos persistente
+  - Stats globales, badge de reinicios en el menú principal
+
+- **Config Logging** (`LogConfigWindow`)
+  - Control de niveles de logging en runtime (fichero, consola, por módulo)
+  - `tk.Listbox` nativo para lista de módulos — ligero en Wayland/labwc
+  - Niveles persistidos en `local_settings.py` — se restauran al arrancar
+  - Forzar rotación manual del log
+
 - **`config/local_settings_io.py`** — módulo compartido para lectura/escritura de `local_settings.py`
-  - API: `read() → (params, icons)`, `write(params, icons)`, `update_params(dict)` (merge seguro)
-  - Usado por: `WeatherService`, `ConfigEditorWindow`, `GPIOMonitor`
+  - API: `read() → (params, icons)`, `write(params, icons)`, `update_params(dict)`, `get_param(key, default)`
+  - Usado por: `WeatherService`, `ConfigEditorWindow`, `GPIOMonitor`, `WiFiMonitor`, `DashboardLogger`
+
+- **Selector de interfaz WiFi** (`WiFiWindow` + `WiFiMonitor`)
+  - Selector en el header de la ventana — visible solo si hay más de una interfaz `wlan*`
+  - Cambio en caliente: resetea históricos, fuerza refresco inmediato
+  - Interfaz elegida persistida en `local_settings.py` como `wifi_interface`
+
+- **Fix uptime** (`SystemMonitor`)
+  - Uptime calculado desde `/proc/uptime` en lugar de `psutil.boot_time()`
+  - Correcto desde el primer segundo, independiente del reloj del sistema y NTP
+  - Elimina el problema de uptime inflado en Pi sin RTC tras arranque sin red
 
 ### v4.0 — Refactorización Arquitectural
 
@@ -97,7 +118,7 @@
 
 ---
 
-## 🔄 Ideas en evaluación para v4.2
+## 🔄 Ideas en evaluación para v4.3
 
 ### 🌐 API REST local
 - Endpoint `/status` en JSON — `http.server` de stdlib, sin deps nuevas
@@ -134,22 +155,23 @@ v3.6.5 ✅ ButtonManagerWindow
 v3.7   ✅ CrontabWindow + Fixes VNC/Wayland + Multi-Pi
 v3.8   ✅ Monitor SSH + Monitor WiFi + Editor Config + Refactor core/
 v4.0   ✅ Pestañas táctiles + WindowLifecycleManager + Modularización main_*
-v4.1   ✅ Audio Control + Widget Clima + I²C Scanner + GPIO Monitor  ← ACTUAL
-v4.2   💭 API REST local + Backup automático
+v4.2   ✅ Audio + Clima + I²C + GPIO + ServiceWatchdog + LogConfig + fixes  ← ACTUAL
+v4.3   💭 API REST local + Backup automático
 ```
 
 ---
 
-## 📊 Cobertura por módulo (v4.1)
+## 📊 Cobertura por módulo (v4.2)
 
 | Área | Cobertura | Notas |
 |------|-----------|-------|
 | Hardware CPU/RAM/Temp/Disco | ✅ Completa | SystemMonitor + DiskMonitor |
 | NVMe SMART | ✅ Completa | TBW, horas, vida útil, ciclos |
 | Red | ✅ Completa | NetworkMonitor + NetworkScanner |
-| WiFi | ✅ Completa | WiFiMonitor — señal, calidad, tráfico |
+| WiFi | ✅ Completa | WiFiMonitor — señal, calidad, tráfico, selector interfaz |
 | Procesos / Servicios systemd | ✅ Completa | ProcessMonitor + ServiceMonitor |
 | Servicios Dashboard | ✅ Completa | ServiceRegistry + ServicesManagerWindow |
+| Service Watchdog | ✅ Completa | Auto-reinicio, badge, persistencia |
 | Fans | ✅ Completa | FanController + FanAutoService |
 | Crontab | ✅ Completa | CrontabWindow, usuario/root |
 | Menú configurable | ✅ Completa | ButtonManagerWindow + WindowManager |
@@ -167,9 +189,10 @@ v4.2   💭 API REST local + Backup automático
 | Monitor SSH | ✅ Completa | Sesiones activas + historial humanizado |
 | Config por máquina | ✅ Completa | local_settings.py + Editor Config UI |
 | Multi-Pi / local_settings | ✅ Completa | Pi 5 Wayland + Pi 3 Xvfb |
-| Audio Control | ✅ Completa | amixer/aplay, VU meter, mute (v4.1) |
-| Widget Clima | ✅ Completa | Open-Meteo, AQI, drill-down, badge (v4.1) |
-| I²C Scanner | ✅ Completa | smbus2 solo lectura, cards por bus (v4.1) |
-| GPIO Monitor/Control | ✅ Completa | INPUT/OUTPUT/PWM, LIBRE/CONTROLANDO, persistencia (v4.1) |
-| API REST local | ❌ Pendiente | v4.2 |
-| Backup automático | ❌ Pendiente | v4.2 |
+| Audio Control | ✅ Completa | amixer/aplay, VU meter, mute |
+| Widget Clima | ✅ Completa | Open-Meteo, AQI, drill-down, badge |
+| I²C Scanner | ✅ Completa | smbus2 solo lectura, cards por bus |
+| GPIO Monitor/Control | ✅ Completa | INPUT/OUTPUT/PWM, LIBRE/CONTROLANDO, persistencia |
+| Config Logging | ✅ Completa | Niveles runtime, por módulo, persistencia |
+| API REST local | ❌ Pendiente | v4.3 |
+| Backup automático | ❌ Pendiente | v4.3 |

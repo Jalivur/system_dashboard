@@ -24,6 +24,11 @@ class HardwareMonitor:
     """
 
     def __init__(self):
+        """
+        Inicializa monitor hardware (GPIO board Freenove).
+
+        Cache interno thread-safe para chassis_temp, fans %.
+        """
         self._lock    = threading.Lock()
         self._running = False
         self._stop_evt    = threading.Event()
@@ -38,6 +43,9 @@ class HardwareMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self):
+        """
+        Inicia thread daemon de polling hardware_state.json cada 6s.
+        """
         if self._running:
             return
         self._running = True
@@ -49,12 +57,16 @@ class HardwareMonitor:
         logger.info("[HardwareMonitor] Iniciado")
 
     def stop(self):
+        """
+        Detiene el thread de polling, limpia cache.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
         self._cache = {}
         logger.info("[HardwareMonitor] Detenido")
+
         
     def is_running(self) -> bool:
         """Verifica si el servicio está corriendo."""
@@ -63,6 +75,9 @@ class HardwareMonitor:
     # ── Bucle ─────────────────────────────────────────────────────────────────
 
     def _loop(self):
+        """
+        Bucle thread daemon: poll cada 6s hasta stop().
+        """
         while self._running:
             try:
                 self._poll()
@@ -73,6 +88,9 @@ class HardwareMonitor:
                 break
 
     def _poll(self):
+        """
+        Lee hardware_state.json escrito por fase1.py, valida antigüedad <30s, actualiza cache thread-safe si válido.
+        """
         if not _HW_FILE.exists():
             with self._lock:
                 self._data["available"] = False
@@ -96,17 +114,28 @@ class HardwareMonitor:
             with self._lock:
                 self._data["available"] = False
 
+
     # ── API pública ───────────────────────────────────────────────────────────
 
     def get_stats(self) -> dict:
-        """Devuelve el estado del hardware desde caché."""
+        """
+        Retorna estado hardware actual (temp chassis, % fans).
+
+        Returns:
+            dict: {'chassis_temp': float, 'fan0_pct': int, ... 'available': bool}
+        """
         if not self._running:
             return {}
         with self._lock:
             return dict(self._data)
 
     def is_available(self) -> bool:
-        """True si fase1.py está corriendo y ha escrito datos recientes."""
+        """
+        True si hardware_state.json existe y actualizado <30s (fase1 corriendo).
+
+        Returns:
+            bool: Datos válidos.
+        """
         if not self._running:
             return False
         with self._lock:

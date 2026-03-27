@@ -61,6 +61,15 @@ class GPIOWindow(ctk.CTkToplevel):
     """Ventana de control y monitorización GPIO."""
 
     def __init__(self, parent, gpio_monitor):
+        """Inicializa la ventana principal de monitorización y control de pines GPIO.
+
+    Args:
+        parent: Widget padre (CTkToplevel).
+        gpio_monitor: Instancia del monitor GPIO para interactuar con el hardware.
+
+    Configura la geometría para pantalla DSI, crea la interfaz de usuario completa,
+    inicializa componentes internos y lanza el bucle de actualización automática.
+        """
         super().__init__(parent)
         self._monitor = gpio_monitor
 
@@ -87,6 +96,11 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── UI principal ──────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea todos los widgets y estructura de la interfaz de usuario.
+
+    Construye header, barra de modo de operación, área scrollable con canvas,
+    filas de pines dinámicas, footer con estado y botón de configuración.
+        """
         self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         self._main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -159,6 +173,11 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Toggle modo de operación ──────────────────────────────────────────────
 
     def _toggle_op_mode(self):
+        """Alterna el modo de operación entre LIBRE y CONTROLANDO.
+
+    Lanza el cambio en thread daemon para no bloquear la UI y programa
+    actualización de la barra en 200ms.
+        """
         current = self._monitor.get_op_mode()
         new = OP_CONTROLANDO if current == OP_LIBRE else OP_LIBRE
         threading.Thread(
@@ -169,12 +188,20 @@ class GPIOWindow(ctk.CTkToplevel):
         self._op_job = self.after(200, self._on_op_mode_changed)
 
     def _on_op_mode_changed(self):
+        """Callback ejecutado tras cambio de modo de operación.
+
+    Actualiza la barra de operación y reconstruye las filas si la ventana existe.
+        """
         if not self.winfo_exists():
             return
         self._update_op_bar()
         self._build_rows()
 
     def _update_op_bar(self):
+        """Actualiza visualmente la barra de modo de operación.
+
+    Reconfigura labels y botón según el estado actual del monitor.
+        """
         if self._lbl_op and self._lbl_op.winfo_exists():
             self._lbl_op.configure(
                 text=self._op_text(),
@@ -183,15 +210,30 @@ class GPIOWindow(ctk.CTkToplevel):
             self._btn_op.configure(text=self._op_btn_text())
 
     def _op_text(self) -> str:
+        """Genera el texto descriptivo del modo de operación actual.
+
+    Returns:
+        str: Texto con icono y descripción del estado (LIBRE o CONTROLANDO).
+        """
         if self._monitor.get_op_mode() == OP_LIBRE:
             return f"{Icons.WARNING}  GPIO LIBRE — pines disponibles para otros procesos"
         return f"{Icons.TAP}  CONTROLANDO — dashboard tiene los pines"
 
     def _op_color(self) -> str:
+        """Determina el color del texto según el modo de operación.
+
+    Returns:
+        str: Color hexadecimal (_C_LIBRE o _C_CONTROLANDO).
+        """
         return (_C_LIBRE if self._monitor.get_op_mode() == OP_LIBRE
                 else _C_CONTROLANDO)
 
     def _op_btn_text(self) -> str:
+        """Genera el texto para el botón de toggle de modo de operación.
+
+    Returns:
+        str: Texto con icono apropiado ('Tomar control' o 'Liberar GPIO').
+        """
         return (f"{Icons.TAP}  Tomar control"
                 if self._monitor.get_op_mode() == OP_LIBRE
                 else f"{Icons.WARNING}  Liberar GPIO")
@@ -199,6 +241,11 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Construcción de filas ─────────────────────────────────────────────────
 
     def _build_rows(self):
+        """Construye o reconstruye todas las filas de pines en el canvas interno.
+
+    Limpia widgets existentes, crea filas nuevas basadas en el estado actual del monitor.
+    Maneja casos especiales como ausencia de pines o modo LIBRE con mensajes informativos.
+        """
         if not self.winfo_exists():
             return
         for w in self._inner.winfo_children():
@@ -231,6 +278,15 @@ class GPIOWindow(ctk.CTkToplevel):
             self._create_pin_row(pin, state[pin], is_libre)
 
     def _create_pin_row(self, pin: int, data: dict, is_libre: bool):
+        """Crea una fila completa para un pin específico en el canvas.
+
+    Args:
+        pin (int): Número del pin GPIO.
+        data (dict): Estado actual del pin del monitor.
+        is_libre (bool): Si el modo de operación es LIBRE.
+
+    Crea indicador visual, etiqueta, badge de modo y controles contextuales (toggle, slider).
+    """
         mode = data["mode"]
         row  = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'],
                             corner_radius=8)
@@ -341,6 +397,11 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Loop de refresco ──────────────────────────────────────────────────────
 
     def _update(self):
+        """Bucle principal de actualización de estado en tiempo real.
+
+    Se ejecuta cada _REFRESH_MS. Verifica servicio, reconstruye si cambios estructurales,
+    actualiza indicadores, estados y controles sin recrear widgets.
+        """
         if not self.winfo_exists():
             return
         if not self._monitor.is_running():
@@ -425,6 +486,13 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Acciones OUTPUT ───────────────────────────────────────────────────────
 
     def _toggle_output(self, pin: int):
+        """Alterna el estado HIGH/LOW de un pin en modo OUTPUT.
+
+    Args:
+        pin (int): Número del pin.
+
+    Lanza el comando en thread daemon, actualiza UI reactivamente.
+        """
         state   = self._monitor.get_state()
         current = state.get(pin, {}).get("value", False)
         threading.Thread(
@@ -436,6 +504,14 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Acciones PWM ──────────────────────────────────────────────────────────
 
     def _on_pwm_slide(self, pin: int, val: float):
+        """Manejador de slider PWM: aplica duty cycle.
+
+    Args:
+        pin (int): Número del pin PWM.
+        val (float): Valor del slider (0-100).
+
+    Actualiza label duty inmediato y lanza comando en thread.
+        """
         duty = val / 100.0
         if pin in self._rows and self._rows[pin]["lbl_duty"]:
             self._rows[pin]["lbl_duty"].configure(text=f"{int(val)}%")
@@ -448,6 +524,14 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _status_text(self, state: dict) -> str:
+        """Genera texto resumido del estado para el footer.
+
+    Args:
+        state (dict): Diccionario de estado de todos los pines.
+
+    Returns:
+        str: Resumen como 'CTRL · 4 pines · 2 IN · 1 OUT · 1 PWM'.
+        """
         total   = len(state)
         inputs  = sum(1 for d in state.values() if d["mode"] == MODE_INPUT)
         outputs = sum(1 for d in state.values() if d["mode"] == MODE_OUTPUT)
@@ -463,15 +547,22 @@ class GPIOWindow(ctk.CTkToplevel):
     # ── Config ────────────────────────────────────────────────────────────────
 
     def _open_config(self):
+        """Abre el diálogo de configuración de pines.
+        """
         _GPIOConfigDialog(self, self._monitor,
                           on_close=self._on_config_closed)
 
     def _on_config_closed(self):
-        """Callback llamado al cerrar el diálogo — reconstruye las filas."""
+        """Callback ejecutado al cerrar el diálogo de configuración.
+
+    Reconstruye las filas de pines para reflejar cambios.
+        """
         if self.winfo_exists():
             self._build_rows()
 
     def destroy(self):
+        """Destruye la ventana limpiamente, logueando el cierre.
+        """
         logger.info("[GPIOWindow] Ventana cerrada")
         super().destroy()
 
@@ -485,6 +576,13 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
                  if p not in {2, 3, 12, 13, 14, 15, 18, 19}]
 
     def __init__(self, parent, gpio_monitor, on_close=None):
+        """Inicializa el diálogo de configuración de pines.
+
+    Args:
+        parent: Ventana padre.
+        gpio_monitor: Instancia del monitor.
+        on_close (callable, optional): Callback al cerrar.
+        """
         super().__init__(parent)
         self._monitor  = gpio_monitor
         self._on_close = on_close   # callback hacia GPIOWindow
@@ -500,6 +598,8 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
         self._create_ui()
 
     def _create_ui(self):
+        """Crea la interfaz del diálogo de configuración.
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -588,6 +688,8 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
         ).pack(side="right", padx=4)
 
     def _build_list(self):
+        """Reconstruye la lista de pines configurados en el diálogo.
+        """
         for w in self._list_inner.winfo_children():
             w.destroy()
         self._row_widgets.clear()
@@ -606,6 +708,12 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
             self._create_list_row(pin, state[pin])
 
     def _create_list_row(self, pin: int, data: dict):
+        """Crea fila editable para un pin en la lista de configuración.
+
+    Args:
+        pin (int): Pin.
+        data (dict): Datos del pin.
+        """
         row = ctk.CTkFrame(self._list_inner, fg_color=COLORS['bg_dark'],
                            corner_radius=8)
         row.pack(fill="x", padx=8, pady=3)
@@ -671,6 +779,8 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _add_pin(self):
+        """Añade un nuevo pin con modo y etiqueta especificados.
+        """
         try:
             pin = int(self._new_pin_var.get())
         except ValueError:
@@ -682,10 +792,22 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
             self._build_list()
 
     def _remove_pin(self, pin: int):
+        """Elimina un pin de la configuración.
+
+    Args:
+        pin (int): Pin a eliminar.
+        """
         self._monitor.remove_pin(pin)
         self._build_list()
 
     def _change_mode(self, pin: int, mode: str, feedback_label: ctk.CTkLabel):
+        """Cambia el modo de un pin y muestra feedback visual.
+
+    Args:
+        pin (int): Pin.
+        mode (str): Nuevo modo.
+        feedback_label: Label para mostrar OK/ERR.
+        """
         ok = self._monitor.set_mode(pin, mode)
         if ok:
             feedback_label.configure(text=f"{Icons.CHECK}", text_color=_C_OK)
@@ -698,6 +820,13 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
 
     def _save_label(self, pin: int, entry: ctk.CTkEntry,
                     feedback_label: ctk.CTkLabel):
+        """Guarda nueva etiqueta para un pin con feedback.
+
+    Args:
+        pin (int): Pin.
+        entry: Entry con nueva etiqueta.
+        feedback_label: Label para feedback.
+        """
         label = entry.get().strip()
         if not label:
             return
@@ -711,9 +840,9 @@ class _GPIOConfigDialog(ctk.CTkToplevel):
             self.after(1500, lambda: (feedback_label.winfo_exists() and
                                       feedback_label.configure(text="")))
 
-        
     def destroy(self) -> None:
-        """Al cerrar notifica a GPIOWindow para que reconstruya sus filas."""
+        """Cierra el diálogo y ejecuta callback si existe.
+        """
         logger.info('[GPIOConfigDialog] Diálogo cerrado')
         super().destroy()
         if callable(self._on_close):

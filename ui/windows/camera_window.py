@@ -25,6 +25,14 @@ class CameraWindow(ctk.CTkToplevel):
     """Ventana de cámara con captura de fotos y escáner OCR."""
 
     def __init__(self, parent):
+        """Inicializa la ventana de cámara principal.
+
+        Args:
+            parent: Ventana padre (CTkToplevel).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self.title("Cámara / Escáner")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -48,6 +56,11 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Estructura principal ──────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea la interfaz de usuario principal con tabs y controles.
+
+        Returns:
+            None.
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -84,6 +97,14 @@ class CameraWindow(ctk.CTkToplevel):
         self._switch_tab("photo")
 
     def _build_scrollable_tab(self, parent) -> ctk.CTkFrame:
+        """Construye un frame con canvas scrollable para tabs.
+
+        Args:
+            parent: Contenedor padre.
+
+        Returns:
+            Frame scrollable (CTkFrame).
+        """
         tab_name = "photo" if "photo" not in self._canvases else "scan"
         frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
 
@@ -111,6 +132,14 @@ class CameraWindow(ctk.CTkToplevel):
         return frame
 
     def _switch_tab(self, tab: str):
+        """Cambia entre tabs de foto y escáner, actualizando UI.
+
+        Args:
+            tab: Nombre del tab ('photo' o 'scan').
+
+        Returns:
+            None.
+        """
         self._active_tab = tab
         if tab == "photo":
             self._scan_frame.pack_forget()
@@ -134,6 +163,14 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Contenido tab FOTO ────────────────────────────────────────────────────
 
     def _build_photo_content(self, inner: ctk.CTkFrame):
+        """Construye controles y lista para tab de fotos.
+
+        Args:
+            inner: Frame interno del tab.
+
+        Returns:
+            None.
+        """
         ctrl = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         ctrl.pack(fill="x", padx=10, pady=(6, 4))
 
@@ -187,6 +224,14 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Contenido tab ESCÁNER ─────────────────────────────────────────────────
 
     def _build_scan_content(self, inner: ctk.CTkFrame):
+        """Construye controles, textbox y lista para tab de escáner.
+
+        Args:
+            inner: Frame interno del tab.
+
+        Returns:
+            None.
+        """
         ctrl = ctk.CTkFrame(inner, fg_color=COLORS['bg_dark'], corner_radius=8)
         ctrl.pack(fill="x", padx=10, pady=(6, 4))
 
@@ -264,6 +309,15 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Scroll interno para listas ────────────────────────────────────────────
 
     def _build_inner_scroll(self, parent: ctk.CTkFrame, height: int) -> ctk.CTkFrame:
+        """Crea scroll interno para listas de elementos.
+
+        Args:
+            parent: Frame padre.
+            height: Altura fija del container.
+
+        Returns:
+            Frame interno scrollable (CTkFrame).
+        """
         container = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'],
                                  corner_radius=6, height=height)
         container.pack(fill="x", padx=10, pady=(0, 6))
@@ -288,6 +342,11 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Captura de foto ───────────────────────────────────────────────────────
 
     def _capture_photo(self):
+        """Captura una foto usando el servicio de cámara en threading.
+
+        Returns:
+            None.
+        """
         if self._busy:
             return
         self._busy = True
@@ -300,6 +359,16 @@ class CameraWindow(ctk.CTkToplevel):
         ).start()
 
     def _capture_done(self, ok: bool, msg: str, _path):
+        """Finaliza captura de foto, actualiza status y lista.
+
+        Args:
+            ok: Si la captura fue exitosa.
+            msg: Mensaje de estado.
+            _path: Ruta de la foto (no usada).
+
+        Returns:
+            None.
+        """
         self._busy = False
         self._photo_btn.configure(state="normal")
         color = COLORS['primary'] if ok else COLORS['danger']
@@ -309,6 +378,11 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Escáner OCR ───────────────────────────────────────────────────────────
 
     def _scan_document(self):
+        """Inicia escaneo OCR en background thread.
+
+        Returns:
+            None.
+        """
         if self._busy:
             return
         self._busy = True
@@ -322,6 +396,15 @@ class CameraWindow(ctk.CTkToplevel):
         ).start()
 
     def _scan_done(self, text, msg: str):
+        """Finaliza escaneo OCR, actualiza textbox y lista.
+
+        Args:
+            text: Texto extraído.
+            msg: Mensaje de estado.
+
+        Returns:
+            None.
+        """
         self._busy = False
         self._scan_btn.configure(state="normal")
         color = COLORS['primary'] if text else COLORS['danger']
@@ -334,18 +417,36 @@ class CameraWindow(ctk.CTkToplevel):
     # ── TextBox helpers ───────────────────────────────────────────────────────
 
     def _set_textbox(self, text: str):
+        """Establece el texto en el textbox, habilita copia.
+
+        Args:
+            text: Texto OCR a mostrar.
+
+        Returns:
+            None.
+        """
         self._text_box.configure(state="normal")
         self._text_box.delete("1.0", "end")
         self._text_box.insert("1.0", text)
         self._text_box.configure(state="disabled")
 
     def _clear_textbox(self):
+        """Limpia el textbox y deshabilita botón de copia.
+
+        Returns:
+            None.
+        """
         self._text_box.configure(state="normal")
         self._text_box.delete("1.0", "end")
         self._text_box.configure(state="disabled")
         self._copy_btn.configure(state="disabled")
 
     def _copy_text(self):
+        """Copia texto del textbox al portapapeles.
+
+        Returns:
+            None.
+        """
         self._text_box.configure(state="normal")
         text = self._text_box.get("1.0", "end").strip()
         self._text_box.configure(state="disabled")
@@ -358,6 +459,11 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Listas ────────────────────────────────────────────────────────────────
 
     def _refresh_photo_list(self):
+        """Actualiza la lista de fotos guardadas en el tab.
+
+        Returns:
+            None.
+        """
         for w in self._photo_list_frame.winfo_children():
             w.destroy()
         photos = cam.list_photos()
@@ -373,6 +479,11 @@ class CameraWindow(ctk.CTkToplevel):
             )
 
     def _refresh_scan_list(self):
+        """Actualiza la lista de escaneos guardados en el tab.
+
+        Returns:
+            None.
+        """
         for w in self._scan_list_frame.winfo_children():
             w.destroy()
         scans = cam.list_scans()
@@ -384,6 +495,17 @@ class CameraWindow(ctk.CTkToplevel):
             self._scan_row(self._scan_list_frame, txt, md)
 
     def _list_row(self, parent, label: str, size_kb: int, on_delete):
+        """Crea fila UI para una foto en la lista.
+
+        Args:
+            parent: Frame padre.
+            label: Etiqueta con nombre/icono.
+            size_kb: Tamaño en KB.
+            on_delete: Callback para borrar.
+
+        Returns:
+            None.
+        """
         row = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=6)
         row.pack(fill="x", pady=2, padx=4)
         ctk.CTkLabel(row, text=f"{label}  ({size_kb} KB)",
@@ -396,6 +518,16 @@ class CameraWindow(ctk.CTkToplevel):
         ).pack(side="right", padx=6, pady=4)
 
     def _scan_row(self, parent, txt, md):
+        """Crea fila UI para un escaneo (.txt + .md).
+
+        Args:
+            parent: Frame padre.
+            txt: Path al archivo .txt.
+            md: Path al archivo .md.
+
+        Returns:
+            None.
+        """
         from pathlib import Path
         row = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=6)
         row.pack(fill="x", pady=2, padx=4)
@@ -418,6 +550,14 @@ class CameraWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _load_scan(self, txt_path):
+        """Carga texto de escaneo en textbox y cambia a tab scan.
+
+        Args:
+            txt_path: Path al archivo .txt.
+
+        Returns:
+            None.
+        """
         text = cam.load_scan_text(txt_path)
         if text:
             self._set_textbox(text)
@@ -425,18 +565,49 @@ class CameraWindow(ctk.CTkToplevel):
             self._switch_tab("scan")
 
     def _delete_one_scan(self, txt, md):
+        """Borra un escaneo (.txt + .md) y refresca lista.
+
+        Args:
+            txt: Path .txt.
+            md: Path .md.
+
+        Returns:
+            None.
+        """
         cam.delete_scan(txt, md)
         self._refresh_scan_list()
 
     def _delete_one_photo(self, p):
+        """Borra una foto y refresca lista.
+
+        Args:
+            p: Objeto Path de la foto.
+
+        Returns:
+            None.
+        """
         cam.delete_photo(p)
         self._refresh_photo_list()
 
     def _delete_all_photos(self):
+        """Borra todas las fotos y refresca lista.
+
+        Returns:
+            None.
+        """
         cam.delete_all_photos()
         self._refresh_photo_list()
 
     def _delete_all_scans(self):
+        """Borra todos los escaneos y refresca lista/textbox.
+
+        Returns:
+            None.
+        """
         cam.delete_all_scans()
         self._refresh_scan_list()
         self._clear_textbox()
+
+
+
+

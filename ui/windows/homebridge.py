@@ -19,6 +19,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
     """Ventana de control de dispositivos Homebridge."""
 
     def __init__(self, parent, homebridge_monitor: HomebridgeMonitor):
+        """Inicializa la ventana de Homebridge con monitor, estado inicial y configuración básica."""
         super().__init__(parent)
         self._hb = homebridge_monitor
         self._accessories = []
@@ -38,6 +39,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
     # ── Interfaz ──────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Crea todos los elementos de la interfaz de usuario de la ventana."""
         self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         self._main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -105,14 +107,17 @@ class HomebridgeWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _schedule_update(self):
+        """Programa la actualización periódica de los dispositivos."""
         self._update_job = self.after(100, self._fetch_and_render)
 
     def _force_refresh(self):
+        """Fuerza una actualización inmediata de los dispositivos Homebridge."""
         if self._update_job:
             self.after_cancel(self._update_job)
         self._fetch_and_render()
 
     def _fetch_and_render(self):
+        """Obtiene los accesorios de Homebridge y los renderiza en la UI de forma asíncrona."""
         if not self._hb.is_running():
             StyleManager.show_service_stopped_banner(self._device_frame, "Homebridge Monitor")
             self._update_job = self.after(HB_UPDATE_MS, self._fetch_and_render)
@@ -125,6 +130,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         self._set_status("Actualizando...")
 
         def fetch():
+            """Función interna para obtener accesorios de Homebridge y renderizar."""
             accessories = self._hb.get_accessories()
             if self.winfo_exists():
                 self.after(0, lambda: self._render(accessories))
@@ -132,6 +138,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         threading.Thread(target=fetch, daemon=True, name="HB-Fetch").start()
 
     def _render(self, accessories):
+        """Renderiza la lista de accesorios en tarjetas de dispositivos en la interfaz."""
         self._accessories = accessories
         self._busy = False
 
@@ -178,6 +185,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
     # ── Tarjetas ──────────────────────────────────────────────────────────────
 
     def _create_device_card(self, acc: dict, grid_row: int, grid_col: int):
+        """Crea y posiciona una tarjeta para un dispositivo Homebridge específico."""
         dev_type = acc.get("type", "switch")
         is_fault = acc.get("fault", False)
         disabled = is_fault or acc.get("inactive", False)
@@ -213,6 +221,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         read_only     = acc["displayName"] in blocked_names
 
         def on_toggle(new_state, uid=acc["uniqueId"]):
+            """Manejador de toggle para switch: valida read-only y ejecuta comando."""
             if read_only:
                 custom_msgbox(
                     self,
@@ -232,6 +241,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         sw.pack(padx=16, pady=(8, 18))
 
     def _card_thermostat(self, card, acc, disabled):
+        """Crea la interfaz de un termostato con temperatura actual y controles de objetivo."""
         """Termostato: temperatura actual + botones +/- para objetivo."""
         ctk.CTkLabel(
             card,
@@ -268,6 +278,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         _temp = [acc["target_temp"]]
 
         def change(delta):
+            """Ajusta temperatura objetivo del termostato y envía en thread."""
             if disabled:
                 return
             _temp[0] = round(_temp[0] + delta, 1)
@@ -288,6 +299,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
             ).pack(side="left", padx=4)
 
     def _card_sensor(self, card, acc):
+        """Crea la interfaz de un sensor de temperatura/humedad (solo lectura)."""
         """Sensor de temperatura / humedad (solo lectura)."""
         ctk.CTkLabel(
             card,
@@ -313,6 +325,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
             ).pack(pady=(0, 12))
 
     def _card_blind(self, card, acc, disabled):
+        """Crea la interfaz de una persiana/estor con barra de progreso de posición."""
         """Persiana / estor con barra de posición."""
         ctk.CTkLabel(
             card,
@@ -341,6 +354,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _toggle(self, unique_id: str, turn_on: bool):
+        """Envía comando ON/OFF a un dispositivo en segundo plano de forma asíncrona."""
         """Envía el comando ON/OFF en background."""
         if not self._hb.is_running():
             StyleManager.show_service_stopped_banner(self._device_frame, "Homebridge Monitor")
@@ -351,6 +365,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
             return
 
         def send():
+            """Ejecuta el toggle en Homebridge y maneja respuesta."""
             ok = self._hb.toggle(unique_id, turn_on)
             if not self.winfo_exists():
                 return
@@ -370,6 +385,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
         threading.Thread(target=send, daemon=True, name="HB-Toggle").start()
 
     def _set_status(self, text: str):
+        """Actualiza el texto de estado en la barra inferior de la ventana."""
         try:
             self._status_label.configure(text=text)
         except Exception:
@@ -378,6 +394,7 @@ class HomebridgeWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
+        """Maneja el cierre de la ventana, cancelando jobs y limpiando recursos."""
         if self._update_job:
             self.after_cancel(self._update_job)
         logger.info("[HomebridgeWindow] Ventana cerrada")

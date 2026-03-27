@@ -108,6 +108,16 @@ class ServicesManagerWindow(ctk.CTkToplevel):
     ]
 
     def __init__(self, parent, registry):
+        """
+        Inicializa la ventana de gestión de servicios.
+
+        Configura la ventana toplevel, filtra servicios disponibles del registry,
+        crea la interfaz de usuario y inicia el bucle de refresco automático.
+
+        Args:
+            parent: Ventana padre (CTkToplevel).
+            registry: ServiceRegistry con todos los servicios disponibles.
+        """
         super().__init__(parent)
         self.title("Gestión de Servicios")
         self.configure(fg_color=COLORS['bg_medium'])
@@ -134,6 +144,12 @@ class ServicesManagerWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """
+        Crea la interfaz de usuario completa.
+
+        Incluye header de ventana, contenedor desplazable con filas de servicios,
+        y botones globales para acciones masivas (parar/iniciar todos, guardar).
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -186,6 +202,19 @@ class ServicesManagerWindow(ctk.CTkToplevel):
                                ).pack(side="left")
 
     def _create_row(self, parent, key, label, emoji, warn):
+        """
+        Crea una fila UI para un servicio específico.
+
+        Incluye indicador circular de estado, nombre con emoji, label de status,
+        y botón toggle.
+
+        Args:
+            parent: Frame contenedor.
+            key: ID del servicio (str).
+            label: Nombre legible.
+            emoji: Icono Nerd Font.
+            warn: Advertencia al parar (si aplica).
+        """
         row_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         row_frame.pack(fill="x", padx=8, pady=3)
         row_frame.grid_columnconfigure(1, weight=1)
@@ -220,12 +249,29 @@ class ServicesManagerWindow(ctk.CTkToplevel):
     # ── Estado ────────────────────────────────────────────────────────────────
 
     def _is_running(self, key: str) -> bool:
+        """
+        Consulta si un servicio está ejecutándose.
+
+        Args:
+            key: ID del servicio.
+
+        Returns:
+            bool: True si está corriendo según el registry.
+        """
         svc = self._services.get(key)
         if svc is None:
             return False
         return svc.is_running()
 
     def _update_row(self, key: str):
+        """
+        Actualiza el estado visual de la fila de un servicio.
+
+        Cambia colores, textos y estado del botón según si está corriendo o busy.
+
+        Args:
+            key: ID del servicio.
+        """
         if key not in self._rows:
             return
         row  = self._rows[key]
@@ -246,6 +292,12 @@ class ServicesManagerWindow(ctk.CTkToplevel):
             fg_color=COLORS['danger'] if running else COLORS['primary'])
 
     def _refresh_loop(self):
+        """
+        Bucle infinito de refresco cada 1.5 segundos.
+
+        Actualiza todas las filas consultando estados reales.
+        Se auto-para si la ventana se destruye.
+        """
         if not self.winfo_exists():
             return
         for key in self._rows:
@@ -255,6 +307,16 @@ class ServicesManagerWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _toggle(self, key: str, warn: str):
+        """
+        Manejador del botón toggle de un servicio.
+
+        Muestra diálogo de confirmación (con warning si parar),
+        luego ejecuta la acción en thread separado.
+
+        Args:
+            key: ID del servicio.
+            warn: Texto de advertencia (si aplica).
+        """
         if key in self._busy:
             return
         running = self._is_running(key)
@@ -266,10 +328,25 @@ class ServicesManagerWindow(ctk.CTkToplevel):
                        on_confirm=lambda: self._execute(key, stop=running))
 
     def _execute(self, key: str, stop: bool):
+        """
+        Ejecuta start o stop en thread daemon.
+
+        Maneja estado busy durante operación, loguea acciones,
+        captura errores y actualiza UI post-ejecución.
+
+        Args:
+            key: ID del servicio.
+            stop: True para parar, False para iniciar.
+        """
         self._busy.add(key)
         self._update_row(key)
 
         def _run():
+            """
+            Función interna que ejecuta la acción start/stop del servicio en thread separado.
+
+            Loguea la acción, maneja excepciones y limpia estado busy al finalizar.
+            """
             svc = self._services[key]
             try:
                 if stop:
@@ -290,6 +367,12 @@ class ServicesManagerWindow(ctk.CTkToplevel):
                          name=f"SvcMgr-{key}").start()
 
     def _stop_all(self):
+        """
+        Para todos los servicios corriendo tras confirmar.
+
+        Lista servicios activos, muestra diálogo multi-item,
+        ejecuta _execute(stop=True) en todos.
+        """
         keys = [k for k in self._rows if self._is_running(k)]
         if not keys:
             return
@@ -300,6 +383,12 @@ class ServicesManagerWindow(ctk.CTkToplevel):
             on_confirm=lambda: [self._execute(k, stop=True) for k in keys])
 
     def _start_all(self):
+        """
+        Inicia todos los servicios parados tras confirmar.
+
+        Lista servicios inactivos, muestra diálogo simple,
+        ejecuta _execute(stop=False) en todos.
+        """
         keys = [k for k in self._rows if not self._is_running(k)]
         if not keys:
             return
@@ -313,6 +402,9 @@ class ServicesManagerWindow(ctk.CTkToplevel):
         Llama set_service_enabled() por cada servicio según su estado en la UI —
         no depende de que save_config() lea _running directamente."""
         def _do_save():
+            """
+            Función interna que persiste el estado actual de servicios en services.json.
+            """
             for key in self._rows:
                 self._registry.set_service_enabled(key, self._is_running(key))
 

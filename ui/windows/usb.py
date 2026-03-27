@@ -15,6 +15,11 @@ class USBWindow(ctk.CTkToplevel):
     """Ventana de monitoreo de dispositivos USB"""
     
     def __init__(self, parent):
+        """Inicializa la ventana de monitoreo de dispositivos USB.
+
+        Args:
+            parent: Widget padre CTkToplevel del dashboard.
+        """
         super().__init__(parent)
         
         self._system_utils = SystemUtils()

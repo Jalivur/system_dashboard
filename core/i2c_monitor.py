@@ -54,6 +54,9 @@ class I2CMonitor:
     """
 
     def __init__(self):
+        """
+        Inicializa monitor I2C con locks y estado vacío.
+        """
         self._lock    = threading.Lock()
         self._stats   = {}
         self._running = False
@@ -63,6 +66,9 @@ class I2CMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Inicia thread daemon de escaneo periódico cada INTERVAL_SECONDS.
+        """
         if self._running:
             return
         self._running = True
@@ -73,6 +79,9 @@ class I2CMonitor:
         logger.info("[I2CMonitor] Iniciado")
 
     def stop(self) -> None:
+        """
+        Detiene thread, limpia cache _stats.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -82,30 +91,51 @@ class I2CMonitor:
         logger.info("[I2CMonitor] Detenido")
     
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Estado del monitor (thread activo).
+
+        Returns:
+            bool: True si escaneando.
+        """
         return self._running
 
     # ── API pública ───────────────────────────────────────────────────────────
 
     def get_stats(self) -> dict:
-        """Devuelve la caché del último escaneo. No bloquea."""
+        """
+        Retorna stats thread-safe del último escaneo.
+
+        Returns:
+            dict: {'error':str, 'buses':list[dict], 'total':int}
+        """
         with self._lock:
             return dict(self._stats)
 
     def scan_now(self) -> None:
-        """Fuerza un escaneo inmediato en background."""
+        """
+        Fuerza escaneo inmediato en thread daemon separado.
+        Útil desde UI para refresh manual.
+        """
         threading.Thread(
             target=self._scan, daemon=True, name="I2CScanNow").start()
 
     # ── Lógica interna ────────────────────────────────────────────────────────
 
     def _loop(self) -> None:
+        """
+        Bucle thread daemon: escaneo inicial + INTERVAL_SECONDS loop.
+        Sale limpiamente en stop().
+        """
         self._scan()
         while not self._stop_evt.wait(timeout=INTERVAL_SECONDS):
             if self._running:
                 self._scan()
 
     def _scan(self) -> None:
+        """
+        Escaneo interno: importa smbus2, detecta buses /dev/i2c-*, read_byte() en rango 0x03-0x77, cachea thread-safe.
+        Maneja errores graceful (no instalado, buses vacíos).
+        """
         try:
             import smbus2
         except ImportError:

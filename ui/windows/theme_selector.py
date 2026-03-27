@@ -17,6 +17,11 @@ class ThemeSelector(ctk.CTkToplevel):
     """Ventana de selección de temas"""
     
     def __init__(self, parent):
+        """Inicializa la ventana selector de temas del dashboard.
+
+        Args:
+            parent: Widget padre CTkToplevel del dashboard.
+        """
         super().__init__(parent)
         
         # Configurar ventana

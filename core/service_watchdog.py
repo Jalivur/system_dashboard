@@ -27,7 +27,39 @@ WD_STATE_FILE = DATA_DIR / "service_watchdog_state.json"
 
 
 class ServiceWatchdog:
+    """
+    Watchdog profesional para monitoreo y auto-reinicio de servicios críticos systemd.
+
+    Características principales:
+    * Verificación periódica del estado 'active' cada INTERVAL segundos (predeterminado: 60s).
+    * Reinicio automático al superar THRESHOLD fallos consecutivos (predeterminado: 3).
+    * Persistencia de contadores de reinicios diarios en data/service_watchdog_state.json.
+    * Configuración dinámica mediante parámetros en local_settings.py:
+      - watchdog_critical_services: Lista de servicios críticos.
+      - watchdog_threshold: Umbral de fallos.
+      - watchdog_interval: Intervalo de polling.
+    * Logging detallado con niveles INFO/WARNING y estadísticas exportables para UI/dashboard.
+    * Ejecución en thread daemon no bloqueante con métodos start/stop limpios (join con timeout 5s).
+    * Manejo robusto de errores: servicios no encontrados, JSON corrupto, etc.
+    * Reset automático de contadores al cambiar de día.
+
+    Uso recomendado:
+        wd = ServiceWatchdog(service_monitor)
+        wd.start()
+        # Opcional: registry.register('service_watchdog', wd)
+
+    Dependencias: ServiceMonitor para operaciones de servicio, utils.logger, config.local_settings_io.
+    Compatible con systemd servicios.
+    """
     def __init__(self, service_monitor: ServiceMonitor):
+        """
+        Inicializa el ServiceWatchdog.
+
+        Args:
+            service_monitor (ServiceMonitor): Instancia para restart servicios.
+
+        Inicializa counters de restarts/fallos, carga estado persistido.
+        """
         self._service_monitor = service_monitor
         self._critical_services: List[str] = get_param('watchdog_critical_services', [])
         self._threshold = get_param('watchdog_threshold', SERVICE_WATCHDOG_THRESHOLD)
@@ -41,6 +73,11 @@ class ServiceWatchdog:
         self._load_state()
 
     def start(self):
+        """
+        Inicia el hilo de monitoreo del watchdog en background (daemon).
+
+        Pollea cada self._interval segs los servicios críticos.
+        """
         if self._running:
             return
         self._running = True
@@ -51,6 +88,11 @@ class ServiceWatchdog:
                     len(self._critical_services), self._threshold, self._interval)
 
     def stop(self):
+        """
+        Detiene el watchdog limpiamente y persiste estado.
+
+        Espera hasta 5s al thread, guarda restarts del día.
+        """
         self._running = False
         self._stop_event.set()
         if self._thread and self._thread.is_alive():
@@ -59,29 +101,66 @@ class ServiceWatchdog:
         logger.info("[ServiceWatchdog] Detenido")
     
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Verifica si el watchdog está activo.
+
+        Returns:
+            bool: True si el thread está corriendo.
+        """
         return self._running
 
     def set_critical_services(self, services: List[str]):
+        """
+        Actualiza la lista de servicios críticos a monitorear.
+
+        Args:
+            services (List[str]): Nuevos nombres de servicios críticos.
+        """
         self._critical_services = services
         update_params({'watchdog_critical_services': services})
 
     def set_threshold(self, thresh: int):
+        """
+        Cambia el umbral de fallos consecutivos para auto-restart.
+
+        Args:
+            thresh (int): Número de fallos seguidos (default 3).
+        """
         self._threshold = thresh
         update_params({'watchdog_threshold': thresh})
 
     def set_interval(self, interval: int):
+        """
+        Cambia el intervalo de polling en segundos.
+
+        Args:
+            interval (int): Segundos entre chequeos (default 60).
+        """
         self._interval = interval
         update_params({'watchdog_interval': interval})
     
     def add_critical_service(self, name: str) -> bool:
-        """Añade un servicio a la lista de críticos. Devuelve False si ya existe."""
+        """
+        Añade un servicio crítico si no existe ya.
+
+        Args:
+            name (str): Nombre del servicio systemd.
+
+        Returns:
+            bool: True si añadido, False si ya estaba.
+        """
         if name in self._critical_services:
             return False
         self._critical_services.append(name)
         return True
 
     def get_stats(self) -> Dict:
+        """
+        Obtiene estadísticas del watchdog para UI.
+
+        Returns:
+            Dict: Counters restarts, servicios, estado, etc.
+        """
         return {
             'critical_count': len(self._critical_services),
             'restarts_today': sum(self._restart_counts.values()),
@@ -94,10 +173,18 @@ class ServiceWatchdog:
         }
 
     def _watch_loop(self):
+        """
+        Bucle principal privado del watchdog (thread daemon).
+        Espera self._interval y chequea servicios.
+        """
         while self._running and not self._stop_event.wait(timeout=self._interval):
             self._check_services()
 
     def _check_services(self):
+        """
+        Chequea estado de servicios críticos, incrementa counters fallos.
+        Si >= threshold, trigger auto_restart().
+        """
         services = self._service_monitor.get_services()
         for name in self._critical_services:
             service = next((s for s in services if s['name'] == name), None)
@@ -114,6 +201,9 @@ class ServiceWatchdog:
                 self._consec_failed[name] = 0
 
     def _auto_restart(self, name: str):
+        """
+        Reinicia servicio crítico via service_monitor y actualiza counters.
+        """
         logger.warning("[ServiceWatchdog] AUTO-RESTART '%s' (thresh %d)", name, self._threshold)
         success, msg = self._service_monitor.restart_service(name)
         if success:
@@ -122,6 +212,9 @@ class ServiceWatchdog:
         self._persist_state()
 
     def _persist_state(self):
+        """
+        Guarda counters restarts en data/service_watchdog_state.json (diario).
+        """
         state = {
             'restart_counts': self._restart_counts,
             'last_reset': time.strftime('%Y-%m-%d')
@@ -129,6 +222,10 @@ class ServiceWatchdog:
         WD_STATE_FILE.write_text(json.dumps(state))
 
     def _load_state(self):
+        """
+        Carga counters del día desde JSON persistido.
+        Reset automático si nuevo día.
+        """
         if WD_STATE_FILE.exists():
             try:
                 data = json.loads(WD_STATE_FILE.read_text())

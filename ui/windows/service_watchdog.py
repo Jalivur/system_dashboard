@@ -15,6 +15,20 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
     """Ventana Service Watchdog systemd"""
 
     def __init__(self, parent, service_monitor: ServiceMonitor, watchdog: ServiceWatchdog):
+        '''Inicializador de la ventana Service Watchdog para monitoreo systemd.
+
+        Configura:
+        - Dependencias: ServiceMonitor, ServiceWatchdog
+        - Variables de estado/UI (search, filter, criticals, pause, debounces)
+        - Geometría DSI fullscreen no-resizable
+        - Llama _create_ui() y inicia _update() loop
+        - Log apertura
+        
+        Args:
+            parent: Ventana padre (CTk).
+            service_monitor (ServiceMonitor): Instancia para queries servicios/logs.
+            watchdog (ServiceWatchdog): Instancia para config/stats críticos.
+        '''
         super().__init__(parent)
 
         self._service_monitor = service_monitor
@@ -44,6 +58,18 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
 
 
     def _create_ui(self):
+        """Crea la interfaz de usuario principal de la ventana Service Watchdog.
+
+        Construye todos los componentes visuales incluyendo:
+        - Header de ventana con título y botón cerrar
+        - Barra de estadísticas (críticos, restarts, umbral, estado)
+        - Panel de configuración (umbral, intervalo, botones APLIAR/Refrescar)
+        - Controles de búsqueda y filtro
+        - Encabezados de tabla
+        - Canvas scrollable para la tabla de servicios
+        
+        Inicializa la geometría y estilos según configuración global (DSI).
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -115,6 +141,17 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         
 
     def _create_controls(self, parent):
+        """Crea los controles interactivos superiores para filtrado y gestión.
+
+        Componentes:
+        - Campo de búsqueda con debounce para servicios por nombre
+        - Radio buttons para filtro (solo críticos / todos)
+        - Entry para añadir nuevo servicio crítico + botón AÑADIR
+        - Botón GUARDAR lista críticos
+        
+        Args:
+            parent: Frame contenedor principal.
+        """
         controls = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         controls.pack(fill="x", padx=10, pady=5)
 
@@ -141,6 +178,14 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
 
 
     def _create_column_headers(self, parent):
+        """Crea la fila de encabezados para la tabla scrollable de servicios.
+
+        Columnas: Servicio | Estado | Fallos | Actions (reiniciar/ver logs)
+        Usa grid con pesos para responsividad.
+        
+        Args:
+            parent: Frame contenedor de headers.
+        """
         headers = ctk.CTkFrame(parent, fg_color=COLORS['bg_light'])
         headers.pack(fill="x", padx=10, pady=5)
         headers.grid_columnconfigure((0,1,2), weight=1)
@@ -152,11 +197,23 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         ctk.CTkLabel(headers, text="Actions", font=(FONT_FAMILY, FONT_SIZES['small'], "bold")).grid(row=0, column=3, sticky="w", padx=5)
 
     def _debounce_umbral_update(self):
+        '''Maneja el debounce para cambios en el campo de umbral de fallos críticos.
+
+        Cancela cualquier timer previo y programa _on_umbral_change después de 400ms
+        de inactividad en el entry, evitando múltiples llamadas durante tipificación rápida.
+        '''
         if self._umbral_debounce_id:
             self.after_cancel(self._umbral_debounce_id)
         self._umbral_debounce_id = self.after(400, lambda: self._on_umbral_change(self._umbral_var.get()))
 
     def _on_umbral_change(self, val):
+        '''Valida y aplica cambios al umbral de fallos consecutivos críticos.
+
+        Convierte entrada a entero, clamp entre 1-10, actualiza StringVar y label visual.
+        
+        Args:
+            val (str): Valor crudo del entry field.
+        '''
         try:
             v = int(val)
             v = max(1, min(10, v))
@@ -166,11 +223,22 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
             pass
 
     def _debounce_interval_update(self):
+        '''Maneja el debounce para cambios en el campo de intervalo de monitoreo.
+
+        Cancela timer previo y programa _on_interval_change tras 400ms de inactividad.
+        '''
         if self._interval_debounce_id:
             self.after_cancel(self._interval_debounce_id)
         self._interval_debounce_id = self.after(400, lambda: self._on_interval_change(self._interval_var.get()))
 
     def _on_interval_change(self, val):
+        '''Valida y aplica cambios al intervalo de chequeo periódico del watchdog.
+
+        Convierte a entero, clamp 30-300s, actualiza StringVar y label.
+        
+        Args:
+            val (str): Valor del entry field.
+        '''
         try:
             v = int(val)
             v = max(30, min(300, v))
@@ -180,6 +248,11 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
             pass
 
     def _apply_config(self):
+        '''Aplica configuración actual de umbral e intervalo al ServiceWatchdog.
+
+        Valida rangos finales, llama set_threshold/set_interval, confirma con msgbox.
+        Maneja ValueError mostrando mensaje de error.
+        '''
         try:
             threshold = max(1, min(10, int(self._umbral_var.get())))
             interval = max(30, min(300, int(self._interval_var.get())))
@@ -190,22 +263,46 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
             custom_msgbox(self, "Valores inválidos. Usa enteros (Umbral:1-10, Intervalo:30-300)")
 
     def _debounced_search(self):
+        '''Implementa búsqueda en tiempo real con debounce para nombres de servicios.
+
+        Cancela búsqueda previa y agenda _update_now tras 400ms sin teclas,
+        optimizando rendimiento durante tipificación.
+        '''
         if hasattr(self, '_search_id'):
             self.after_cancel(self._search_id)
         self._search_id = self.after(400, self._update_now)
 
     def _on_filter(self):
+        '''Responde a cambio de filtro de servicios (críticos/todos).
+
+        Pausa actualizaciones por 1.5s para evitar flicker durante transición,
+        llamando _resume_updates.
+        '''
         self._update_paused = True
         self.after(1500, self._resume_updates)
 
     def _resume_updates(self):
+        '''Reanuda el ciclo de actualizaciones periódicas tras pausa temporal.
+
+        Usado después de cambios de filtro para estabilizar UI.
+        '''
         self._update_paused = False
 
     def _force_update(self):
+        '''Fuerza actualización inmediata de datos y UI.
+
+        Despausa updates si estaban detenidos y llama _update_now directamente.
+        Usado por botón Refrescar.
+        '''
         self._update_paused = False
         self._update_now()
 
     def _update(self):
+        '''Loop principal de actualización periódica de la UI.
+
+        Verifica existencia ventana, respeta pausa, llama _update_now,
+        reprograna cada UPDATE_MS*2 (2000ms típicamente).
+        '''
         if not self.winfo_exists():
             return
         if self._update_paused:
@@ -215,6 +312,13 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         self.after(UPDATE_MS * 2, self._update)
 
     def _update_now(self):
+        '''Actualización inmediata y completa de estadísticas y tabla de servicios.
+
+        - Actualiza label stats desde watchdog.get_stats()
+        - Limpia y reconstruye tabla con servicios filtrados (search + filter)
+        - Max 25 filas, alterna colores filas, iconos estado, badges fallos/restarts
+        - Botones por fila: restart (confirm), logs (modal)
+        '''
         stats = self._watchdog.get_stats()
         self._stats_label.configure(text=f"Críticos: {stats['critical_count']} | Restarts hoy: {stats['restarts_today']} | Umbral: {stats['threshold']} | Estado: {'🟢' if stats['running'] else '🔴'}")
 
@@ -253,7 +357,23 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
                          command=lambda n=service['name']: self._show_logs(n)).pack(side="right", padx=2)
 
     def _do_restart(self, name):
+        '''Inicia reinicio seguro de servicio con confirmación del usuario.
+
+        Crea closure action() que llama ServiceMonitor.restart_service,
+        muestra msgbox resultado, refresca UI.
+        Usa confirm_dialog con ícono warning.
+        
+        Args:
+            name (str): Nombre exacto del servicio systemd (ej. 'nginx').
+        '''
         def action():
+            '''Closure local ejecutada post-confirmación de reinicio de servicio.
+
+            - Ejecuta ServiceMonitor.restart_service(name)
+            - Muestra resultado en custom_msgbox 
+            - Refresca UI inmediata con _update_now()
+            '''
+
             success, msg = self._service_monitor.restart_service(name)
             custom_msgbox(self, msg)
             self._update_now()
@@ -265,10 +385,23 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         )
 
     def _show_logs(self, name):
+        '''Muestra logs recientes del servicio en modal.
+
+        Obtiene 30 líneas via ServiceMonitor.get_logs, trunca a 800 chars,
+        fallback "Sin logs" si vacío.
+        
+        Args:
+            name (str): Nombre del servicio.
+        '''
         logs = self._service_monitor.get_logs(name, lines=30)
         custom_msgbox(self, logs[:800] if logs else "Sin logs", title=f"Logs — {name}")
         
     def _add_critical(self):
+        '''Añade servicio ingresado a lista de monitoreo crítico.
+
+        Valida no vacío/no duplicado via ServiceWatchdog.add_critical_service,
+        actualiza label lista, refresca tabla, confirma.
+        '''
         name = self._critical_entry.get().strip()
         if not name:
             return custom_msgbox(self, "Nombre vacío")
@@ -279,11 +412,20 @@ class ServiceWatchdogWindow(ctk.CTkToplevel):
         custom_msgbox(self, f"'{name}' añadido a críticos")
 
     def _save_criticals(self):
+        '''Persiste la lista actual de servicios críticos en watchdog.
+
+        Obtiene servicios desde stats['services'], llama set_critical_services,
+        confirma con msgbox.
+        '''
         services = self._watchdog.get_stats()['services']
         self._watchdog.set_critical_services(services)
         custom_msgbox(self, "Lista críticos guardada")
 
     def _update_critical_label(self):
+        '''Actualiza label textual con lista actual de servicios críticos.
+
+        Formato "Críticos: service1, service2..." o ignora si label None.
+        '''
         if self._critical_list_label:
             self._critical_list_label.configure(text=f"Críticos: {', '.join(self._watchdog._critical_services)}")
 

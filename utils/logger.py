@@ -17,10 +17,26 @@ class _ExactLevelFilter(logging.Filter):
     """Deja pasar únicamente registros cuyo nivel sea exactamente el indicado."""
 
     def __init__(self, level: int):
+        """
+        Inicializa el filtro con el nivel de log exacto especificado.
+
+        Args:
+            level (int): Nivel de logging exacto (e.g., logging.INFO).
+        """
         super().__init__()
         self._level = level
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Filtra registros de log, permitiendo solo aquellos cuyo nivel coincide exactamente
+        con el nivel configurado.
+
+        Args:
+            record (logging.LogRecord): Registro de log a evaluar.
+
+        Returns:
+            bool: True si el nivel coincide, False en caso contrario.
+        """
         return record.levelno == self._level
 
 
@@ -32,6 +48,12 @@ class DashboardLogger:
     _instance = None
 
     def __new__(cls):
+        """
+        Implementa el patrón Singleton para asegurar una única instancia del logger.
+
+        Returns:
+            DashboardLogger: La instancia única del logger.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._setup_logger()
@@ -207,6 +229,15 @@ class DashboardLogger:
         return sorted(result)
 
     def get_logger(self, name: str) -> logging.Logger:
+        """
+        Obtiene un logger con prefijo 'Dashboard.' para el módulo especificado.
+
+        Args:
+            name (str): Nombre del módulo (e.g., 'ui', 'services').
+
+        Returns:
+            logging.Logger: Logger configurado para el módulo.
+        """
         return logging.getLogger(f'Dashboard.{name}')
 
     # ── Persistencia ──────────────────────────────────────────────────────────

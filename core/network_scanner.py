@@ -33,6 +33,9 @@ class NetworkScanner:
     """
 
     def __init__(self):
+        """
+        Inicializa listas dispositivos, status, locks.
+        """
         self._devices: List[Dict]       = []
         self._status                    = "idle"
         self._error                     = ""
@@ -43,10 +46,16 @@ class NetworkScanner:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Activa el scanner.
+        """
         self._running = True
         logger.info("[NetworkScanner] Iniciado")
 
     def stop(self) -> None:
+        """
+        Limpia cache dispositivos/status.
+        """
         self._running = False
         with self._lock:
             self._devices = []
@@ -138,6 +147,10 @@ class NetworkScanner:
             logger.error("[NetworkScanner] Error en escaneo: %s", e)
 
     def _parse_output(self, output: str) -> list:
+        """
+        Parsea stdout de arp-scan: IP/MAC/Vendor → lista Dict ordenada.
+        Filtra headers/stats, resolve hostname por IP.
+        """
         devices = []
         for line in output.splitlines():
             line = line.strip()

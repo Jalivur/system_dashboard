@@ -77,11 +77,17 @@ def exit_application(root, update_loop=None) -> None:
     buttons_frame.pack(side="bottom", fill="x", pady=(5, 10))
 
     def on_confirm():
+        """
+        Maneja confirmación de selección de salida/apagado
+        """
         selected = selection_var.get()
         selection_window.grab_release()
         selection_window.destroy()
         if selected == "exit":
             def do_exit():
+                """
+                Confirma y cierra la aplicación
+                """
                 logger.info("[SystemActions] Cerrando dashboard por solicitud del usuario")
                 # Detener el UpdateLoop antes de destruir — evita after() huérfanos
                 if update_loop is not None:
@@ -95,6 +101,9 @@ def exit_application(root, update_loop=None) -> None:
                 on_confirm=do_exit, on_cancel=None)
         else:
             def do_shutdown():
+                """
+                Confirma y ejecuta apagado del sistema
+                """
                 logger.info("[SystemActions] Iniciando apagado del sistema")
                 terminal_dialog(
                     parent=root,
@@ -108,6 +117,9 @@ def exit_application(root, update_loop=None) -> None:
                 on_confirm=do_shutdown, on_cancel=None)
 
     def on_cancel():
+        """
+        Cancela el diálogo de salida
+        """
         logger.debug("[SystemActions] Dialogo de salida cancelado")
         selection_window.grab_release()
         selection_window.destroy()
@@ -131,6 +143,9 @@ def restart_application(root, update_loop=None) -> None:
         update_loop: instancia de UpdateLoop (se detiene antes de destroy)
     """
     def do_restart():
+        """
+        Reinicia la aplicación via os.execv
+        """
         logger.info("[SystemActions] Reiniciando dashboard")
         # Detener el UpdateLoop antes de destruir — evita after() huérfanos
         if update_loop is not None:

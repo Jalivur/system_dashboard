@@ -134,7 +134,12 @@ class BadgeManager:
         canvas.place(relx=1.0, rely=0.0, anchor="ne", x=x_offset, y=6)
 
     def hide(self, key: str) -> None:
-        """Oculta el badge sin cambiar su valor."""
+        """
+        Oculta el badge sin cambiar su valor.
+
+        Args:
+            key: Clave del badge a ocultar
+        """
         if key not in self._badges:
             return
         canvas = self._badges[key][0]
@@ -146,4 +151,13 @@ class BadgeManager:
         canvas.place_forget()
 
     def __contains__(self, key: str) -> bool:
+        """
+        Verifica si existe badge con la clave dada.
+
+        Args:
+            key: Clave a verificar
+
+        Returns:
+            True si existe el badge
+        """
         return key in self._badges

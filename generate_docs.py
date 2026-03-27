@@ -1,0 +1,459 @@
+#!/usr/bin/env python3
+"""
+generate_docs.py — Generador de documentación Markdown para Dashboard RPi
+Uso: python3 generate_docs.py /ruta/al/proyecto [--out docs/]
+Requiere solo stdlib. No importa el código — parseo estático via ast.
+"""
+
+import ast
+import os
+import sys
+import argparse
+import textwrap
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+
+# ── Configuración ─────────────────────────────────────────────────────────────
+
+LAYERS = [
+    ("core",        "core/"),
+    ("ui_main",     "ui/"),
+    ("ui_windows",  "ui/windows/"),
+    ("config",      "config/"),
+    ("utils",       "utils/"),
+]
+
+# Archivos a excluir del parseo
+EXCLUDE_FILES = {"__pycache__", ".pyc"}
+
+# Carpetas a excluir dentro de ui/ (ui/windows/ se trata por separado)
+UI_MAIN_EXCLUDE_DIRS = {"windows"}
+
+# ── Helpers AST ───────────────────────────────────────────────────────────────
+
+def get_docstring(node: ast.AST) -> str:
+    """Extrae el docstring de un nodo AST o devuelve cadena vacía."""
+    return ast.get_docstring(node) or ""
+
+
+def format_arg(arg: ast.arg, defaults_map: dict) -> str:
+    """Formatea un argumento con su anotación y valor por defecto si existe."""
+    parts = [arg.arg]
+    if arg.annotation:
+        parts.append(f": {ast.unparse(arg.annotation)}")
+    if arg.arg in defaults_map:
+        parts.append(f" = {defaults_map[arg.arg]}")
+    return "".join(parts)
+
+
+def get_function_signature(node: ast.FunctionDef) -> str:
+    """Construye la firma completa de una función/método."""
+    args = node.args
+    all_args = []
+
+    # Calcular mapa de defaults para args posicionales
+    n_args = len(args.args)
+    n_defaults = len(args.defaults)
+    defaults_map = {}
+    for i, default in enumerate(args.defaults):
+        arg_index = n_args - n_defaults + i
+        try:
+            defaults_map[args.args[arg_index].arg] = ast.unparse(default)
+        except Exception:
+            pass
+
+    # args posicionales
+    for arg in args.args:
+        all_args.append(format_arg(arg, defaults_map))
+
+    # *args
+    if args.vararg:
+        all_args.append(f"*{args.vararg.arg}")
+
+    # keyword-only args
+    kw_defaults = {}
+    for i, kw_arg in enumerate(args.kwonlyargs):
+        if i < len(args.kw_defaults) and args.kw_defaults[i] is not None:
+            try:
+                kw_defaults[kw_arg.arg] = ast.unparse(args.kw_defaults[i])
+            except Exception:
+                pass
+    for kw_arg in args.kwonlyargs:
+        all_args.append(format_arg(kw_arg, kw_defaults))
+
+    # **kwargs
+    if args.kwarg:
+        all_args.append(f"**{args.kwarg.arg}")
+
+    # return annotation
+    return_ann = ""
+    if node.returns:
+        try:
+            return_ann = f" -> {ast.unparse(node.returns)}"
+        except Exception:
+            pass
+
+    return f"({', '.join(all_args)}){return_ann}"
+
+
+def get_class_attributes(node: ast.ClassDef) -> list[tuple[str, str]]:
+    """
+    Extrae atributos definidos en __init__ via self.xxx = ...
+    Devuelve lista de (nombre, valor_repr).
+    """
+    attrs = []
+    seen = set()
+    for item in ast.walk(node):
+        if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+            for stmt in ast.walk(item):
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and len(stmt.targets) == 1
+                    and isinstance(stmt.targets[0], ast.Attribute)
+                    and isinstance(stmt.targets[0].value, ast.Name)
+                    and stmt.targets[0].value.id == "self"
+                ):
+                    attr_name = stmt.targets[0].attr
+                    if attr_name not in seen:
+                        seen.add(attr_name)
+                        try:
+                            val = ast.unparse(stmt.value)
+                        except Exception:
+                            val = "..."
+                        attrs.append((attr_name, val))
+    return attrs
+
+
+def is_private(name: str) -> bool:
+    return name.startswith("_")
+
+
+# ── Renderizado Markdown ───────────────────────────────────────────────────────
+
+def render_docstring(doc: str, indent: str = "") -> str:
+    if not doc:
+        return ""
+    lines = textwrap.dedent(doc).strip().splitlines()
+    return "\n".join(f"{indent}{line}" for line in lines) + "\n"
+
+
+def render_function(node: ast.FunctionDef, level: int = 3, is_method: bool = False) -> str:
+    sig = get_function_signature(node)
+    prefix = "#" * level
+    kind = "método" if is_method else "función"
+    doc = get_docstring(node)
+
+    lines = []
+    lines.append(f"{prefix} `{node.name}{sig}`\n")
+    if doc:
+        lines.append(render_docstring(doc))
+    return "\n".join(lines)
+
+
+def render_class(node: ast.ClassDef) -> str:
+    lines = []
+    doc = get_docstring(node)
+
+    # Herencia
+    bases = []
+    for base in node.bases:
+        try:
+            bases.append(ast.unparse(base))
+        except Exception:
+            pass
+    base_str = f"({', '.join(bases)})" if bases else ""
+
+    lines.append(f"## Clase `{node.name}{base_str}`\n")
+    if doc:
+        lines.append(render_docstring(doc))
+
+    # Atributos de instancia
+    attrs = get_class_attributes(node)
+    public_attrs = [(n, v) for n, v in attrs if not is_private(n)]
+    private_attrs = [(n, v) for n, v in attrs if is_private(n)]
+
+    if public_attrs:
+        lines.append("### Atributos públicos\n")
+        lines.append("| Atributo | Valor inicial |")
+        lines.append("|----------|---------------|")
+        for name, val in public_attrs:
+            val_escaped = val.replace("|", "\\|")
+            lines.append(f"| `{name}` | `{val_escaped}` |")
+        lines.append("")
+
+    if private_attrs:
+        lines.append("### Atributos privados\n")
+        lines.append("| Atributo | Valor inicial |")
+        lines.append("|----------|---------------|")
+        for name, val in private_attrs:
+            val_escaped = val.replace("|", "\\|")
+            lines.append(f"| `{name}` | `{val_escaped}` |")
+        lines.append("")
+
+    # Métodos
+    methods = [
+        item for item in node.body
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    public_methods = [m for m in methods if not is_private(m.name)]
+    private_methods = [m for m in methods if is_private(m.name)]
+
+    if public_methods:
+        lines.append("### Métodos públicos\n")
+        for method in public_methods:
+            lines.append(render_function(method, level=4, is_method=True))
+
+    if private_methods:
+        lines.append("<details>\n<summary>Métodos privados</summary>\n")
+        for method in private_methods:
+            lines.append(render_function(method, level=4, is_method=True))
+        lines.append("</details>\n")
+
+    return "\n".join(lines)
+
+
+def render_module(source: str, module_name: str, rel_path: str) -> str:
+    """Parsea el source de un módulo y genera su Markdown completo."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as e:
+        return f"# {module_name}\n\n> ⚠️ Error de sintaxis: {e}\n"
+
+    lines = []
+    lines.append(f"# `{module_name}`\n")
+    lines.append(f"> **Ruta**: `{rel_path}`\n")
+
+    # Docstring de módulo
+    mod_doc = get_docstring(tree)
+    if mod_doc:
+        lines.append(render_docstring(mod_doc))
+
+    # Imports principales (solo los 10 primeros, como referencia)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            try:
+                imports.append(ast.unparse(node))
+            except Exception:
+                pass
+    if imports:
+        lines.append("## Imports\n")
+        lines.append("```python")
+        for imp in imports[:15]:
+            lines.append(imp)
+        if len(imports) > 15:
+            lines.append(f"# ... y {len(imports) - 15} más")
+        lines.append("```\n")
+
+    # Constantes de módulo (asignaciones de primer nivel no privadas)
+    constants = []
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and not is_private(target.id):
+                    try:
+                        val = ast.unparse(node.value)
+                        constants.append((target.id, val))
+                    except Exception:
+                        pass
+        elif isinstance(node, ast.AnnAssign):
+            if isinstance(node.target, ast.Name) and not is_private(node.target.id):
+                try:
+                    val = ast.unparse(node.value) if node.value else "..."
+                    ann = ast.unparse(node.annotation)
+                    constants.append((f"{node.target.id}: {ann}", val))
+                except Exception:
+                    pass
+
+    if constants:
+        lines.append("## Constantes / Variables de módulo\n")
+        lines.append("| Nombre | Valor |")
+        lines.append("|--------|-------|")
+        for name, val in constants[:30]:
+            val_short = val[:80] + "..." if len(val) > 80 else val
+            val_escaped = val_short.replace("|", "\\|")
+            lines.append(f"| `{name}` | `{val_escaped}` |")
+        lines.append("")
+
+    # Funciones de módulo (primer nivel)
+    mod_functions = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    if mod_functions:
+        public_fns = [f for f in mod_functions if not is_private(f.name)]
+        private_fns = [f for f in mod_functions if is_private(f.name)]
+
+        if public_fns:
+            lines.append("## Funciones\n")
+            for fn in public_fns:
+                lines.append(render_function(fn, level=3, is_method=False))
+
+        if private_fns:
+            lines.append("<details>\n<summary>Funciones privadas</summary>\n")
+            for fn in private_fns:
+                lines.append(render_function(fn, level=3, is_method=False))
+            lines.append("</details>\n")
+
+    # Clases
+    classes = [node for node in tree.body if isinstance(node, ast.ClassDef)]
+    for cls in classes:
+        lines.append(render_class(cls))
+
+    return "\n".join(lines)
+
+
+# ── Recolección de archivos ────────────────────────────────────────────────────
+
+def collect_py_files(root: Path, subdir: str, exclude_dirs: set = None) -> list[Path]:
+    """Recolecta todos los .py de un subdirectorio, excluyendo __init__ si está vacío."""
+    target = root / subdir
+    if not target.exists():
+        return []
+
+    files = []
+    exclude_dirs = exclude_dirs or set()
+
+    for py_file in sorted(target.rglob("*.py")):
+        # Excluir subdirectorios explícitos
+        parts = py_file.relative_to(target).parts
+        if any(part in exclude_dirs for part in parts[:-1]):
+            continue
+        # Excluir __pycache__
+        if "__pycache__" in py_file.parts:
+            continue
+        files.append(py_file)
+
+    return files
+
+
+# ── Generación de docs ─────────────────────────────────────────────────────────
+
+def module_name_from_path(root: Path, py_file: Path) -> str:
+    rel = py_file.relative_to(root)
+    parts = list(rel.with_suffix("").parts)
+    return ".".join(parts)
+
+
+def layer_display_name(layer_key: str) -> str:
+    names = {
+        "core":       "Core — Servicios y monitores",
+        "ui_main":    "UI — Módulos principales",
+        "ui_windows": "UI — Ventanas",
+        "config":     "Config",
+        "utils":      "Utils",
+    }
+    return names.get(layer_key, layer_key)
+
+
+def generate(project_root: Path, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    index_lines = []
+    index_lines.append("# Dashboard RPi — Documentación de código\n")
+    index_lines.append(f"> Generado automáticamente el {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+    index_lines.append("> Script: `generate_docs.py` · Parseo estático via `ast` — sin ejecución del código\n")
+    index_lines.append("\n---\n")
+
+    total_files = 0
+    total_classes = 0
+    total_functions = 0
+    total_methods = 0
+
+    for layer_key, layer_subdir in LAYERS:
+        exclude_dirs = UI_MAIN_EXCLUDE_DIRS if layer_key == "ui_main" else None
+        py_files = collect_py_files(project_root, layer_subdir, exclude_dirs)
+
+        if not py_files:
+            continue
+
+        layer_name = layer_display_name(layer_key)
+        layer_out_dir = out_dir / layer_key
+        layer_out_dir.mkdir(exist_ok=True)
+
+        index_lines.append(f"## {layer_name}\n")
+        index_lines.append("| Módulo | Clases | Métodos | Funciones |")
+        index_lines.append("|--------|--------|---------|-----------|")
+
+        for py_file in py_files:
+            source = py_file.read_text(encoding="utf-8", errors="replace")
+            mod_name = module_name_from_path(project_root, py_file)
+            rel_path = str(py_file.relative_to(project_root))
+
+            # Parsear para stats del índice
+            try:
+                tree = ast.parse(source)
+                n_classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef)
+                                and any(isinstance(p, ast.Module) for p in [tree]))
+                # Conteo de clases directas en módulo (no anidadas)
+                n_classes = len([n for n in tree.body if isinstance(n, ast.ClassDef)])
+                n_functions = len([n for n in tree.body
+                                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))])
+                n_methods = sum(
+                    len([m for m in cls.body if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))])
+                    for cls in tree.body if isinstance(cls, ast.ClassDef)
+                )
+                total_classes += n_classes
+                total_functions += n_functions
+                total_methods += n_methods
+            except SyntaxError:
+                n_classes = n_functions = n_methods = 0
+
+            # Nombre del archivo de salida
+            safe_name = mod_name.replace(".", "_")
+            out_file = layer_out_dir / f"{safe_name}.md"
+
+            md_content = render_module(source, mod_name, rel_path)
+            out_file.write_text(md_content, encoding="utf-8")
+            total_files += 1
+
+            # Link relativo en el índice
+            rel_link = f"{layer_key}/{safe_name}.md"
+            index_lines.append(f"| [`{mod_name}`]({rel_link}) | {n_classes} | {n_methods} | {n_functions} |")
+
+        index_lines.append("")
+
+    # Resumen en el índice
+    index_lines.insert(3, f"> **{total_files} módulos** · **{total_classes} clases** · **{total_methods} métodos** · **{total_functions} funciones**\n")
+
+    (out_dir / "INDEX.md").write_text("\n".join(index_lines), encoding="utf-8")
+
+    print(f"\n✅ Documentación generada en: {out_dir.resolve()}")
+    print(f"   {total_files} módulos · {total_classes} clases · {total_methods} métodos · {total_functions} funciones")
+    print(f"   Índice: {out_dir / 'INDEX.md'}")
+
+
+# ── Entry point ────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Genera documentación Markdown desde docstrings via AST."
+    )
+    parser.add_argument(
+        "project_root",
+        help="Ruta raíz del proyecto Dashboard RPi"
+    )
+    parser.add_argument(
+        "--out",
+        default="docs",
+        help="Directorio de salida (default: docs/)"
+    )
+    args = parser.parse_args()
+
+    project_root = Path(args.project_root).resolve()
+    if not project_root.exists():
+        print(f"❌ No existe: {project_root}", file=sys.stderr)
+        sys.exit(1)
+
+    out_dir = Path(args.out)
+    if not out_dir.is_absolute():
+        out_dir = project_root / out_dir
+
+    print(f"📂 Proyecto: {project_root}")
+    print(f"📄 Salida:   {out_dir}")
+    generate(project_root, out_dir)
+
+
+if __name__ == "__main__":
+    main()

@@ -89,9 +89,29 @@ def _parse_last(raw: str) -> list:
 
 
 class SSHMonitor:
-    """Servicio de monitoreo de sesiones SSH."""
+    """
+    Servicio profesional de monitoreo de sesiones SSH activas e historial.
+
+    Características:
+    * Polling cada 30s de `who` (sesiones actuales) y `last -n 50` (historial reciente).
+    * Parsing robusto de formatos variable con extracción de user/tty/IP/tiempos.
+    * Thread daemon con lock para acceso concurrente seguro (thread-safe).
+    * Métodos start/stop/is_running para ciclo de vida.
+    * Getters optimizados: bloqueante y no-bloqueante (get_stats).
+    * Logging apropiado para debug/error.
+
+    Datos retornados:
+    - sessions: list[dict{"user", "tty", "date", "time", "ip"}]
+    - history: list[dict{"user", "tty", "ip", "time_info"}]
+    """
 
     def __init__(self):
+        """
+        Inicializa el monitor SSH.
+
+        Configura flags de estado, event stop, lock threading y estructuras de datos vacías.
+        No inicia polling automáticamente — llamar start().
+        """
         self._running  = False
         self._stop_evt = threading.Event()
         self._lock     = threading.Lock()
@@ -104,6 +124,12 @@ class SSHMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self):
+        """
+        Inicia el servicio de monitoreo en background (thread daemon).
+
+        Primera poll inmediata, luego cada _POLL_INTERVAL segs.
+        Idempotente: si ya corriendo, no hace nada.
+        """
         if self._running:
             return
         self._running = True
@@ -115,6 +141,12 @@ class SSHMonitor:
         logger.info("[SSHMonitor] Servicio iniciado")
 
     def stop(self):
+        """
+        Detiene el servicio limpiamente.
+
+        Setea evento stop, join thread (timeout 6s), limpia datos internos.
+        Logging de detención.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -132,11 +164,24 @@ class SSHMonitor:
     # ── Loop interno ──────────────────────────────────────────────────────────
 
     def _loop(self):
+        """
+        Bucle principal del thread de monitoreo (privado).
+
+        Poll inicial inmediato + wait(POLL_INTERVAL) entre iteraciones.
+        Sale al detectar _stop_evt.
+        """
         self._poll()   # primera lectura inmediata
         while not self._stop_evt.wait(_POLL_INTERVAL):
             self._poll()
 
     def _poll(self):
+        """
+        Realiza un ciclo de polling completo (privado).
+
+        Ejecuta who/last, parsea, actualiza datos protegidos por lock.
+        Timestamp de última actualización.
+        Manejo de excepciones con log error.
+        """
         try:
             who_raw  = _run(["who"])
             last_raw = _run(["last", "-n", str(_HISTORY_LINES), "--time-format", "iso"])
@@ -160,19 +205,42 @@ class SSHMonitor:
     # ── Acceso a datos ────────────────────────────────────────────────────────
 
     def get_sessions(self) -> list:
+        """
+        Retorna lista de sesiones SSH activas actuales (copia).
+
+        Returns:
+            list[dict]: [{"user": str, "tty": str, "date": str, "time": str, "ip": str}, ...]
+        """
         with self._lock:
             return list(self._sessions)
 
     def get_history(self) -> list:
+        """
+        Retorna historial reciente de logins (últimas 50 entradas, copia).
+
+        Returns:
+            list[dict]: [{"user": str, "tty": str, "ip": str, "time_info": str}, ...]
+        """
         with self._lock:
             return list(self._history)
 
     def get_last_update(self) -> str:
+        """
+        Retorna timestamp de última actualización (HH:MM:SS, copia).
+
+        Returns:
+            str: Formato "%H:%M:%S" o vacío si no actualizado.
+        """
         with self._lock:
             return self._last_update
 
     def get_stats(self) -> dict:
-        """Lectura no bloqueante — si el lock está cogido devuelve snapshot vacío."""
+        """
+        Lectura no bloqueante de snapshot completo — si lock ocupado devuelve datos vacíos.
+
+        Returns:
+            dict: {"sessions": list, "history": list, "last_update": str}
+        """
         acquired = self._lock.acquire(blocking=False)
         if not acquired:
             return {"sessions": [], "history": [], "last_update": ""}
@@ -184,3 +252,5 @@ class SSHMonitor:
             }
         finally:
             self._lock.release()
+
+

@@ -30,6 +30,8 @@ class WeatherWindow(ctk.CTkToplevel):
     """Ventana de datos meteorológicos con favoritos."""
 
     def __init__(self, parent, weather_service):
+        """Inicializa la ventana de clima: configura geometría, variables de estado y construye UI completa."""
+        
         super().__init__(parent)
         self._svc = weather_service
 
@@ -58,6 +60,8 @@ class WeatherWindow(ctk.CTkToplevel):
     # ── Cierre limpio ─────────────────────────────────────────────────────────
 
     def destroy(self):
+        """Limpia temporizadores y recursos al cerrar la ventana de manera segura."""
+        
         if self._after_id is not None:
             try:
                 self.after_cancel(self._after_id)
@@ -68,6 +72,8 @@ class WeatherWindow(ctk.CTkToplevel):
     # ── Construcción de la UI ─────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Construye toda la interfaz de usuario: header, búsqueda, favoritos, datos actuales y área de previsión."""
+        
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -376,14 +382,16 @@ class WeatherWindow(ctk.CTkToplevel):
         self._forecast_cells = []
 
     def _on_forecast_inner_configure(self, event) -> None:
-        """Ajusta el canvas de previsión a la altura real del contenido."""
+        """Ajusta automáticamente el canvas de previsión a la altura real del contenido interno."""
+        
         self._forecast_canvas.configure(
             scrollregion=self._forecast_canvas.bbox("all"),
             height=event.height,
         )
 
     def _on_detail_configure(self, event) -> None:
-        """Ajusta el canvas de detalles a la altura real del contenido."""
+        """Ajusta automáticamente el canvas de detalles meteorológicos a la altura real del contenido."""
+        
         self._detail_canvas.configure(
             scrollregion=self._detail_canvas.bbox("all"),
             height=event.height,
@@ -453,7 +461,8 @@ class WeatherWindow(ctk.CTkToplevel):
         return f"#{r:02x}{g:02x}{b:02x}"
 
     def _redraw_day_progress(self) -> None:
-        """Dibuja la barra de progreso sunrise→sunset en el canvas."""
+        """Dibuja la barra de progreso del día (desde salida hasta puesta de sol) con marcador actual y etiquetas."""
+        
         c = self._day_progress_canvas
         if not self.winfo_exists():
             return
@@ -522,6 +531,8 @@ class WeatherWindow(ctk.CTkToplevel):
                       font=(FONT_FAMILY, 9))
 
     def _make_detail(self, parent, emoji, label, value):
+        """Crea un widget compacto de detalle meteorológico (icono + etiqueta + valor destacado)."""
+        
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'], corner_radius=6)
         cell.pack(side="left", padx=6, pady=4, ipadx=10, ipady=6)
         ctk.CTkLabel(
@@ -540,6 +551,8 @@ class WeatherWindow(ctk.CTkToplevel):
     # ── Actualización de datos ────────────────────────────────────────────────
 
     def _update(self):
+        """Actualiza toda la interfaz con datos frescos del servicio: condiciones actuales, detalles y previsión."""
+        
         if not self.winfo_exists():
             return
         stats = self._svc.get_stats()
@@ -621,6 +634,8 @@ class WeatherWindow(ctk.CTkToplevel):
             self._update_forecast_daily(stats.get("forecast_daily", []))
 
     def _update_forecast(self, forecast, max_items: int = 12):
+        """Renderiza las celdas de previsión por horas en el área de scroll horizontal (máx. 12 items)."""
+        
         for w in self._forecast_inner.winfo_children():
             w.destroy()
         self._forecast_cells = []
@@ -663,7 +678,8 @@ class WeatherWindow(ctk.CTkToplevel):
     # ── Selector de vista ────────────────────────────────────────────────────
 
     def _set_view_mode(self, mode: str) -> None:
-        """Cambia entre vista de horas y vista de días."""
+        """Cambia el modo de vista de previsión entre 'hours' (12h) y 'days' (14 días), actualizando contenido."""
+        
         self._view_mode.set(mode)
         stats = self._svc.get_stats()
         if not stats:
@@ -676,6 +692,8 @@ class WeatherWindow(ctk.CTkToplevel):
     # ── Callbacks — búsqueda ──────────────────────────────────────────────────
 
     def _on_search(self):
+        """Callback del botón/Enter de búsqueda: valida ciudad, inicia thread asíncrono y actualiza UI."""
+        
         city = self._city_var.get().strip()
         if not city:
             return
@@ -684,12 +702,16 @@ class WeatherWindow(ctk.CTkToplevel):
             text=f"Buscando '{city}'...", text_color=COLORS['text_dim'])
 
         def _do():
+            """Función auxiliar interna para ejecutar set_city en hilo separado."""
+            
             result = self._svc.set_city(city)
             self.after(0, lambda: self._on_search_done(result))
 
         threading.Thread(target=_do, daemon=True, name="WeatherSearch").start()
 
     def _on_search_done(self, result):
+        """Callback post-búsqueda desde thread: re-activa UI, maneja éxito/error y refresca datos."""
+        
         if not self.winfo_exists():
             return
         self._search_btn.configure(state="normal")
@@ -702,6 +724,8 @@ class WeatherWindow(ctk.CTkToplevel):
                 text=result["error"], text_color=COLORS['danger'])
 
     def _on_refresh(self):
+        """Inicia actualización asíncrona de datos meteorológicos actuales, deshabilitando botón durante proceso."""
+        
         if not self._svc.get_city():
             return
         self._refresh_btn.configure(state="disabled")
@@ -709,6 +733,8 @@ class WeatherWindow(ctk.CTkToplevel):
 
         
         def _do():
+            """Función auxiliar interna para fetch_now en hilo separado con delay post-fetch."""
+            
             self._svc.fetch_now()
             time.sleep(2)
             if self.winfo_exists():
@@ -717,6 +743,8 @@ class WeatherWindow(ctk.CTkToplevel):
         threading.Thread(target=_do, daemon=True, name="WeatherRefresh").start()
 
     def _on_refresh_done(self):
+        """Finaliza refresh: re-habilita botón, limpia mensajes y actualiza toda la UI."""
+        
         if not self.winfo_exists():
             return
         self._refresh_btn.configure(state="normal")
@@ -724,7 +752,8 @@ class WeatherWindow(ctk.CTkToplevel):
         self._update()
 
     def _update_forecast_daily(self, forecast: list) -> None:
-        """Recrea las celdas de previsión diaria (14 días)."""
+        """Renderiza previsión extendida de 14 días con celdas clickeables para drill-down a horas específicas."""
+        
         for w in self._forecast_inner.winfo_children():
             w.destroy()
         self._forecast_cells = []
@@ -814,13 +843,15 @@ class WeatherWindow(ctk.CTkToplevel):
 
     @staticmethod
     def _iter_all_children(widget):
-        """Itera recursivamente todos los widgets hijos."""
+        """Generador recursivo que itera todos los widgets hijos para binding de eventos drill-down."""
+        
         for child in widget.winfo_children():
             yield child
             yield from WeatherWindow._iter_all_children(child)
 
     def _drilldown_day(self, date_key: str, label: str) -> None:
-        """Muestra las horas del día date_key en el área de previsión."""
+        """Activa modo drill-down: muestra previsión horaria específica del día seleccionado, ocultando selectores."""
+        
         stats = self._svc.get_stats()
         if not stats:
             return
@@ -840,7 +871,8 @@ class WeatherWindow(ctk.CTkToplevel):
         self._update_forecast(hours, max_items=24)
 
     def _drilldown_back(self) -> None:
-        """Vuelve a la vista de 14 días."""
+        """Regresa del drill-down de horas a la vista general de 14 días."""
+        
         self._drilldown_active = False
 
         self._btn_back.pack_forget()
@@ -853,6 +885,8 @@ class WeatherWindow(ctk.CTkToplevel):
     # ── Callbacks — favoritos ─────────────────────────────────────────────────
 
     def _on_save_favorite(self):
+        """Guarda la ciudad actualmente activa en la lista de favoritos del servicio."""
+        
         city = self._svc.get_city()
         if not city:
             self._set_fav_status("No hay ciudad activa", ok=False)
@@ -865,6 +899,8 @@ class WeatherWindow(ctk.CTkToplevel):
             self._set_fav_status(result["error"], ok=False)
 
     def _on_delete_favorite(self):
+        """Elimina el favorito seleccionado del dropdown de la lista del servicio y refresca UI."""
+        
         city = self._fav_var.get()
         if not city or city == "(ninguno)":
             self._set_fav_status("Selecciona un favorito primero", ok=False)
@@ -874,12 +910,16 @@ class WeatherWindow(ctk.CTkToplevel):
         self._refresh_favorites_dropdown()
 
     def _on_favorite_selected(self, city):
+        """Carga automáticamente la ciudad seleccionada desde favoritos y ejecuta búsqueda."""
+        
         if not city or city == "(ninguno)":
             return
         self._city_var.set(city)
         self._on_search()
 
     def _on_max_changed(self):
+        """Valida y persiste el nuevo máximo de favoritos desde el campo de entrada."""
+        
         try:
             n = int(self._max_fav_var.get())
             if n < 1:
@@ -893,6 +933,8 @@ class WeatherWindow(ctk.CTkToplevel):
         self._refresh_favorites_dropdown()
 
     def _refresh_favorites_dropdown(self):
+        """Recarga dinámicamente la lista de favoritos en el OptionMenu desde el servicio."""
+        
         if not self.winfo_exists():
             return
         favs = self._svc.get_favorites()
@@ -902,6 +944,8 @@ class WeatherWindow(ctk.CTkToplevel):
             self._fav_var.set(values[0])
 
     def _set_fav_status(self, msg, ok=True):
+        """Muestra mensaje de estado temporal (3s) en la UI de favoritos con color según éxito/error."""
+        
         if not self.winfo_exists():
             return
         color = COLORS.get('success', '#44cc88') if ok else COLORS['danger']
@@ -913,6 +957,8 @@ class WeatherWindow(ctk.CTkToplevel):
 
     @staticmethod
     def _wind_dir_arrow(degrees):
+        """Convierte la dirección del viento en grados a símbolo de flecha unicode (8 direcciones)."""
+        
         if degrees == "--" or degrees is None:
             return ""
         try:

@@ -69,6 +69,11 @@ class HomebridgeMonitor:
     """
 
     def __init__(self):
+        """
+        Constructor. Inicializa locks, caches, chequea .env vars.
+
+        Carga HOMEBRIDGE_HOST/PORT/USER/PASS desde .env (manual fallback).
+        """
         self._token: Optional[str]      = None
         self._token_lock                = threading.Lock()
         self._accessories: List[Dict]   = []
@@ -91,6 +96,7 @@ class HomebridgeMonitor:
                 "[HomebridgeMonitor] Inicializado — %s:%s (usuario: %s)",
                 HOMEBRIDGE_HOST, HOMEBRIDGE_PORT, HOMEBRIDGE_USER,
             )
+
 
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
@@ -387,7 +393,16 @@ class HomebridgeMonitor:
             return sum(1 for a in self._accessories if a.get("fault", False))
         
     def set_brightness(self, unique_id: str, brightness: int) -> bool:
-        """Establece el brillo de una luz (0–100)."""
+        """
+        Establece el brillo de una luz Homebridge (0-100%).
+
+        Args:
+            unique_id (str): ID único del accesorio.
+            brightness (int): Brillo 0-100, clamped.
+
+        Returns:
+            bool: True si comando enviado OK.
+        """
         # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
         if not self._running:
             logger.warning("[HomebridgeMonitor] set_brightness() ignorado — servicio parado")

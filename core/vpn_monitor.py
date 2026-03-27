@@ -21,11 +21,25 @@ CHECK_INTERVAL = 10
 
 class VpnMonitor:
     """
-    Servicio background que monitoriza el estado de la VPN.
-    Lee las interfaces de red para determinar si VPN está activa.
+    Servicio background profesional que monitoriza el estado de la VPN.
+
+    Características:
+    * Sondeo cada 10s de estado de interfaz tun0/wg0 via 'ip addr' o fallback 'ifconfig'.
+    * Extracción automática de IP IPv4 asignada si interfaz UP.
+    * Thread daemon con lock para acceso thread-safe.
+    * API pública: get_status(), is_connected(), get_offline_count() para UI badge.
+    * force_poll() para comprobación inmediata.
     """
 
     def __init__(self, interface: str = VPN_INTERFACE):
+        """
+        Inicializa el monitor VPN.
+
+        Args:
+            interface (str): Nombre de interfaz VPN (default "tun0").
+
+        Configura lock, estado inicial desconectado, event stop.
+        """
         self._interface = interface
         self._lock      = threading.Lock()
         self._running   = False
@@ -40,6 +54,11 @@ class VpnMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Inicia el sondeo background (thread daemon).
+
+        Idempotente, log con intervalo e interfaz.
+        """
         if self._running:
             return
         self._running = True
@@ -52,6 +71,11 @@ class VpnMonitor:
                     CHECK_INTERVAL, self._interface)
 
     def stop(self) -> None:
+        """
+        Detiene el servicio limpiamente.
+
+        Join timeout 5s, resetea caché. Log de detención.
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -68,6 +92,11 @@ class VpnMonitor:
     # ── Bucle de sondeo ───────────────────────────────────────────────────────
 
     def _loop(self) -> None:
+        """
+        Bucle principal del thread de sondeo (privado).
+
+        Llama _poll() + wait(CHECK_INTERVAL), maneja exceptions.
+        """
         while self._running:
             try:
                 self._poll()
@@ -78,7 +107,11 @@ class VpnMonitor:
                 break
 
     def _poll(self) -> None:
-        """Lee el estado de la interfaz VPN."""
+        """
+        Actualiza estado de VPN (privado).
+
+        Llama _check_interface(), actualiza caché protegida por lock.
+        """
         connected, ip = self._check_interface(self._interface)
         with self._lock:
             self._connected = connected
@@ -114,7 +147,12 @@ class VpnMonitor:
             return False, ""
 
     def _check_interface_ifconfig(self, iface: str):
-        """Fallback usando ifconfig si 'ip' no está disponible."""
+        """
+        Fallback usando ifconfig si 'ip' no está disponible (privado).
+        
+        Returns:
+            tuple[bool, str]: (connected, ip)
+        """
         try:
             result = subprocess.run(
                 ["ifconfig", iface],
@@ -136,7 +174,12 @@ class VpnMonitor:
     # ── API pública ───────────────────────────────────────────────────────────
 
     def get_status(self) -> dict:
-        """Devuelve el estado actual de la VPN desde caché."""
+        """
+        Devuelve el estado actual de la VPN desde caché (thread-safe).
+
+        Returns:
+            dict: {"connected": bool, "ip": str, "interface": str}
+        """
         if not self._running:
             return {'connected': False, 'interface': '', 'ip': ''}
         with self._lock:
@@ -147,17 +190,32 @@ class VpnMonitor:
             }
 
     def is_connected(self) -> bool:
-        """True si la VPN está activa."""
+        """
+        Estado rápido de conexión VPN (thread-safe).
+
+        Returns:
+            bool: True si interfaz tiene IP IPv4 asignada.
+        """
         with self._lock:
             return self._connected
 
     def get_offline_count(self) -> int:
-        """Devuelve 1 si VPN está desconectada (para badge en menú), 0 si conectada."""
+        """
+        Para badge UI: 1 si desconectada, 0 si conectada (thread-safe).
+
+        Returns:
+            int: 1 (offline) o 0 (online).
+        """
         with self._lock:
             return 0 if self._connected else 1
 
     def force_poll(self) -> None:
-        """Fuerza una comprobación inmediata (útil tras conectar/desconectar)."""
+        """
+        Fuerza comprobación inmediata en thread separado.
+
+        Útil tras eventos connect/disconnect manual.
+        """
         if not self._running:
             return
         threading.Thread(target=self._poll, daemon=True, name="VpnMonitor-ForcePoll").start()
+

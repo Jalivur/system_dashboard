@@ -95,6 +95,9 @@ class UpdateLoop:
     # ── Loop de reloj / uptime ────────────────────────────────────────────────
 
     def _tick_clock(self) -> None:
+        """
+        Actualiza reloj cada segundo y uptime cada minuto
+        """
         if not self._running:
             return
         self._clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
@@ -125,6 +128,9 @@ class UpdateLoop:
         self._badges_after_id = self._root.after(self._update_interval, self._update_badges)
 
     def _update_misc_badges(self) -> None:
+        """
+        Actualiza badges misceláneos: updates, homebridge, pihole, vpn
+        """
         bm = self._badge_mgr
 
         try:
@@ -156,6 +162,9 @@ class UpdateLoop:
             logger.warning("[UpdateLoop] badge 'vpn_offline' error: %s", e)
 
     def _update_service_badge(self) -> None:
+        """
+        Actualiza badge de servicios fallidos desde service_monitor
+        """
         bm = self._badge_mgr
         try:
             stats  = self._monitors["service_monitor"].get_stats()
@@ -186,6 +195,11 @@ class UpdateLoop:
             logger.warning("[UpdateLoop] badge 'weather_rain' error: %s", e)
     
     def _update_watchdog_badge(self) -> None:
+        """
+        Actualiza badge de reinicios del service_watchdog
+
+        Muestra contados de reinicios del día si hay alguno.
+        """
         bm = self._badge_mgr
         try:
             wd = self._monitors.get("service_watchdog")
@@ -198,6 +212,9 @@ class UpdateLoop:
             logger.warning("[UpdateLoop] badge 'service_watchdog_restarts' error: %s", e)
 
     def _update_system_badges(self) -> None:
+        """
+        Actualiza badges de sistema (temp, cpu, ram, disk) desde system_monitor cache
+        """
         bm = self._badge_mgr
         try:
             stats = self._monitors["system_monitor"].get_current_stats()

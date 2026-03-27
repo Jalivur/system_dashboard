@@ -25,6 +25,19 @@ class VpnWindow(ctk.CTkToplevel):
     """Ventana de gestión de VPN."""
 
     def __init__(self, parent, vpn_monitor):
+        """Inicializa la ventana principal de gestión de conexiones VPN.
+
+        Configura la ventana toplevel con dimensiones y posición específicas para DSI,
+        inicializa widgets y comienza el bucle de actualización automática del estado.
+
+        Args:
+            parent: Ventana padre CTkToplevel de la aplicación principal.
+            vpn_monitor: Instancia del monitor de VPN que proporciona el estado en tiempo real.
+
+        Raises:
+            Exception: Si hay errores en la configuración inicial de la UI.
+        """
+
         super().__init__(parent)
         self._vpn_monitor = vpn_monitor
 
@@ -43,12 +56,27 @@ class VpnWindow(ctk.CTkToplevel):
         logger.info("[VpnWindow] Ventana abierta")
 
     def destroy(self):
+        """Destruye la ventana de VPN de forma controlada.
+
+        Registra el cierre en el logger antes de llamar al método padre,
+        asegurando trazabilidad de eventos de UI.
+        """
+
         logger.info("[VpnWindow] Ventana cerrada")
         super().destroy()
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Construye toda la interfaz gráfica de usuario de la ventana VPN.
+
+        Crea frames jerárquicos, tarjeta de estado con indicador visual,
+        botones de acción futuristas, sección de información de interfaz/IP,
+        y nota sobre scripts requeridos. Configura scroll si es necesario.
+
+        Utiliza colores y fuentes del sistema de temas global.
+        """
+
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -189,6 +217,16 @@ class VpnWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _update(self):
+        """Actualiza el estado visual de la ventana cada UPDATE_MS milisegundos.
+
+        Obtiene datos del vpn_monitor (conectado, IP, interfaz), actualiza
+        colores/indicadores/textos en consecuencia. Maneja errores y detiene
+        si monitor no está corriendo o ventana destruida. Programa llamada recursiva.
+
+        Args:
+            Ninguno (usa self._vpn_monitor y self._widgets internamente).
+        """
+
         if not self.winfo_exists():
             return
         
@@ -272,7 +310,13 @@ class VpnWindow(ctk.CTkToplevel):
         )
 
     def _on_action_done(self):
-        """Fuerza sondeo inmediato tras conectar/desconectar."""
+        """Callback ejecutado al finalizar operaciones de conexión/desconexión.
+
+        Fuerza sondeo inmediato del monitor VPN y retrasa actualización UI
+        para permitir estabilización del estado post-script.
+
+        Garantiza sincronización UI-monitor tras ejecución de scripts externos.
+        """
         self._vpn_monitor.force_poll()
         # Pequeño delay para que el sondeo tenga tiempo de completarse
         self.after(2000, self._update)

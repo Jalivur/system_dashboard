@@ -35,11 +35,15 @@ class CleanupService:
     DEFAULT_INTERVAL_HOURS = 24
 
     def __new__(cls, *args, **kwargs):
+        """
+        Implementa patrón singleton thread-safe.
+        """
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
         return cls._instance
+
 
     def __init__(
         self,

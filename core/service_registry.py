@@ -95,6 +95,12 @@ class ServiceRegistry:
     """Registro centralizado de servicios del dashboard."""
 
     def __init__(self, config_path: str = None):
+        """
+        Inicializa el registro de servicios.
+        
+        Args:
+            config_path: Ruta opcional al archivo services.json
+        """
         self._config_path = os.path.abspath(config_path or _CONFIG_PATH)
         self._config = {
             "services": dict(_DEFAULT_CONFIG["services"]),

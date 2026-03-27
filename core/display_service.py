@@ -44,6 +44,12 @@ _STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "display_state.j
 # ── Detección automática ───────────────────────────────────────────────────────
 
 def _find_backlight() -> Optional[Path]:
+    """
+    Busca primera ruta válida en _BACKLIGHT_CANDIDATES.
+    
+    Returns:
+        Path o None.
+    """
     for p in _BACKLIGHT_CANDIDATES:
         if (p / "brightness").exists():
             return p
@@ -79,6 +85,9 @@ class DisplayService:
     """
 
     def __init__(self):
+        """
+        Detecta método (sysfs/wlr-randr/xrandr), carga estado persistido brillo.
+        """
         self._method    = _detect_method()
         self._backlight = _find_backlight() if self._method == 'sysfs' else None
         self._lock      = threading.Lock()
@@ -96,14 +105,20 @@ class DisplayService:
 
         self._load_state()
 
+
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Activa servicio (set _running=True).
+        """
         self._running = True
         logger.info("[DisplayService] Iniciado")
 
     def stop(self) -> None:
-        """Desactiva el servicio y cancela timers de dim."""
+        """
+        Detiene servicio, cancela dim timers.
+        """
         self._running = False
         self._cancel_dim_timer()
         logger.info("[DisplayService] Detenido")
@@ -165,6 +180,9 @@ class DisplayService:
     # ── Backends de control ───────────────────────────────────────────────────
 
     def _set_sysfs(self, pct: int) -> bool:
+        """
+        Backend sysfs: convierte PCT a valor 0-max_brightness.
+        """
         try:
             max_b = int((self._backlight / "max_brightness").read_text().strip())
             value = int(pct / 100 * max_b)
@@ -185,6 +203,9 @@ class DisplayService:
             return False
 
     def _set_wlr(self, pct: int) -> bool:
+        """
+        Backend wlr-randr --output DSI-2 --brightness (PCT→float 0.0-1.0).
+        """
         try:
             value = round(pct / 100, 2)
             r = subprocess.run(
@@ -201,6 +222,9 @@ class DisplayService:
             return False
 
     def _set_xrandr(self, pct: int) -> bool:
+        """
+        Backend xrandr --output DSI-2 --brightness (PCT→float 0.0-1.0).
+        """
         try:
             value = round(pct / 100, 2)
             r = subprocess.run(
@@ -233,7 +257,9 @@ class DisplayService:
         self._start_dim_timer()
 
     def enable_dim_on_idle(self):
-        """Activa el timer de dim. Llamar al arrancar."""
+        """
+        Activa modo dim/off por inactividad. Llamar al iniciar UI.
+        """
         if not self._running:
             return
         self._start_dim_timer()
@@ -241,10 +267,15 @@ class DisplayService:
                     DIM_TIMEOUT_S, OFF_TIMEOUT_S)
 
     def disable_dim_on_idle(self):
-        """Desactiva el timer de dim."""
+        """
+        Desactiva ahorro por inactividad (cancela timers).
+        """
         self._cancel_dim_timer()
 
     def _start_dim_timer(self):
+        """
+        Inicia/reinicia Timer para dim por inactividad (DIM_TIMEOUT_S).
+        """
         self._cancel_dim_timer()
         t = threading.Timer(DIM_TIMEOUT_S, self._on_dim)
         t.daemon = True
@@ -252,12 +283,17 @@ class DisplayService:
         self._dim_timer = t
 
     def _cancel_dim_timer(self):
+        """
+        Cancela timer activo si existe.
+        """
         if self._dim_timer and self._dim_timer.is_alive():
             self._dim_timer.cancel()
         self._dim_timer = None
 
     def _on_dim(self):
-        """Baja el brillo al 20% y programa el apagado completo."""
+        """
+        Callback timer: dim 20%, schedule _on_off (OFF_TIMEOUT_S).
+        """
         if not self._dimmed and self._running:
             logger.debug("[DisplayService] Dim por inactividad")
             with self._lock:
@@ -270,6 +306,9 @@ class DisplayService:
             self._dim_timer = t
 
     def _on_off(self):
+        """
+        Callback timer: screen_off() total blackout.
+        """
         if self._running:
             logger.debug("[DisplayService] Apagado por inactividad")
             self.screen_off()
@@ -277,6 +316,9 @@ class DisplayService:
     # ── Persistencia ──────────────────────────────────────────────────────────
 
     def _save_state(self):
+        """
+        Persiste brillo actual data/display_state.json.
+        """
         try:
             _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
             _STATE_FILE.write_text(json.dumps({"brightness": self._brightness}))
@@ -284,6 +326,9 @@ class DisplayService:
             logger.warning("[DisplayService] No se pudo guardar estado: %s", e)
 
     def _load_state(self):
+        """
+        Carga brillo persistido, restaura si válido (>0).
+        """
         try:
             if _STATE_FILE.exists():
                 data = json.loads(_STATE_FILE.read_text())

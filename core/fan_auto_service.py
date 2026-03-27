@@ -28,13 +28,24 @@ class FanAutoService:
     _lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
+        """
+        Singleton thread-safe para única instancia del servicio.
+        """
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
         return cls._instance
 
+
     def __init__(self, fan_controller: FanController, system_monitor: SystemMonitor):
+        """
+        Inicializa singleton FanAutoService (solo primera vez).
+
+        Args:
+            fan_controller (FanController): Para calcular PWM.
+            system_monitor (SystemMonitor): Para temperatura CPU.
+        """
         if hasattr(self, '_initialized'):
             return
 
@@ -48,9 +59,16 @@ class FanAutoService:
         self._update_interval  = 2.0
         self._initialized      = True
 
+
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self):
+        """
+        Inicia thread daemon para bucle auto-PWM.
+
+        Args:
+            Ninguno (usa self._fan_controller, self._system_monitor).
+        """
         """Inicia el servicio en segundo plano."""
         if self._running:
             logger.info("[FanAutoService] ya está corriendo")
@@ -62,6 +80,7 @@ class FanAutoService:
         )
         self._thread.start()
         logger.info("[FanAutoService] Servicio iniciado")
+
 
     def stop(self):
         """Detiene el servicio."""
@@ -114,13 +133,27 @@ class FanAutoService:
     # ── Info ──────────────────────────────────────────────────────────────────
 
     def set_update_interval(self, seconds: float):
+        """
+        Configura intervalo de polling auto-PWM (mín 1s).
+
+        Args:
+            seconds (float): Segundos entre updates.
+        """
         """Cambia el intervalo de actualización (mínimo 1.0s)."""
         self._update_interval = max(1.0, seconds)
 
 
+
     def get_status(self) -> dict:
+        """
+        Retorna estado para UI (running, interval, thread_alive).
+
+        Returns:
+            dict: Status dict del servicio.
+        """
         return {
             'running':      self._running,
             'interval':     self._update_interval,
             'thread_alive': self._thread.is_alive() if self._thread else False,
         }
+

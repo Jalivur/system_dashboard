@@ -19,6 +19,9 @@ class NetworkMonitor:
     """Monitor de red con gestión de estadísticas y speedtest"""
 
     def __init__(self):
+        """
+        Inicializa historiales, caches speedtest, dynamic scale.
+        """
         self._system_utils = SystemUtils()
         self._running      = True
 
@@ -40,10 +43,16 @@ class NetworkMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        """
+        Activa monitor de red.
+        """
         self._running = True
         logger.info("[NetworkMonitor] Iniciado")
 
     def stop(self) -> None:
+        """
+        Limpia historiales y speedtest cache.
+        """
         self._running = False
         self._download_hist.clear()
         self._upload_hist.clear()
@@ -51,7 +60,12 @@ class NetworkMonitor:
         logger.info("[NetworkMonitor] Detenido")
         
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Estado del monitor.
+
+        Returns:
+            bool: True si activo.
+        """
         return self._running
 
     # ── API pública ───────────────────────────────────────────────────────────
@@ -79,20 +93,25 @@ class NetworkMonitor:
         return {'interface': iface, 'download_mb': dl, 'upload_mb': ul}
 
     def update_history(self, stats: Dict) -> None:
-        """Actualiza historiales de red."""
+        """
+        Append velocidades a deques HISTORY para gráficos.
+
+        Args:
+            stats (Dict): {'download_mb':float, 'upload_mb':float}
+        """
         self._download_hist.append(stats['download_mb'])
         self._upload_hist.append(stats['upload_mb'])
 
     def adaptive_scale(self, current_max: float, recent_data: list) -> float:
         """
-        Ajusta dinámicamente la escala del gráfico.
+        Ajusta escala gráfica auto (zoom basado peaks recientes/idle).
 
         Args:
-            current_max: Máximo actual
-            recent_data: Datos recientes
+            current_max (float): Máximo actual escala.
+            recent_data (list): Datos velocidades MB/s últimos HISTORY.
 
         Returns:
-            Nuevo máximo escalado
+            float: Nueva escala NET_MIN_SCALE..NET_MAX_SCALE.
         """
         if not recent_data:
             return current_max
@@ -117,7 +136,9 @@ class NetworkMonitor:
         return max(NET_MIN_SCALE, min(NET_MAX_SCALE, new_max))
 
     def update_dynamic_scale(self) -> None:
-        """Actualiza la escala dinámica basada en el historial."""
+        """
+        Recalcula _dynamic_max desde historial DL/UL combinado.
+        """
         all_data = list(self._download_hist) + list(self._upload_hist)
         self._dynamic_max = self.adaptive_scale(self._dynamic_max, all_data)
 
@@ -138,6 +159,11 @@ class NetworkMonitor:
             return
 
         def _run():
+            """
+            Worker thread para speedtest CLI.
+
+            Maneja timeout, errores CLI, parse JSON, update self._speedtest_result.
+            """
             logger.info("[NetworkMonitor] Iniciando speedtest...")
             self._speedtest_result["status"] = "running"
             try:

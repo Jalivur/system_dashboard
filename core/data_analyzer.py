@@ -22,7 +22,14 @@ class DataAnalyzer:
     """Analiza datos históricos de la base de datos"""
 
     def __init__(self, db_path: str = f"{DATA_DIR}/history.db"):
+        """
+        Inicializa DataAnalyzer.
+
+        Args:
+            db_path (str): Ruta a la BD de métricas (default DATA_DIR/history.db).
+        """
         self._db_path = db_path
+
 
     # ─────────────────────────────────────────────
     # Métodos basados en horas

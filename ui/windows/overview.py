@@ -23,6 +23,19 @@ class OverviewWindow(ctk.CTkToplevel):
 
     def __init__(self, parent, system_monitor, service_monitor,
                  pihole_monitor, network_monitor, disk_monitor):
+        """Inicializador principal de OverviewWindow.
+
+        Configura ventana DSI sin bordes en posición fija, almacena referencias
+        a 5 monitores, inicializa widgets/running, crea UI y lanza update loop.
+
+        Args:
+            parent: Ventana padre.
+            system_monitor: Monitor sistema (CPU/RAM/temp).
+            service_monitor: Monitor servicios.
+            pihole_monitor: Monitor Pi-hole.
+            network_monitor: Monitor red.
+            disk_monitor: Monitor disco.
+        """
         super().__init__(parent)
         self._system_monitor  = system_monitor
         self._service_monitor = service_monitor
@@ -46,12 +59,22 @@ class OverviewWindow(ctk.CTkToplevel):
         logger.info("[OverviewWindow] Ventana abierta")
 
     def destroy(self):
+        """Destructor seguro: detiene loop _update y llama super().destroy()."""
         self._running = False
         super().destroy()
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
+        """Construye la interfaz completa del dashboard de resumen.
+
+        Estructura:
+        - Frame principal con header draggable.
+        - Canvas con scrollbar para contenido.
+        - Grid 2 columnas x 3 filas para tarjetas (CPU, RAM, Temp, Disco, Red, Servicios).
+        - Fila completa para Pi-hole con 4 sub-métricas.
+        - Registra todos los labels de valores en self._widgets para actualizaciones.
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -156,6 +179,11 @@ class OverviewWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _update(self):
+        """Loop principal de actualización automática de todo el dashboard.
+
+        Llama refresh de cada sección cada 2000ms. Maneja errores silenciosamente
+        registrando en logger. Se auto-programa recursivamente con after().
+        """
         if not self.winfo_exists():
             return
         if not self._running:
@@ -170,7 +198,16 @@ class OverviewWindow(ctk.CTkToplevel):
         self.after(_REFRESH_MS, self._update)
 
     def _color_for(self, value, warn, crit):
-        """Devuelve el color según umbrales."""
+        """Sistema de colores semáforo para métricas basado en umbrales.
+
+        Args:
+            value (float): Valor numérico de la métrica.
+            warn (float): Límite naranja (advertencia).
+            crit (float): Límite rojo (crítico).
+
+        Returns:
+            str: Clave de color ('danger', 'warning' o 'primary') de COLORS.
+        """
         if value >= crit:
             return COLORS['danger']
         elif value >= warn:
@@ -178,6 +215,12 @@ class OverviewWindow(ctk.CTkToplevel):
         return COLORS['primary']
 
     def _refresh_system(self):
+        """Actualiza tarjetas de sistema desde monitores respectivos.
+
+        CPU/RAM/Temp: De SystemMonitor con color por umbrales config.
+        Disco: De DiskMonitor (umbral hardcode 80/90%).
+        Muestra '-- (parado)' si monitor detenido.
+        """
         if self._system_monitor.is_running():
             sys_stats = self._system_monitor.get_current_stats()
             cpu  = sys_stats.get('cpu', 0)
@@ -198,6 +241,10 @@ class OverviewWindow(ctk.CTkToplevel):
             self._widgets['disk'].configure(text="-- (parado)", text_color=COLORS['text_dim'])
 
     def _refresh_services(self):
+        """Actualiza tarjeta servicios: fallidos vs total, con color rojo si hay fallos.
+
+        Formato: 'X caídos' (rojo) o 'N OK' (verde).
+        """
         if not self._service_monitor.is_running():
             self._widgets['services'].configure(text="-- (parado)", text_color=COLORS['text_dim'])
             return
@@ -210,7 +257,11 @@ class OverviewWindow(ctk.CTkToplevel):
         self._widgets['services'].configure(text=text, text_color=color)
 
     def _refresh_net(self):
-        """Refresca la tarjeta de red."""
+        """Actualiza velocidades red ↓MB/s ↑MB/s desde NetworkMonitor.
+
+        Formato: ↓X.X ↑Y.Y (azul primary).
+        Maneja excepciones mostrando '--'.
+        """
         if not self._network_monitor.is_running():
             self._widgets['net'].configure(text="-- (parado)", text_color=COLORS['text_dim'])
             return
@@ -227,6 +278,10 @@ class OverviewWindow(ctk.CTkToplevel):
             self._widgets['net'].configure(text="--")
 
     def _refresh_pihole(self):
+        """Actualiza 4 métricas Pi-hole: bloqueadas hoy, % bloqueo, total queries, estado.
+
+        Formato con separadores miles. Maneja sin datos o errores.
+        """
         if not self._pihole_monitor.is_running():
             for k in ('pihole_blocked', 'pihole_pct', 'pihole_total', 'pihole_status'):
                 self._widgets[k].configure(text="-- (parado)", text_color=COLORS['text_dim'])

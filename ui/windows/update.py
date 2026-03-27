@@ -1,3 +1,9 @@
+"""Módulo para la ventana de control y gestión de actualizaciones del sistema en el dashboard.
+
+Contiene:
+- Clase UpdatesWindow: Interfaz gráfica para monitorear y ejecutar actualizaciones.
+- Integración con monitor de actualizaciones y scripts del sistema.
+"""
 import customtkinter as ctk
 from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, DSI_WIDTH, DSI_HEIGHT, DSI_X, DSI_Y, SCRIPTS_DIR, UPDATE_MS, Icons
 from ui.styles import StyleManager, make_futuristic_button, make_window_header
@@ -12,6 +18,13 @@ class UpdatesWindow(ctk.CTkToplevel):
     """Ventana de control de actualizaciones del sistema"""
 
     def __init__(self, parent, update_monitor):
+        """Inicializa la ventana de actualizaciones del sistema.
+
+        Args:
+            parent: Widget padre (CTkToplevel).
+            update_monitor: Instancia del monitor de actualizaciones para consultar estado.
+        """
+
         super().__init__(parent)
         self.system_utils = SystemUtils()
         self._monitor = update_monitor
@@ -29,6 +42,8 @@ class UpdatesWindow(ctk.CTkToplevel):
 
 
     def _create_ui(self):
+        """Crea la interfaz de usuario principal de la ventana."""
+
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -87,6 +102,11 @@ class UpdatesWindow(ctk.CTkToplevel):
     # ── Loop de actualización con banner ──────────────────────────────────────
 
     def _update(self):
+        """Actualiza periódicamente el estado de la ventana según el monitor de actualizaciones.
+
+        Muestra banner si el monitor no está corriendo, o reconstruye contenido si está activo.
+        """
+
         if not self.winfo_exists():
             return
 
@@ -156,7 +176,13 @@ class UpdatesWindow(ctk.CTkToplevel):
         logger.info("[UpdatesWidnow] Ejecutando update.sh")
         script_path = str(SCRIPTS_DIR / "update.sh")
 
+
         def al_terminar_actualizacion():
+            """Callback ejecutado al finalizar la actualización desde terminal_dialog.
+
+            Refresca el estado de actualizaciones mostradas en la interfaz.
+            """
+
             logger.info("[UpdatesWidnow] Ejecucion completada de update.sh")
             self._refresh_status(force=True)
 

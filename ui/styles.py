@@ -7,7 +7,9 @@ from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, Icons
 
 
 class StyleManager:
-    """Gestor centralizado de estilos"""
+    """
+    Gestor centralizado de estilos para todos los widgets
+    """
     
     @staticmethod
     def style_radiobutton_tk(rb: tk.Radiobutton, 
@@ -38,9 +40,15 @@ class StyleManager:
         )
         
         def on_enter(e): 
+            """
+            Efecto hover: cambia color de texto al entrar el mouse
+            """
             rb.config(fg=hover_fg)
         
         def on_leave(e): 
+            """
+            Restaura color original al salir el mouse
+            """
             rb.config(fg=fg)
         
         rb.bind("<Enter>", on_enter)
@@ -221,9 +229,15 @@ def make_futuristic_button(parent, text: str, command=None,
     )
     
     def on_enter(e): 
+        """
+        Efecto hover: cambia color de fondo al entrar el mouse
+        """
         btn.configure(fg_color=COLORS['bg_light'])
     
     def on_leave(e): 
+        """
+        Restaura color original al salir el mouse
+        """
         btn.configure(fg_color=COLORS['bg_dark'])
     
     btn.bind("<Enter>", on_enter)
@@ -381,6 +395,10 @@ def make_homebridge_switch(
         sw.deselect()
     else:
         def _on_toggle():
+            """
+            Callback ejecutado al cambiar el switch.
+            Llama al command del usuario con el nuevo estado (bool).
+            """
             # El switch ya cambió internamente; leemos su valor
             if command:
                 command(bool(sw.get()))
