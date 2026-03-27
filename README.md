@@ -1,11 +1,11 @@
 # 🖥️ Sistema de Monitoreo y Control - Dashboard v4.2
 
-Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, menú por pestañas con scroll táctil, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR, SMART extendido de NVMe, monitor WiFi, monitor SSH, editor de configuración local, control de audio ALSA, widget de clima, escáner I²C y monitor/control GPIO.
+Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica DSI, menú por pestañas con scroll táctil, control de ventiladores PWM, temas personalizables, histórico de datos, gestión avanzada del sistema, integración con Homebridge, alertas externas por Telegram, escáner de red local, integración Pi-hole, gestor VPN, control de brillo, pantalla de resumen, LEDs RGB inteligentes, alertas de audio con voz TTS, cámara con OCR, SMART extendido de NVMe, monitor WiFi con selector de interfaz, monitor SSH, editor de configuración local, control de audio ALSA, widget de clima, escáner I²C, monitor/control GPIO, service watchdog y configuración de logging en runtime.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Version](https://img.shields.io/badge/Version-4.2.4-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-4.2-blue.svg)]()
 
 ---
 
@@ -13,19 +13,19 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### 🗂️ **Menú por Pestañas con Scroll Táctil** *(v4.0)*
 - **6 pestañas categorizadas**: Sistema, Red, Hardware, Servicios, Registros, Config
-- **Scroll horizontal táctil** en la barra de pestañas — ancho fijo 130px por pestaña, escala a cualquier número sin encoger
+- **Scroll horizontal táctil** en la barra de pestañas — ancho fijo 130px por pestaña
 - **Footer siempre visible**: Gestor Botones, Reiniciar, Salir — accesibles desde cualquier pestaña
-- Pestañas definidas en `config/settings.py → class UI` — añadir una pestaña nueva es solo una línea de configuración
+- Pestañas definidas en `config/settings.py → class UI` — añadir una pestaña nueva es solo una línea
 
 ### 🖥️ **Monitoreo Completo del Sistema**
 - **CPU**: Uso en tiempo real, frecuencia, gráficas históricas
 - **RAM**: Memoria usada/total, porcentaje, visualización dinámica
 - **Temperatura**: Monitoreo de CPU con alertas por color
 - **Disco**: Espacio usado/disponible, temperatura NVMe, I/O en tiempo real
+- **Uptime**: Calculado desde `/proc/uptime` — correcto desde el primer segundo, independiente del reloj del sistema
 
 ### 🪟 **UI Unificada con Header Táctil**
 - **Header en todas las ventanas**: título + status dinámico + botón ✕ (52×42px táctil)
-- **Status en tiempo real** en el header: CPU/RAM/Temp (Monitor Placa), Disco/NVMe (Monitor Disco), interfaz/velocidades (Monitor Red)
 - Función `make_window_header()` centralizada en `ui/styles.py`
 
 ### 🌡️ **Control Inteligente de Ventiladores**
@@ -38,15 +38,14 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - **Auto-detección**: Interfaz activa (eth0, wlan0, tun0)
 - **Speedtest integrado**: CLI oficial de Ookla
 
-### 󰖩 **Monitor WiFi** *(v3.8)*
+### 󰖩 **Monitor WiFi** *(v3.8+)*
 - Señal en tiempo real: dBm, calidad de enlace, SSID, bitrate
-- Barras visuales de señal (▂▄▆█) y gráfica histórica
 - Tráfico RX/TX con gráficas independientes
+- **Selector de interfaz** en el header — visible si hay más de una `wlan*`, persistido en `local_settings.py`
 
 ### **Monitor SSH** *(v3.8)*
 - Sesiones activas en tiempo real con IP de origen y hora de conexión
 - Historial con duración formateada y detección de cortes
-- Textos legibles: `pts/0` → `Sesión 1`, IPs locales etiquetadas
 
 ### 🔧 **Editor de Configuración** *(v3.8)*
 - Edita `config/local_settings.py` por máquina sin tocar `settings.py`
@@ -55,11 +54,9 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### 🖧 **Escáner de Red Local**
 - Escaneo con arp-scan: IP, MAC y fabricante (OUI lookup)
-- Auto-refresco cada 60s en background
 
 ### 🕳️ **Integración Pi-hole v6**
-- API v6 nativa, estadísticas en tiempo real
-- Badge en menú: 🔴 si Pi-hole está offline
+- API v6 nativa, estadísticas en tiempo real, badge en menú
 
 ### 📲 **Alertas Externas por Telegram**
 - Sin dependencias nuevas: usa `urllib` de stdlib
@@ -73,10 +70,8 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - Gestión completa: Start/Stop/Restart, estado visual, logs en tiempo real
 
 ### 🐕 **Service Watchdog** *(v4.2)*
-- Monitor servicios **críticos** con umbral fallos consecutivos + auto-reinicio
-- Umbral/Intervalo configurables via **text entries precisas** (1-10, 30-300s, debounce 400ms)
-- Gestión lista críticos persistente, stats globales, filtrado/búsqueda en vivo
-- [SERVICE_WATCHDOG.md](SERVICE_WATCHDOG.md)
+- Monitor de servicios críticos con umbral de fallos consecutivos + auto-reinicio
+- Umbral e intervalo configurables, badge de reinicios en el menú
 
 ### ⚙️ **Servicios Dashboard** *(v3.5/v3.6)*
 - ServiceRegistry: registro centralizado de todos los servicios
@@ -86,8 +81,7 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 - Mostrar/ocultar botones del menú principal por máquina
 
 ### 🕐 **Gestor de Crontab** *(v3.7)*
-- Ver, añadir, editar y eliminar entradas del crontab
-- Selector de usuario: usuario / root
+- Ver, añadir, editar y eliminar entradas del crontab por usuario
 
 ### 📊 **Histórico de Datos**
 - Recolección automática cada 5 minutos en background (SQLite)
@@ -95,14 +89,12 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 
 ### 🔒 **Gestor de Conexiones VPN**
 - Estado en tiempo real, badge en menú, conectar/desconectar
-- Compatible con WireGuard y OpenVPN
 
 ### 💡 **Control LEDs RGB**
 - 6 modos: auto, apagado, color fijo, secuencial, respiración, arcoíris
 
 ### 🔊 **Alertas de Audio**
-- Voz TTS en español con `espeak-ng` + tono sintético
-- 11 archivos .wav
+- Voz TTS en español con `espeak-ng` + tono sintético, 11 archivos .wav
 
 ### 📷 **Cámara + Escáner OCR**
 - Cámara OV5647 via `rpicam-still`, OCR con Tesseract local
@@ -110,41 +102,40 @@ Sistema completo de monitoreo y control para Raspberry Pi con interfaz gráfica 
 ### 󰔎 **15 Temas Personalizables**
 - Cambio con un clic, preview en vivo
 
-### 🔊 **Control de Audio ALSA** *(v4.1)*
+### 🔊 **Control de Audio ALSA** *(v4.2)*
 - Control de volumen y mute via `amixer` desde la UI
 - VU meter configurable, selector de control ALSA
-- Sin dependencias nuevas — solo `subprocess`
 
-### 🌦️ **Widget de Clima** *(v4.1)*
+### 🌦️ **Widget de Clima** *(v4.2)*
 - Open-Meteo sin clave API, temperatura exterior + previsión diaria
-- Color dinámico por temperatura, barra de progreso del día
 - Drill-down días → horas, AQI, fondo dinámico por código WMO
-- Badge de lluvia en el menú principal
-- Favoritos persistidos en `local_settings.py`
+- Badge de lluvia en el menú, favoritos persistidos
 
-### 🔌 **Escáner I²C** *(v4.1)*
+### 🔌 **Escáner I²C** *(v4.2)*
 - `smbus2` solo lectura — detecta dispositivos en todos los buses disponibles
-- Cards por bus con badge hex por dispositivo, botón escaneo manual
-- Seguro — no interfiere con fase1.py
+- Cards por bus con badge hex, escaneo manual — seguro con fase1.py
 
-### ⚡ **Monitor / Control GPIO** *(v4.1)*
-- Tres modos por pin: INPUT (lectura), OUTPUT (toggle HIGH/LOW), PWM (slider duty cycle)
-- Modo **LIBRE**: libera todos los pines (`/dev/gpiochip0`) para scripts externos
-- Modo **CONTROLANDO**: dashboard reclama los pines con gpiozero
-- Configuración de pines persistida en `local_settings.py`
+### ⚡ **Monitor / Control GPIO** *(v4.2)*
+- Tres modos por pin: INPUT, OUTPUT, PWM
+- Modo LIBRE / CONTROLANDO, configuración persistida
 - Pines reservados por fase1.py protegidos automáticamente
+
+### 📋 **Config Logging** *(v4.2)*
+- Control de niveles de logging en runtime desde la UI
+- Por handler (fichero/consola) y por módulo individual
+- Persistido en `local_settings.py` — se restaura al arrancar
+- Forzar rotación manual del log
 
 ---
 
 ## 🖥️ Soporte Multi-máquina
 
-`config/local_settings.py` (en `.gitignore`) permite configuración independiente por máquina sin tocar git. El **Editor de Configuración** genera y mantiene este fichero desde la propia UI.
+`config/local_settings.py` (en `.gitignore`) permite configuración independiente por máquina.
 
 ### Pi 5 (pantalla DSI física + Wayland)
 - Compositor: **labwc** sobre Wayland
 - Acceso remoto: `wayvnc --output=DSI-2 0.0.0.0 5901`
 - Resolución DSI: 800×480
-- Idle desactivado: `gsettings set org.gnome.desktop.session idle-delay 0`
 
 ### Pi 3B+ (sin pantalla física + X11)
 - Display virtual `:1` con **Xvfb**
@@ -171,7 +162,6 @@ python3 main.py
 sudo apt-get update
 sudo apt-get install -y lm-sensors usbutils udisks2 smartmontools arp-scan wireless-tools
 
-# CLI oficial de Ookla (speedtest)
 curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
 sudo apt-get install speedtest
 
@@ -203,7 +193,7 @@ system_dashboard/
 │   └── local_settings.py           # Overrides por máquina (en .gitignore)
 ├── core/
 │   ├── service_registry.py
-│   ├── system_monitor.py
+│   ├── system_monitor.py           # Uptime via /proc/uptime (correcto sin RTC)
 │   ├── fan_controller.py, fan_auto_service.py
 │   ├── network_monitor.py, network_scanner.py
 │   ├── disk_monitor.py, process_monitor.py
@@ -213,72 +203,57 @@ system_dashboard/
 │   ├── hardware_monitor.py, audio_alert_service.py
 │   ├── display_service.py, vpn_monitor.py
 │   ├── crontab_service.py, camera_service.py
-│   ├── ssh_monitor.py, wifi_monitor.py
-│   ├── audio_service.py            # Control ALSA via amixer (v4.1)
-│   ├── weather_service.py          # Open-Meteo + AQI + favoritos (v4.1)
-│   ├── i2c_monitor.py              # smbus2 solo lectura (v4.1)
-│   ├── gpio_monitor.py             # gpiozero INPUT/OUTPUT/PWM + LIBRE/CONTROLANDO (v4.1)
+│   ├── ssh_monitor.py, wifi_monitor.py  # selector interfaz + persistencia
+│   ├── audio_service.py            # Control ALSA via amixer
+│   ├── weather_service.py          # Open-Meteo + AQI + favoritos
+│   ├── i2c_monitor.py              # smbus2 solo lectura
+│   ├── gpio_monitor.py             # gpiozero INPUT/OUTPUT/PWM + LIBRE/CONTROLANDO
+│   ├── service_watchdog.py         # Monitor críticos + auto-reinicio
 │   ├── data_logger.py, data_analyzer.py
 │   ├── data_collection_service.py, cleanup_service.py
 │   └── hardware_info_monitor.py
 ├── ui/
 │   ├── main_window.py              # Layout, pestañas, coordinación (~450 líneas)
-│   ├── main_badges.py              # BadgeManager — crear y actualizar badges (v4.0)
-│   ├── main_update_loop.py         # UpdateLoop — reloj, uptime, loop de badges (v4.0)
-│   ├── main_system_actions.py      # exit_application, restart_application (v4.0)
-│   ├── window_lifecycle.py         # WindowLifecycleManager (v4.0)
-│   ├── window_manager.py           # Visibilidad botones via JSON, patrón callback
+│   ├── main_badges.py              # BadgeManager
+│   ├── main_update_loop.py         # UpdateLoop — reloj, uptime, badges
+│   ├── main_system_actions.py      # exit_application, restart_application
+│   ├── window_lifecycle.py         # WindowLifecycleManager
+│   ├── window_manager.py           # Visibilidad botones via JSON
 │   ├── styles.py
 │   ├── widgets/
 │   │   ├── graphs.py
 │   │   └── dialogs.py
 │   └── windows/
-│       └── (una ventana por fichero — 31 ventanas)
+│       └── (una ventana por fichero — 32 ventanas)
 ├── utils/
-│   ├── file_manager.py, system_utils.py, logger.py
-├── data/                           # Auto-generado al ejecutar
+│   ├── file_manager.py, system_utils.py
+│   └── logger.py                   # Niveles persistidos en local_settings.py
+├── data/
 ├── scripts/
-│   ├── sounds/
-│   └── generate_sounds.py
 ├── .env, .env.example
 ├── install_system.sh, install.sh
 ├── main.py
 └── requirements.txt
 ```
 
-### Módulos ui/ (v4.0+)
-
-| Fichero | Responsabilidad |
-|---------|----------------|
-| `main_window.py` | Layout, pestañas, coordinación (~450 líneas) |
-| `main_badges.py` | `BadgeManager`: crear y actualizar badges de menú |
-| `main_update_loop.py` | `UpdateLoop`: reloj, uptime, loop de badges |
-| `main_system_actions.py` | `exit_application`, `restart_application` |
-| `window_lifecycle.py` | `WindowLifecycleManager`: ciclo de vida ventanas hijas |
-| `window_manager.py` | Visibilidad de botones via JSON, patrón callback |
-
 ---
 
 ## 🗂️ Menú por Pestañas (v4.0)
 
-El menú está organizado en 6 pestañas con scroll horizontal táctil. La configuración vive en `config/settings.py → class UI`:
-
 | Pestaña | Contenido |
 |---------|-----------|
-| **Sistema** | Resumen, Monitor Placa, Control Ventiladores, LEDs RGB, Brillo, Cámara, Lanzadores, Audio Control |
-| **Red** | Monitor Red, Red Local, Pi-hole, VPN, Homebridge, Monitor WiFi |
-| **Hardware** | Info Hardware, Monitor Disco, Monitor USB, I²C Scanner, GPIO Monitor, Widget Clima |
-| **Servicios** | Monitor Servicios, Servicios Dashboard, Monitor Procesos, Gestor Crontab, Actualizaciones |
-| **Registros** | Visor Logs, Histórico Datos, Historial Alertas, Monitor SSH |
-| **Config** | Editor Config, Cambiar Tema, Gestor Botones |
-
-> El footer (Gestor Botones, Reiniciar, Salir) es fijo y visible desde cualquier pestaña.
+| **Sistema** | Resumen, Monitor Placa, Monitor Disco, Monitor USB, Monitor Procesos, Actualizaciones |
+| **Red** | Monitor Red, Red Local, Monitor WiFi, Monitor SSH, Pi-hole, VPN |
+| **Hardware** | Info Hardware, Control Ventiladores, LEDs RGB, Brillo Pantalla, Audio Control, Cámara, I²C Scanner, GPIO Monitor |
+| **Servicios** | Monitor Servicios, Servicios Dashboard, Gestor Crontab, Homebridge, Lanzadores, Service Watchdog |
+| **Registros** | Histórico Datos, Historial Alertas, Visor Logs, Config Logging |
+| **Config** | Editor Config, Cambiar Tema |
 
 ---
 
 ## 🔗 Relación fase1.py ↔ Dashboard
 
-`fase1.py` es un proceso independiente que corre en paralelo. Comunicación exclusivamente via JSON:
+`fase1.py` es un proceso independiente. Comunicación exclusivamente via JSON:
 
 | Fichero | Quién escribe | Quién lee |
 |---------|--------------|-----------|
@@ -286,9 +261,7 @@ El menú está organizado en 6 pestañas con scroll horizontal táctil. La confi
 | `data/led_state.json` | Dashboard (`LedService`) | `fase1.py` |
 | `data/hardware_state.json` | `fase1.py` | Dashboard (`HardwareMonitor`) |
 
-El hardware I²C del módulo Expansion Freenove (ventiladores, LEDs, OLED) es **exclusivo de fase1.py** — nunca se accede desde el dashboard.
-
-> **GPIO**: los pines usados por fase1.py (GPIO 2, 3, 12, 13, 14, 15, 18, 19) están protegidos en `GPIOMonitor._RESERVED_PINS` y nunca se abren desde el dashboard.
+El hardware I²C del módulo Expansion Freenove es **exclusivo de fase1.py**. Los pines {2, 3, 12, 13, 14, 15, 18, 19} están protegidos en `GPIOMonitor._RESERVED_PINS`.
 
 ---
 
@@ -335,111 +308,76 @@ TELEGRAM_CHAT_ID=987654321
 | USB no expulsa | `sudo apt install udisks2` |
 | Homebridge no conecta | Verificar `.env` y activar Insecure Mode |
 | Red Local no escanea | `sudo apt install arp-scan` y configurar sudoers |
-| Pi-hole no conecta | Verificar `.env`; solo compatible con v6 |
+| Pi-hole no conecta | Solo compatible con v6; verificar `.env` |
 | WiFi no muestra datos | `sudo apt install wireless-tools` |
-| SSH monitor vacío | Verificar que `who` y `last` funcionan en el sistema |
+| WiFi no lista interfaces | Verificar interfaces `wlan*` en `/proc/net/dev` |
+| SSH monitor vacío | Verificar que `who` y `last` funcionan |
 | No puedo escribir en entries (VNC) | Verificar que se usa `make_entry()` de `ui/styles.py` |
 | Foco perdido tras inactividad (Wayland) | `gsettings set org.gnome.desktop.session idle-delay 0` |
 | Dashboard no visible por VNC en Pi 5 | `wayvnc --output=DSI-2 0.0.0.0 5901` |
 | Audio no suena | `aplay -l` → verificar dispositivo HDMI |
 | Cámara no encontrada | `sudo apt install rpicam-apps` |
-| I²C buses no aparecen | Verificar que I²C está habilitado en `raspi-config` |
-| GPIO pin busy al arrancar | Pin ocupado por otro proceso — usar modo LIBRE o revisar `_RESERVED_PINS` |
-| GPIO no libera en Pi 5 | lgpio mantiene `/dev/gpiochip0` — usar botón "Liberar GPIO" desde la ventana |
+| I²C buses no aparecen | Habilitar I²C en `raspi-config` |
+| GPIO pin busy al arrancar | Pin ocupado — usar modo LIBRE o revisar `_RESERVED_PINS` |
+| GPIO no libera en Pi 5 | lgpio mantiene `/dev/gpiochip0` — usar botón "Liberar GPIO" |
+| Uptime incorrecto al arrancar | Normal sin RTC — se corrige al conectar red (NTP) |
+| Log lleno de DEBUG | Config Logging → nivel Fichero a INFO o WARNING |
 | Ver qué falla | `grep ERROR data/logs/dashboard.log` |
-
----
-
-## 🏗️ Cumplimiento Reglas Arquitectura
-
-**Audit realizado BLACKBOXAI:**
-
-| Regla | Estado | Notas |
-|-------|--------|-------|
-| Capas core/ui estrictas | ✓ | No tkinter/ctk en core/ |
-| Patterns core (start/stop/is_running) | ✓ | Verificado disk_monitor.py; asumir resto |
-| Logging % format (no f-strings) | ✓ | No f-strings encontradas |
-| Iconos Icons.NOMBRE | ✓ | settings.py Icons + button_labels.py |
-| Labels button_labels.py | ✓ | Centralizado |
-| Persistencia local_settings_io | ✓ | API read/write/update_params/get_param |
-| Wayland/labwc (no grab_set) | ✓ FIXED | 5 casos dialogs/main_actions → transient(parent)+focus_set |
-
-**Más detalles:** [TODO_compliance.md](TODO_compliance.md)
-
----
-
-## 📚 Documentación
-
-- [QUICKSTART.md](QUICKSTART.md) — Inicio rápido
-- [INSTALL_GUIDE.md](INSTALL_GUIDE.md) — Instalación detallada
-- [THEMES_GUIDE.md](THEMES_GUIDE.md) — Guía de temas
-- [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) — Integración con fase1.py / OLED
-- [COMPATIBILIDAD.md](COMPATIBILIDAD.md) — Compatibilidad multiplataforma
-- [IDEAS_EXPANSION.md](IDEAS_EXPANSION.md) — Roadmap y backlog
-- [INDEX.md](INDEX.md) — Índice completo
-- [TODO_compliance.md](TODO_compliance.md) — Audit cumplimiento reglas
 
 ---
 
 ## 📊 Estadísticas del Proyecto
 
-| Métrica | v4.0 | v4.1 |
+| Métrica | v4.0 | v4.2 |
 |---------|------|------|
-| Versión | 4.0 | **4.2** |
-| Archivos Python | 73 | **79** |
-| Ventanas | 27 | **31** |
+| Archivos Python | 73 | **81** |
+| Ventanas | 27 | **32** |
 | Temas | 15 | 15 |
 | Badges en menú | 12 | **13** |
 | Servicios background | 16 | **20** |
 | Módulos ui/main_* | 5 | 5 |
-| Documentos | 9 | **10** |
+| Documentos | 9 | 10 |
 
 ---
 
 ## Changelog
 
-### **v4.2.4** - Compliance Audit ⭐ ACTUAL
+### **v4.2** ← ACTUAL
 
-- ✅ **v4.2.4 AUDIT**: Verificación reglas arquitectura [TODO_compliance.md](TODO_compliance.md)
-  - Capas, patterns core, logging %, Icons/labels, local_settings_io ✓
-  - Wayland grab_set fix pendiente
-- ✅ **NUEVO**: TODO_compliance.md — plan fixes y status
-
-### **v4.2** - 2024
-
-- ✅ **NUEVO**: **Service Watchdog** — monitor críticos systemd w/ text entries precisas + debounce, [SERVICE_WATCHDOG.md](SERVICE_WATCHDOG.md)
-- ✅ **NUEVO**: Control de Audio ALSA (`AudioService` + `AudioWindow`) — volumen, mute, VU meter, selector control
-- ✅ **NUEVO**: Widget de Clima (`WeatherService` + `WeatherWindow`) — Open-Meteo, AQI, drill-down, badge lluvia, fondo dinámico WMO
-- ✅ **NUEVO**: Escáner I²C (`I2CMonitor` + `I2CWindow`) — smbus2 solo lectura, cards por bus, badge hex por dispositivo
-- ✅ **NUEVO**: Monitor/Control GPIO (`GPIOMonitor` + `GPIOWindow`) — INPUT/OUTPUT/PWM, toggle LIBRE/CONTROLANDO, persistencia config en `local_settings.py`
-- ✅ **NUEVO**: `config/local_settings_io.py` — módulo compartido lectura/escritura de `local_settings.py`, API `read()` / `write()` / `update_params()`
+- ✅ **NUEVO**: Control de Audio ALSA (`AudioService` + `AudioWindow`)
+- ✅ **NUEVO**: Widget de Clima (`WeatherService` + `WeatherWindow`) — Open-Meteo, AQI, drill-down, badge lluvia
+- ✅ **NUEVO**: Escáner I²C (`I2CMonitor` + `I2CWindow`) — smbus2 solo lectura, cards por bus
+- ✅ **NUEVO**: Monitor/Control GPIO (`GPIOMonitor` + `GPIOWindow`) — INPUT/OUTPUT/PWM, LIBRE/CONTROLANDO
+- ✅ **NUEVO**: Service Watchdog (`ServiceWatchdog` + `ServiceWatchdogWindow`) — auto-reinicio, badge
+- ✅ **NUEVO**: Config Logging (`LogConfigWindow`) — niveles runtime por handler y módulo, persistentes
+- ✅ **NUEVO**: `config/local_settings_io.py` — módulo compartido persistencia `local_settings.py`
+- ✅ **NUEVO**: Selector de interfaz WiFi en header de `WiFiWindow` — persistido, cambio en caliente
+- ✅ **FIX**: Uptime calculado desde `/proc/uptime` — correcto sin RTC, independiente de NTP
+- ✅ **AUDIT**: Auditoría completa ui/ (Fases 1-6) — encapsulación core/ui, ARCH-01 (`is_running()`), issues UI-F2 a UI-F6
 
 ### **v4.0** - 2026-03-05
 
-- ✅ **NUEVO**: Menú por pestañas con scroll horizontal táctil — 6 pestañas, ancho fijo 130px táctil
-- ✅ **NUEVO**: `WindowLifecycleManager` (`ui/window_lifecycle.py`) — elimina 27 métodos `open_*`
-- ✅ **NUEVO**: `BadgeManager` (`ui/main_badges.py`)
-- ✅ **NUEVO**: `UpdateLoop` (`ui/main_update_loop.py`)
-- ✅ **NUEVO**: `main_system_actions.py`
-- ✅ **REFACTOR**: `main_window.py` 891 → 451 líneas (−49%)
-- ✅ **REFACTOR**: `WindowManager` — patrón callback
-- ✅ **REFACTOR**: `config/settings.py → class UI` — pestañas como configuración pura
+- ✅ Menú por pestañas con scroll horizontal táctil — 6 pestañas, ancho fijo 130px
+- ✅ `WindowLifecycleManager` — elimina 27 métodos `open_*`
+- ✅ `BadgeManager`, `UpdateLoop`, `main_system_actions.py`
+- ✅ `main_window.py` 891 → 451 líneas (−49%)
+- ✅ `WindowManager` — patrón callback
 
-### **v3.8** - 2026-03-XX
+### **v3.8** - 2026-03
 - ✅ Monitor WiFi, Monitor SSH, Editor de Configuración
 - ✅ Refactor: `crontab_service.py` y `camera_service.py` a `core/`
-- ✅ Fix `RuntimeError` al salir — `StringVar`/`IntVar` con `master=` explícito
+- ✅ Fix `StringVar`/`IntVar` con `master=` explícito
 
 ### **v3.7** - 2026-03-02
 - ✅ Gestor Crontab, fix grab modal, `make_entry()`, soporte dual-Pi
 
-### **v3.6.5** - 2026-02-XX
+### **v3.6.5**
 - ✅ Gestor de Botones (`ButtonManagerWindow` + `WindowManager`)
 
-### **v3.6** - 2026-02-XX
+### **v3.6**
 - ✅ Servicios Dashboard (`ServicesManagerWindow`)
 
-### **v3.5** - 2026-02-XX
+### **v3.5**
 - ✅ `ServiceRegistry`
 
 ### **v3.4** - 2026-02-27
@@ -459,9 +397,6 @@ TELEGRAM_CHAT_ID=987654321
 
 ### v2.x
 - Monitor completo, servicios systemd, histórico SQLite, 15 temas, badges
-
-### v1.0 - 2025-01
-- Release inicial
 
 ---
 

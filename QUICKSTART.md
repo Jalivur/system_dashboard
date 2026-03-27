@@ -1,4 +1,4 @@
-# 🚀 Inicio Rápido - Dashboard v4.1
+# 🚀 Inicio Rápido - Dashboard v4.2
 
 ---
 
@@ -60,12 +60,12 @@ El menú está organizado en **6 pestañas con scroll horizontal táctil**. Cada
 
 | Pestaña | Botones |
 |---------|---------|
-| **Sistema** | Resumen, Monitor Placa, Control Ventiladores, LEDs RGB, Brillo, Cámara, Lanzadores, Audio Control |
-| **Red** | Monitor Red, Red Local, Pi-hole, VPN, Homebridge, Monitor WiFi |
-| **Hardware** | Info Hardware, Monitor Disco, Monitor USB, I²C Scanner, GPIO Monitor, Widget Clima |
-| **Servicios** | Monitor Servicios, Servicios Dashboard, Monitor Procesos, Gestor Crontab, Actualizaciones |
-| **Registros** | Visor Logs, Histórico Datos, Historial Alertas, Monitor SSH |
-| **Config** | Editor Config, Cambiar Tema, Gestor Botones |
+| **Sistema** | Resumen, Monitor Placa, Monitor Disco, Monitor USB, Monitor Procesos, Actualizaciones |
+| **Red** | Monitor Red, Red Local, Monitor WiFi, Monitor SSH, Pi-hole, VPN |
+| **Hardware** | Info Hardware, Control Ventiladores, LEDs RGB, Brillo Pantalla, Audio Control, Cámara, I²C Scanner, GPIO Monitor |
+| **Servicios** | Monitor Servicios, Servicios Dashboard, Gestor Crontab, Homebridge, Lanzadores, Service Watchdog |
+| **Registros** | Histórico Datos, Historial Alertas, Visor Logs, Config Logging |
+| **Config** | Editor Config, Cambiar Tema |
 
 El **footer** (Gestor Botones, Reiniciar, Salir) es siempre visible independientemente de la pestaña activa.
 
@@ -73,9 +73,9 @@ El **footer** (Gestor Botones, Reiniciar, Salir) es siempre visible independient
 
 ---
 
-## 🖥️ Las 31 Ventanas
+## 🖥️ Las 32 Ventanas
 
-**1. Info Hardware** — Modelo, revision, SoC, RAM, almacenamiento, uptime
+**1. Info Hardware** — Modelo, revisión, SoC, RAM, almacenamiento, uptime
 
 **2. Control Ventiladores** — Modo Auto/Manual/Silent/Normal/Performance, curvas PWM
 
@@ -125,17 +125,21 @@ El **footer** (Gestor Botones, Reiniciar, Salir) es siempre visible independient
 
 **25. Monitor SSH** — Sesiones activas e historial SSH con textos legibles
 
-**26. Monitor WiFi** — Señal dBm, calidad, SSID, bitrate, tráfico RX/TX
+**26. Monitor WiFi** — Señal dBm, calidad, SSID, bitrate, tráfico RX/TX, selector de interfaz
 
 **27. Editor Config** — Edita `local_settings.py` con preview de iconos en tiempo real
 
-**28. Audio Control** *(v4.1)* — Volumen ALSA, mute, VU meter, selector de control
+**28. Audio Control** — Volumen ALSA, mute, VU meter, selector de control
 
-**29. Widget Clima** *(v4.1)* — Temperatura exterior, previsión, AQI, drill-down horas, favoritos
+**29. Widget Clima** — Temperatura exterior, previsión, AQI, drill-down horas, favoritos
 
-**30. I²C Scanner** *(v4.1)* — Dispositivos por bus, badge hex, escaneo manual
+**30. I²C Scanner** — Dispositivos por bus, badge hex, escaneo manual
 
-**31. GPIO Monitor/Control** *(v4.1)* — INPUT/OUTPUT/PWM por pin, toggle LIBRE/CONTROLANDO
+**31. GPIO Monitor/Control** — INPUT/OUTPUT/PWM por pin, toggle LIBRE/CONTROLANDO
+
+**32. Service Watchdog** — Monitor servicios críticos con auto-reinicio y badge
+
+**33. Config Logging** — Niveles de log en runtime por handler y módulo, persistentes
 
 ---
 
@@ -188,6 +192,8 @@ tail -f data/logs/dashboard.log
 grep ERROR data/logs/dashboard.log
 ```
 
+> Para reducir el volumen del log, abre **Config Logging** (pestaña Registros) y sube el nivel de Fichero a `INFO` o `WARNING`.
+
 ---
 
 ## ❓ Problemas Comunes
@@ -201,4 +207,7 @@ grep ERROR data/logs/dashboard.log
 | GPIO pin busy | Usar modo LIBRE desde la ventana GPIO |
 | I²C buses vacíos | Habilitar I²C en `raspi-config` |
 | Audio sin control | `aplay -l` → verificar dispositivo activo |
+| WiFi no lista interfaces | Verificar interfaces `wlan*` en `/proc/net/dev` |
+| Uptime incorrecto | Normal sin RTC — se corrige al conectar red (NTP) |
+| Log lleno de DEBUG | Config Logging → nivel Fichero a INFO o WARNING |
 | Ver errores | `grep ERROR data/logs/dashboard.log` |
