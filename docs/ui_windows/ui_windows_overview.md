@@ -40,7 +40,21 @@ from utils.logger import get_logger
 
 ## Clase `OverviewWindow(ctk.CTkToplevel)`
 
-Ventana de resumen — métricas críticas en un vistazo.
+Ventana de resumen que muestra métricas críticas del sistema en un vistazo.
+
+Args:
+    parent: Ventana padre.
+    system_monitor: Monitor del sistema (CPU/RAM/temperatura).
+    service_monitor: Monitor de servicios.
+    pihole_monitor: Monitor de Pi-hole.
+    network_monitor: Monitor de red.
+    disk_monitor: Monitor de disco.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -58,81 +72,129 @@ Ventana de resumen — métricas críticas en un vistazo.
 
 #### `destroy(self)`
 
-Destructor seguro: detiene loop _update y llama super().destroy().
+Detiene de forma segura la ventana de descripción general.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self, parent, system_monitor, service_monitor, pihole_monitor, network_monitor, disk_monitor)`
 
-Inicializador principal de OverviewWindow.
+Inicializa la ventana de resumen del sistema.
 
-Configura ventana DSI sin bordes en posición fija, almacena referencias
-a 5 monitores, inicializa widgets/running, crea UI y lanza update loop.
+Configura la ventana sin bordes en posición fija, almacena referencias 
+a los monitores del sistema y crea la interfaz de usuario.
 
 Args:
     parent: Ventana padre.
-    system_monitor: Monitor sistema (CPU/RAM/temp).
-    service_monitor: Monitor servicios.
-    pihole_monitor: Monitor Pi-hole.
-    network_monitor: Monitor red.
-    disk_monitor: Monitor disco.
+    system_monitor: Monitor del sistema (CPU/RAM/temperatura).
+    service_monitor: Monitor de servicios.
+    pihole_monitor: Monitor de Pi-hole.
+    network_monitor: Monitor de red.
+    disk_monitor: Monitor de disco.
 
 #### `_create_ui(self)`
 
 Construye la interfaz completa del dashboard de resumen.
 
-Estructura:
-- Frame principal con header draggable.
-- Canvas con scrollbar para contenido.
-- Grid 2 columnas x 3 filas para tarjetas (CPU, RAM, Temp, Disco, Red, Servicios).
-- Fila completa para Pi-hole con 4 sub-métricas.
-- Registra todos los labels de valores en self._widgets para actualizaciones.
+Estructura la ventana con un frame principal, un canvas con scrollbar y un grid para tarjetas.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_update(self)`
 
-Loop principal de actualización automática de todo el dashboard.
+Actualiza automáticamente todas las secciones del dashboard a intervalos regulares.
 
-Llama refresh de cada sección cada 2000ms. Maneja errores silenciosamente
-registrando en logger. Se auto-programa recursivamente con after().
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_color_for(self, value, warn, crit)`
 
-Sistema de colores semáforo para métricas basado en umbrales.
+Asigna un color basado en umbrales configurables para representar estados de una métrica.
 
 Args:
-    value (float): Valor numérico de la métrica.
-    warn (float): Límite naranja (advertencia).
-    crit (float): Límite rojo (crítico).
+    value (float): Valor numérico de la métrica a evaluar.
+    warn (float): Umbral de advertencia que determina el color naranja.
+    crit (float): Umbral crítico que determina el color rojo.
 
 Returns:
-    str: Clave de color ('danger', 'warning' o 'primary') de COLORS.
+    str: Clave de color correspondiente ('danger', 'warning' o 'primary').
+
+Raises:
+    None
 
 #### `_refresh_system(self)`
 
-Actualiza tarjetas de sistema desde monitores respectivos.
+Actualiza las tarjetas de sistema con datos de los monitores correspondientes.
 
-CPU/RAM/Temp: De SystemMonitor con color por umbrales config.
-Disco: De DiskMonitor (umbral hardcode 80/90%).
-Muestra '-- (parado)' si monitor detenido.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_refresh_services(self)`
 
-Actualiza tarjeta servicios: fallidos vs total, con color rojo si hay fallos.
+Actualiza la tarjeta de servicios con el estado actual de servicios fallidos y totales.
 
-Formato: 'X caídos' (rojo) o 'N OK' (verde).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_refresh_net(self)`
 
-Actualiza velocidades red ↓MB/s ↑MB/s desde NetworkMonitor.
+Actualiza la información de velocidad de red en la ventana de resumen.
 
-Formato: ↓X.X ↑Y.Y (azul primary).
-Maneja excepciones mostrando '--'.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Exception: Si ocurre un error al obtener las estadísticas de red.
+
+Nota: Actualiza el texto con formato ↓X.X ↑Y.Y en azul primary si el monitor de red está activo, '--' si no, o '-- (parado)' si el monitor está detenido.
 
 #### `_refresh_pihole(self)`
 
-Actualiza 4 métricas Pi-hole: bloqueadas hoy, % bloqueo, total queries, estado.
+Actualiza las métricas de Pi-hole: bloqueadas hoy, porcentaje de bloqueo, total de consultas y estado.
 
-Formato con separadores miles. Maneja sin datos o errores.
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Exception si ocurre un error al obtener las estadísticas de Pi-hole.
+
+Nota: Actualiza los widgets correspondientes con formato de separadores de miles y maneja casos sin datos o errores.
 
 </details>

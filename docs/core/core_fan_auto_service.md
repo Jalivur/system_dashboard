@@ -47,13 +47,16 @@ from utils.logger import get_logger
 ## Clase `FanAutoService`
 
 Servicio que actualiza automáticamente el PWM en modo AUTO.
-Se ejecuta en segundo plano independiente de la UI.
 
-Características:
-- Singleton: Solo una instancia en toda la aplicación
-- Thread-safe: Seguro para concurrencia
-- Daemon: Se cierra automáticamente con el programa
-- Independiente de UI: Funciona con o sin ventanas abiertas
+Args:
+    fan_controller (FanController): Controlador del ventilador.
+    system_monitor (SystemMonitor): Monitor del sistema.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -71,54 +74,116 @@ Características:
 
 #### `start(self)`
 
-Inicia thread daemon para bucle auto-PWM.
+Inicia el servicio en segundo plano.
 
 Args:
-    Ninguno (usa self._fan_controller, self._system_monitor).
+    Ninguno, utiliza atributos de instancia para la configuración.
+
+Returns:
+    Ninguno.
+
+Raises:
+    Ninguno.
 
 #### `stop(self)`
 
-Detiene el servicio.
+Detiene el servicio de ajuste automático del ventilador.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `is_running(self) -> bool`
 
-Verifica si el servicio está corriendo.
+Indica si el servicio de ventilador automático está en ejecución.
+
+Args:
+    None
+
+Returns:
+    bool: True si el servicio está corriendo, False de lo contrario.
+
+Raises:
+    None
 
 #### `set_update_interval(self, seconds: float)`
 
-Configura intervalo de polling auto-PWM (mín 1s).
+Establece el intervalo de tiempo entre actualizaciones de polling auto-PWM.
 
 Args:
-    seconds (float): Segundos entre updates.
+    seconds (float): Intervalo en segundos entre actualizaciones.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `get_status(self) -> dict`
 
-Retorna estado para UI (running, interval, thread_alive).
+Retorna el estado actual del servicio de ventilador.
+
+Args:
+    None
 
 Returns:
-    dict: Status dict del servicio.
+    dict: Diccionario con el estado del servicio, incluyendo si está en ejecución, 
+          el intervalo de actualización y el estado del hilo.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__new__(cls, *args, **kwargs)`
 
-Singleton thread-safe para única instancia del servicio.
+Crea una instancia única del servicio de forma thread-safe.
+
+Args:
+    *args: Argumentos posicionales.
+    **kwargs: Argumentos clave-valor.
+
+Returns:
+    La instancia única del servicio.
 
 #### `__init__(self, fan_controller: FanController, system_monitor: SystemMonitor)`
 
-Inicializa singleton FanAutoService (solo primera vez).
+Inicializa el servicio de control de ventilador de forma automática.
 
 Args:
-    fan_controller (FanController): Para calcular PWM.
-    system_monitor (SystemMonitor): Para temperatura CPU.
+    fan_controller (FanController): Controlador para calcular PWM.
+    system_monitor (SystemMonitor): Monitor del sistema para obtener temperatura CPU.
 
 #### `_run(self)`
 
-Bucle principal del servicio.
+Ejecuta el bucle principal del servicio de ventilador automático.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    Exception
 
 #### `_update_auto_mode(self)`
 
-Actualiza el PWM si está en modo auto.
+Actualiza el modo automático del ventilador si está activado.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error al cargar o guardar el estado o al obtener estadísticas del sistema.
 
 </details>

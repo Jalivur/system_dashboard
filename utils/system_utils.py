@@ -16,7 +16,15 @@ logger = get_logger(__name__)
 
 
 class SystemUtils:
-    """Utilidades para interactuar con el sistema"""
+    """
+    Proporciona funcionalidades para obtener información del sistema.
+
+    Args: Ninguno
+
+    Returns: Ninguno
+
+    Raises: Ninguno
+    """
     
     # Variable de clase para mantener estado de red entre llamadas
     _last_net_io = {}
@@ -24,10 +32,16 @@ class SystemUtils:
     @staticmethod
     def get_cpu_temp() -> float:
         """
-        Obtiene la temperatura de la CPU
-        
+        Obtiene la temperatura actual de la CPU.
+
+        Args:
+            Ninguno
+
         Returns:
-            Temperatura en grados Celsius
+            float: Temperatura en grados Celsius.
+
+        Raises:
+            Ninguna excepción específica, aunque puede registrar un warning si el formato de salida de los comandos del sistema es inesperado.
         """
         # Método 1: vcgencmd (Raspberry Pi - método oficial)
         try:
@@ -77,10 +91,13 @@ class SystemUtils:
     @staticmethod
     def get_hostname() -> str:
         """
-        Obtiene el nombre del host
-        
+        Obtiene el nombre del host del sistema.
+
         Returns:
-            Nombre del host o "unknown"
+            str: Nombre del host del sistema. Si no se puede obtener, devuelve "unknown".
+
+        Raises:
+            Exception: Si ocurre un error al obtener el nombre del host, se registra un warning.
         """
         try:
             return socket.gethostname()
@@ -91,13 +108,16 @@ class SystemUtils:
     @staticmethod
     def get_net_io(interface: Optional[str] = None) -> Tuple[str, Any]:
         """
-        Obtiene estadísticas de red con auto-detección de interfaz activa
-        
+        Obtiene estadísticas de red de una interfaz específica o la más activa si no se especifica.
+
         Args:
-            interface: Nombre de la interfaz o None para auto-detección
-            
+            interface: Nombre de la interfaz de red o None para auto-detección de la interfaz más activa.
+
         Returns:
-            Tupla (nombre_interfaz, estadísticas)
+            Tupla que contiene el nombre de la interfaz y sus estadísticas de red.
+
+        Raises:
+            No se documentan excepciones explícitas.
         """
         if not SystemUtils._last_net_io:
             SystemUtils._last_net_io = psutil.net_io_counters(pernic=True)
@@ -152,14 +172,17 @@ class SystemUtils:
     @staticmethod
     def safe_net_speed(current: Any, previous: Optional[Any]) -> Tuple[float, float]:
         """
-        Calcula velocidad de red de forma segura
-        
+        Calcula la velocidad de red de forma segura a partir de estadísticas actuales y anteriores.
+
         Args:
-            current: Estadísticas actuales
-            previous: Estadísticas anteriores
-            
+            current: Estadísticas actuales de red.
+            previous: Estadísticas anteriores de red, puede ser None.
+
         Returns:
-            Tupla (download_mb, upload_mb)
+            Tupla con velocidades de descarga y subida en megabytes por segundo.
+
+        Raises:
+            Atrapa AttributeError y TypeError, registrando un mensaje de advertencia y retornando velocidades nulas.
         """
         if previous is None:
             return 0.0, 0.0
@@ -181,10 +204,11 @@ class SystemUtils:
     @staticmethod
     def list_usb_storage_devices() -> list:
         """
-        Lista dispositivos USB de almacenamiento (discos)
-        
+        Recupera una lista de dispositivos de almacenamiento USB conectados al sistema.
+
         Returns:
-            Lista de diccionarios con información de almacenamiento USB
+            list: Lista de diccionarios con información de los dispositivos de almacenamiento USB, 
+                  incluyendo nombre, tipo, punto de montaje, dispositivo, tamaño.
         """
         storage_devices = []
         
@@ -236,10 +260,14 @@ class SystemUtils:
     @staticmethod
     def list_usb_other_devices() -> list:
         """
-        Lista otros dispositivos USB (no almacenamiento)
-        
+        Recupera una lista de dispositivos USB del sistema, excluyendo dispositivos de almacenamiento.
+
         Returns:
-            Lista de strings con información de dispositivos USB
+            list: Lista de strings con información de dispositivos USB.
+
+        Raises:
+            subprocess.TimeoutExpired: Si el comando lsusb excede el tiempo límite.
+            FileNotFoundError: Si el comando lsusb no se encuentra en el sistema.
         """
         try:
             result = subprocess.run(
@@ -265,24 +293,29 @@ class SystemUtils:
     @staticmethod
     def list_usb_devices() -> list:
         """
-        Lista TODOS los dispositivos USB (mantener para compatibilidad)
-        
+        Recupera una lista de dispositivos USB conectados al sistema.
+
         Returns:
-            Lista de strings con lsusb
+            list: Lista de dispositivos USB en formato de cadena.
+
+        Raises:
+            None
         """
         return SystemUtils.list_usb_other_devices()
     
     @staticmethod
     def eject_usb_device(device: dict) -> Tuple[bool, str]:
         """
-        Expulsa un dispositivo USB de forma segura
-        
+        Expulsa un dispositivo USB de forma segura.
+
         Args:
-            device: Diccionario con información del dispositivo
-                   (debe tener 'children' con particiones)
-        
+            device: Diccionario con información del dispositivo (debe tener 'children' con particiones).
+
         Returns:
-            Tupla (success: bool, message: str)
+            Tupla (success: bool, message: str) indicando si la expulsión fue exitosa y un mensaje descriptivo.
+
+        Raises:
+            No se especifican excepciones explícitas en la implementación.
         """
         device_name = device.get('name', 'desconocido')
         
@@ -324,13 +357,17 @@ class SystemUtils:
     @staticmethod
     def run_script(script_path: str) -> Tuple[bool, str]:
         """
-        Ejecuta un script de sistema
-        
+        Ejecuta un script de sistema mediante el comando bash.
+
         Args:
-            script_path: Ruta al script
-            
+            script_path: Ruta al script que se ejecutará.
+
         Returns:
-            Tupla (éxito, mensaje)
+            Tupla que contiene un booleano que indica si la ejecución fue exitosa y un mensaje con el resultado.
+
+        Raises:
+            subprocess.TimeoutExpired: Si el script tarda más de 30 segundos en ejecutarse.
+            FileNotFoundError: Si el script no se encuentra en la ruta especificada.
         """
         try:
             result = subprocess.run(
@@ -360,10 +397,13 @@ class SystemUtils:
     @staticmethod
     def get_interfaces_ips() -> Dict[str, str]:
         """
-        Obtiene las IPs de todas las interfaces de red
-        
+        Obtiene las direcciones IP de todas las interfaces de red disponibles.
+
         Returns:
-            Diccionario {interfaz: IP}
+            dict: Diccionario con el nombre de la interfaz como clave y su dirección IP como valor.
+
+        Raises:
+            Exception: Si ocurre un error al obtener las direcciones IP de las interfaces.
         """
         result = {}
         try:
@@ -381,11 +421,16 @@ class SystemUtils:
     @staticmethod
     def get_nvme_temp() -> float:
         """
-        Obtiene la temperatura del disco NVMe.
-        Solo lee sensores asociados a dispositivos NVMe reales.
+        Obtiene la temperatura del disco NVMe mediante el comando smartctl.
+
+        Args:
+            Ninguno
 
         Returns:
-            Temperatura en °C o 0.0 si no hay NVMe o no se puede leer
+            float: Temperatura en °C o 0.0 si no hay NVMe o no se puede leer.
+
+        Raises:
+            Ninguna excepción relevante, maneja internamente posibles errores.
         """
         # Método 1: smartctl
         try:

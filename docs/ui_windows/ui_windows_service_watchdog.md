@@ -43,7 +43,18 @@ from utils.logger import get_logger
 
 ## Clase `ServiceWatchdogWindow(ctk.CTkToplevel)`
 
-Ventana Service Watchdog systemd
+Ventana para monitoreo y configuración del watchdog de servicios systemd.
+
+Args:
+    parent: Ventana padre (CTk).
+    service_monitor (ServiceMonitor): Instancia para queries de servicios y logs.
+    watchdog (ServiceWatchdog): Instancia para configuración y estadísticas críticas.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -67,177 +78,256 @@ Ventana Service Watchdog systemd
 
 #### `__init__(self, parent, service_monitor: ServiceMonitor, watchdog: ServiceWatchdog)`
 
-Inicializador de la ventana Service Watchdog para monitoreo systemd.
+Inicializa la ventana de monitoreo Service Watchdog.
 
-Configura:
-- Dependencias: ServiceMonitor, ServiceWatchdog
-- Variables de estado/UI (search, filter, criticals, pause, debounces)
-- Geometría DSI fullscreen no-resizable
-- Llama _create_ui() y inicia _update() loop
-- Log apertura
+Configura las dependencias, variables de estado y la interfaz de usuario.
 
 Args:
     parent: Ventana padre (CTk).
-    service_monitor (ServiceMonitor): Instancia para queries servicios/logs.
-    watchdog (ServiceWatchdog): Instancia para config/stats críticos.
+    service_monitor (ServiceMonitor): Instancia para queries de servicios y logs.
+    watchdog (ServiceWatchdog): Instancia para configuración y estadísticas críticas.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_ui(self)`
 
 Crea la interfaz de usuario principal de la ventana Service Watchdog.
 
-Construye todos los componentes visuales incluyendo:
-- Header de ventana con título y botón cerrar
-- Barra de estadísticas (críticos, restarts, umbral, estado)
-- Panel de configuración (umbral, intervalo, botones APLIAR/Refrescar)
-- Controles de búsqueda y filtro
-- Encabezados de tabla
-- Canvas scrollable para la tabla de servicios
+    Args:
+        Ninguno
 
-Inicializa la geometría y estilos según configuración global (DSI).
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
 
 #### `_create_controls(self, parent)`
 
-Crea los controles interactivos superiores para filtrado y gestión.
-
-Componentes:
-- Campo de búsqueda con debounce para servicios por nombre
-- Radio buttons para filtro (solo críticos / todos)
-- Entry para añadir nuevo servicio crítico + botón AÑADIR
-- Botón GUARDAR lista críticos
+Crea los controles interactivos superiores para filtrado y gestión de servicios.
 
 Args:
-    parent: Frame contenedor principal.
+    parent: Frame contenedor principal donde se crearán los controles.
 
 #### `_create_column_headers(self, parent)`
 
 Crea la fila de encabezados para la tabla scrollable de servicios.
 
-Columnas: Servicio | Estado | Fallos | Actions (reiniciar/ver logs)
-Usa grid con pesos para responsividad.
-
 Args:
     parent: Frame contenedor de headers.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_debounce_umbral_update(self)`
 
 Maneja el debounce para cambios en el campo de umbral de fallos críticos.
 
-Cancela cualquier timer previo y programa _on_umbral_change después de 400ms
-de inactividad en el entry, evitando múltiples llamadas durante tipificación rápida.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_umbral_change(self, val)`
 
-Valida y aplica cambios al umbral de fallos consecutivos críticos.
-
-Convierte entrada a entero, clamp entre 1-10, actualiza StringVar y label visual.
+Aplica cambios al umbral de fallos consecutivos críticos a partir de un valor introducido.
 
 Args:
-    val (str): Valor crudo del entry field.
+    val (str): Valor crudo del campo de entrada.
+
+Raises:
+    None
 
 #### `_debounce_interval_update(self)`
 
-Maneja el debounce para cambios en el campo de intervalo de monitoreo.
+Establece un debounce para cambios en el intervalo de monitoreo, 
+programando una actualización diferida después de un período de inactividad.
 
-Cancela timer previo y programa _on_interval_change tras 400ms de inactividad.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_interval_change(self, val)`
 
-Valida y aplica cambios al intervalo de chequeo periódico del watchdog.
+Aplica cambios al intervalo de chequeo periódico del watchdog.
 
-Convierte a entero, clamp 30-300s, actualiza StringVar y label.
+    Args:
+        val (str): Valor del entry field.
 
-Args:
-    val (str): Valor del entry field.
+    Raises:
+        None
 
 #### `_apply_config(self)`
 
-Aplica configuración actual de umbral e intervalo al ServiceWatchdog.
+Aplica la configuración actual de umbral e intervalo al ServiceWatchdog.
 
-Valida rangos finales, llama set_threshold/set_interval, confirma con msgbox.
-Maneja ValueError mostrando mensaje de error.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    ValueError: Si los valores de umbral o intervalo no son válidos.
+
+Nota: Configura el umbral entre 1 y 10, e intervalo entre 30 y 300.
 
 #### `_debounced_search(self)`
 
 Implementa búsqueda en tiempo real con debounce para nombres de servicios.
 
-Cancela búsqueda previa y agenda _update_now tras 400ms sin teclas,
-optimizando rendimiento durante tipificación.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_filter(self)`
 
-Responde a cambio de filtro de servicios (críticos/todos).
+Responde a cambios en el filtro de servicios.
 
-Pausa actualizaciones por 1.5s para evitar flicker durante transición,
-llamando _resume_updates.
+Pausa las actualizaciones durante 1.5 segundos para evitar flicker durante la transición.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_resume_updates(self)`
 
-Reanuda el ciclo de actualizaciones periódicas tras pausa temporal.
+Reanuda el ciclo de actualizaciones periódicas tras una pausa temporal.
 
-Usado después de cambios de filtro para estabilizar UI.
+Args: None
+
+Returns: None
+
+Raises: None
 
 #### `_force_update(self)`
 
-Fuerza actualización inmediata de datos y UI.
+Fuerza la actualización inmediata de datos y la interfaz de usuario.
 
-Despausa updates si estaban detenidos y llama _update_now directamente.
-Usado por botón Refrescar.
+Despausa las actualizaciones si estaban detenidas y llama a _update_now directamente.
+Este método es utilizado por el botón Refrescar.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `_update(self)`
 
-Loop principal de actualización periódica de la UI.
+Actualiza periódicamente la interfaz de usuario del ServiceWatchdogWindow.
 
-Verifica existencia ventana, respeta pausa, llama _update_now,
-reprograna cada UPDATE_MS*2 (2000ms típicamente).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_now(self)`
 
-Actualización inmediata y completa de estadísticas y tabla de servicios.
+Actualiza inmediatamente estadísticas y tabla de servicios.
 
-- Actualiza label stats desde watchdog.get_stats()
-- Limpia y reconstruye tabla con servicios filtrados (search + filter)
-- Max 25 filas, alterna colores filas, iconos estado, badges fallos/restarts
-- Botones por fila: restart (confirm), logs (modal)
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_do_restart(self, name)`
 
-Inicia reinicio seguro de servicio con confirmación del usuario.
-
-Crea closure action() que llama ServiceMonitor.restart_service,
-muestra msgbox resultado, refresca UI.
-Usa confirm_dialog con ícono warning.
+Inicia el reinicio seguro de un servicio con confirmación del usuario.
 
 Args:
-    name (str): Nombre exacto del servicio systemd (ej. 'nginx').
+    name (str): Nombre exacto del servicio systemd.
+
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_show_logs(self, name)`
 
-Muestra logs recientes del servicio en modal.
-
-Obtiene 30 líneas via ServiceMonitor.get_logs, trunca a 800 chars,
-fallback "Sin logs" si vacío.
+Muestra logs recientes del servicio en una ventana modal.
 
 Args:
     name (str): Nombre del servicio.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_add_critical(self)`
 
-Añade servicio ingresado a lista de monitoreo crítico.
+Añade un servicio a la lista de monitoreo crítico.
 
-Valida no vacío/no duplicado via ServiceWatchdog.add_critical_service,
-actualiza label lista, refresca tabla, confirma.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_save_criticals(self)`
 
 Persiste la lista actual de servicios críticos en watchdog.
 
-Obtiene servicios desde stats['services'], llama set_critical_services,
-confirma con msgbox.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_critical_label(self)`
 
-Actualiza label textual con lista actual de servicios críticos.
+Actualiza la etiqueta textual con la lista actual de servicios críticos.
 
-Formato "Críticos: service1, service2..." o ignora si label None.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

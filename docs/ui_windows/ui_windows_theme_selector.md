@@ -43,7 +43,16 @@ from utils.logger import get_logger
 
 ## Clase `ThemeSelector(ctk.CTkToplevel)`
 
-Ventana de selección de temas
+Ventana emergente para seleccionar temas de la aplicación.
+
+Args:
+    parent: Widget padre CTkToplevel del dashboard.
+
+Raises:
+    None
+
+Returns:
+    None
 
 ### Atributos públicos
 
@@ -62,24 +71,75 @@ Inicializa la ventana selector de temas del dashboard.
 Args:
     parent: Widget padre CTkToplevel del dashboard.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario
+Crea la interfaz de usuario del selector de temas.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_theme_cards(self, parent)`
 
-Crea las tarjetas de cada tema
+Crea las tarjetas de cada tema disponible en la aplicación.
+
+Args:
+    parent: El elemento padre donde se crearán las tarjetas de temas.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_bottom_buttons(self, parent)`
 
-Crea los botones inferiores
+Crea los botones inferiores de la interfaz de selección de temas.
+
+Args:
+    parent: El elemento padre donde se crearán los botones.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_theme_change(self)`
 
-Callback cuando se selecciona un tema
+Actualiza la configuración del tema seleccionado.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_apply_theme(self)`
 
-Aplica el tema seleccionado y reinicia la aplicación
+Aplica el tema seleccionado y reinicia la aplicación si es diferente al actual.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

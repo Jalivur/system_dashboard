@@ -33,33 +33,46 @@ CRIT_REPEAT_S = 30       # cada 30 segundos mientras siga crítico
 _SOUNDS_DIR = Path(__file__).resolve().parent.parent / "scripts" / "sounds"
 
 def _sound(metric: str, level: str) -> str:
-    """Devuelve la ruta del audio para una métrica y nivel dados.
+    """
+    Devuelve la ruta del audio para una métrica y nivel dados.
+
     Args:
         metric (str): La métrica a considerar.
         level (str): El nivel de la métrica.
+
     Returns:
-        str: La ruta del archivo de audio correspondiente."""
+        str: La ruta del archivo de audio correspondiente.
+    """
     return str(_SOUNDS_DIR / f"{metric}_{level}.wav")
 
 
 class _MetricState:
     """
-    Estado interno por métrica que almacena el estado y la última vez que se reprodujo.
+    Almacena el estado interno de una métrica y la fecha de última reproducción.
+
     Args:
-        None
+        Ninguno
+
     Returns:
-        None
+        Ninguno
+
     Raises:
-        None
+        Ninguno
     """
     __slots__ = ("zone", "last_played")
 
     def __init__(self):
         """
         Inicializa el estado de la métrica con valores predeterminados.
-        Args: None
-        Returns: None
-        Raises: None
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self.zone        = "ok"
         self.last_played = 0.0
@@ -69,11 +82,14 @@ class _MetricState:
 class AudioAlertService:
     """
     Servicio de alertas sonoras que reproduce archivos WAV cuando se superan umbrales configurados.
+
     Args:
         system_monitor: Fuente de métricas CPU/RAM/TEMP.
         service_monitor (opcional): Fuente de servicios caídos.
+
     Returns:
         None
+
     Raises:
         None
     """
@@ -81,9 +97,16 @@ class AudioAlertService:
     def __init__(self, system_monitor, service_monitor=None):
         """
         Inicializa el servicio de alertas de audio con monitores del sistema y servicios.
+
         Args:
             system_monitor: Fuente de métricas CPU/RAM/TEMP.
             service_monitor (opcional): Fuente de servicios caídos.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._system_monitor = system_monitor
         self._service_monitor = service_monitor
@@ -105,9 +128,15 @@ class AudioAlertService:
     def start(self):
         """
         Inicia el servicio de alertas sonoras en segundo plano.
-        Args: None
-        Returns: None
-        Raises: None
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self._running:
             return
@@ -123,9 +152,15 @@ class AudioAlertService:
     def stop(self):
         """
         Detiene el servicio de alertas de audio de manera limpia.
-        Args: None
-        Returns: None
-        Raises: None
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._running = False
         self._stop_evt.set()
@@ -137,7 +172,10 @@ class AudioAlertService:
     def is_running(self) -> bool:
         """
         Indica si el servicio de alertas de audio está activo.
-        Args: None
+
+        Args:
+            None
+
         Returns:
             bool: True si el servicio está en ejecución, False de lo contrario.
         """
@@ -147,8 +185,15 @@ class AudioAlertService:
     def set_enabled(self, enabled: bool):
         """
         Activa o desactiva las alertas sonoras de forma segura.
+
         Args:
             enabled (bool): Indica si se deben habilitar o deshabilitar las alertas sonoras.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         with self._lock:
             self._enabled = enabled
@@ -156,10 +201,18 @@ class AudioAlertService:
 
 
     def is_enabled(self) -> bool:
-        """Indica si el servicio de alertas de audio está habilitado.
-        Args: None
-        Returns: bool: True si el servicio está habilitado, False de lo contrario.
-        Raises: None"""
+        """
+        Indica si el servicio de alertas de audio está habilitado.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si el servicio está habilitado, False de lo contrario.
+
+        Raises:
+            None
+        """
         with self._lock:
             return self._enabled
 
@@ -167,9 +220,15 @@ class AudioAlertService:
     def play_test(self):
         """
         Reproduce un archivo de audio de prueba de forma asíncrona.
-        Args: None
-        Returns: None
-        Raises: None
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            None
         """
         threading.Thread(
             target=self._play, args=(_sound("temp", "crit"),), daemon=True, name="AudioAlert-PlayWav"
@@ -181,8 +240,11 @@ class AudioAlertService:
     def _loop(self):
         """
         Ejecuta un bucle de polling en segundo plano para verificar alertas de audio.
+
         Args: None
+
         Returns: None
+
         Raises: Exception en caso de error durante la verificación de alertas.
         """
         loop_interval = min(CRIT_REPEAT_S, 10)
@@ -199,10 +261,18 @@ class AudioAlertService:
     # ── Lógica principal ──────────────────────────────────────────────────────
 
     def _check(self):
-        """Evalúa las métricas del sistema y servicios contra los umbrales definidos.
-        Args: None
-        Returns: None
-        Raises: Exception"""
+        """
+        Evalúa las métricas del sistema y servicios contra los umbrales definidos.
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            Exception
+        """
         with self._lock:
 
             if not self._enabled:
@@ -280,10 +350,10 @@ class AudioAlertService:
     def _play(self, sound_file: str):
         """
         Reproduce un archivo de sonido utilizando aplay o paplay con un timeout de 15 segundos.
+
         Args:
             sound_file (str): Ruta al archivo de sonido a reproducir.
-        Returns:
-            None
+
         Raises:
             FileNotFoundError: Si el archivo de sonido no existe.
             subprocess.TimeoutExpired: Si la reproducción del sonido supera el timeout.

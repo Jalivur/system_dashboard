@@ -12,14 +12,33 @@ logger = get_logger(__name__)
 
 
 class ProcessWindow(ctk.CTkToplevel):
-    """Ventana de monitor de procesos"""
+    """
+    Ventana emergente para monitorizar procesos en tiempo real.
+
+    Args:
+        parent: Ventana padre (CTkToplevel).
+        process_monitor (ProcessMonitor): Instancia del monitor de procesos.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ninguno.
+    """
 
     def __init__(self, parent, process_monitor: ProcessMonitor):
-        """Inicializa la ventana de monitor de procesos.
+        """
+        Inicializa la ventana de monitor de procesos.
 
         Args:
             parent: Ventana padre (CTkToplevel).
             process_monitor (ProcessMonitor): Instancia del monitor de procesos para obtener datos en tiempo real.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         super().__init__(parent)
 
@@ -50,7 +69,18 @@ class ProcessWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea la interfaz de usuario"""
+        """
+        Crea la interfaz de usuario de la ventana de proceso.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -108,7 +138,18 @@ class ProcessWindow(ctk.CTkToplevel):
     # ── Controles ─────────────────────────────────────────────────────────────
 
     def _create_controls(self, parent):
-        """Crea controles de búsqueda y filtros"""
+        """
+        Crea los controles de búsqueda y filtros en la ventana.
+
+        Args:
+            parent: El elemento padre donde se crearán los controles.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         controls = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         controls.pack(fill="x", padx=10, pady=5)
 
@@ -157,7 +198,18 @@ class ProcessWindow(ctk.CTkToplevel):
             StyleManager.style_radiobutton_ctk(rb)
 
     def _create_column_headers(self, parent):
-        """Crea encabezados de columnas ordenables"""
+        """
+        Crea los encabezados de columnas ordenables para la ventana de procesos.
+
+        Args:
+            parent: El elemento padre donde se crearán los encabezados.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         headers = ctk.CTkFrame(parent, fg_color=COLORS['bg_light'])
         headers.pack(fill="x", padx=10, pady=(5, 0))
 
@@ -202,7 +254,13 @@ class ProcessWindow(ctk.CTkToplevel):
     # ── Callbacks de UI ───────────────────────────────────────────────────────
 
     def _on_sort_change(self, column: str):
-        """Cambia el orden de procesos"""
+        """
+        Reordenar los procesos en la ventana según la columna especificada.
+
+        Args:
+            column (str): La columna por la que ordenar los procesos.
+
+        """
         self._update_paused = True
 
         self._process_monitor.toggle_sort(column)
@@ -211,14 +269,36 @@ class ProcessWindow(ctk.CTkToplevel):
         self.after(2000, self._resume_updates)
 
     def _on_filter_change(self):
-        """Cambia el filtro de procesos"""
+        """
+        Actualiza el filtro de procesos cuando éste cambia.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._update_paused = True
         self._process_monitor.set_filter(self._filter_var.get())
         self._update_now()
         self.after(2000, self._resume_updates)
 
     def _on_search_change(self):
-        """Callback cuando cambia la búsqueda — debounce 500 ms"""
+        """
+        Establece un retardo para actualizar la búsqueda cuando el usuario ha dejado de escribir.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._update_paused = True
 
         if hasattr(self, '_search_timer'):
@@ -227,18 +307,48 @@ class ProcessWindow(ctk.CTkToplevel):
         self._search_timer = self.after(500, self._do_search)
 
     def _do_search(self):
-        """Ejecuta la búsqueda"""
+        """
+        Ejecuta la búsqueda y pausa temporalmente las actualizaciones.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._update_now()
         self.after(3000, self._resume_updates)
 
     def _resume_updates(self):
-        """Reanuda las actualizaciones automáticas"""
+        """
+        Reanuda las actualizaciones automáticas de la ventana de proceso.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
+        """
         self._update_paused = False
 
     # ── Renderizado ───────────────────────────────────────────────────────────
 
     def _render_processes(self):
-        """Actualiza stats y renderiza la lista de procesos (lógica compartida)."""
+        """
+        Actualiza estadísticas y renderiza la lista de procesos.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         stats = self._process_monitor.get_system_stats()
         self._stats_label.configure(
             text=(
@@ -264,7 +374,18 @@ class ProcessWindow(ctk.CTkToplevel):
             self._create_process_row(proc, i)
 
     def _update_now(self):
-        """Actualiza inmediatamente sin programar siguiente"""
+        """
+        Actualiza inmediatamente la ventana de procesos sin programar la siguiente actualización.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if not self.winfo_exists():
             return
 
@@ -275,7 +396,18 @@ class ProcessWindow(ctk.CTkToplevel):
         self._render_processes()
 
     def _update(self):
-        """Bucle de actualización automática"""
+        """
+        Actualiza automáticamente la ventana de proceso.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self.winfo_exists():
             return
 
@@ -292,7 +424,19 @@ class ProcessWindow(ctk.CTkToplevel):
         self._update_job = self.after(UPDATE_MS * 2, self._update)
 
     def _create_process_row(self, proc: dict, row: int):
-        """Crea una fila para un proceso"""
+        """
+        Crea una fila para mostrar información de un proceso en la ventana.
+
+        Args:
+            proc (dict): Diccionario con información del proceso.
+            row (int): Número de fila para aplicar estilo alternado.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         bg_color  = COLORS['bg_dark'] if row % 2 == 0 else COLORS['bg_medium']
         row_frame = ctk.CTkFrame(self._process_frame, fg_color=bg_color)
         row_frame.pack(fill="x", pady=2, padx=10)
@@ -368,7 +512,18 @@ class ProcessWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _kill_process(self, proc: dict):
-        """Mata un proceso con confirmación"""
+        """
+        Mata un proceso después de confirmar con el usuario.
+
+        Args:
+            proc (dict): Diccionario con información del proceso a matar, incluyendo 'pid', 'name' y 'cpu'.
+
+        Raises:
+            None
+
+        Returns:
+            None
+        """
         def do_kill():
             """Ejecuta la terminación del proceso seleccionado."""
             success, message = self._process_monitor.kill_process(proc['pid'])

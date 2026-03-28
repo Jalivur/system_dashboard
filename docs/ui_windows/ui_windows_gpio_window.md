@@ -69,6 +69,16 @@ from core.gpio_monitor import MODE_INPUT, MODE_OUTPUT, MODE_PWM, VALID_MODES, OP
 
 Ventana de control y monitorización GPIO.
 
+Args:
+    parent: Widget padre (CTkToplevel).
+    gpio_monitor: Instancia del monitor GPIO para interactuar con el hardware.
+
+Returns:
+    None
+
+Raises:
+    None
+
 ### Atributos privados
 
 | Atributo | Valor inicial |
@@ -80,7 +90,16 @@ Ventana de control y monitorización GPIO.
 
 #### `destroy(self)`
 
-Destruye la ventana limpiamente, logueando el cierre.
+Destruye la ventana limpiamente y registra el evento de cierre.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 <details>
 <summary>Métodos privados</summary>
@@ -93,22 +112,30 @@ Args:
     parent: Widget padre (CTkToplevel).
     gpio_monitor: Instancia del monitor GPIO para interactuar con el hardware.
 
-Configura la geometría para pantalla DSI, crea la interfaz de usuario completa,
-inicializa componentes internos y lanza el bucle de actualización automática.
+Configura la geometría para pantalla DSI y crea la interfaz de usuario completa.
 
 #### `_create_ui(self)`
 
-Crea todos los widgets y estructura de la interfaz de usuario.
+Crea la estructura y widgets de la interfaz de usuario.
 
-Construye header, barra de modo de operación, área scrollable con canvas,
-filas de pines dinámicas, footer con estado y botón de configuración.
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `_toggle_op_mode(self)`
 
 Alterna el modo de operación entre LIBRE y CONTROLANDO.
 
-Lanza el cambio en thread daemon para no bloquear la UI y programa
-actualización de la barra en 200ms.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_op_mode_changed(self)`
 
@@ -116,11 +143,29 @@ Callback ejecutado tras cambio de modo de operación.
 
 Actualiza la barra de operación y reconstruye las filas si la ventana existe.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_update_op_bar(self)`
 
 Actualiza visualmente la barra de modo de operación.
 
 Reconfigura labels y botón según el estado actual del monitor.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_op_text(self) -> str`
 
@@ -145,10 +190,16 @@ Returns:
 
 #### `_build_rows(self)`
 
-Construye o reconstruye todas las filas de pines en el canvas interno.
+Reconstruye todas las filas de pines en el canvas interno según el estado actual del monitor.
 
-Limpia widgets existentes, crea filas nuevas basadas en el estado actual del monitor.
-Maneja casos especiales como ausencia de pines o modo LIBRE con mensajes informativos.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_create_pin_row(self, pin: int, data: dict, is_libre: bool)`
 
@@ -159,14 +210,24 @@ Args:
     data (dict): Estado actual del pin del monitor.
     is_libre (bool): Si el modo de operación es LIBRE.
 
-Crea indicador visual, etiqueta, badge de modo y controles contextuales (toggle, slider).
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_update(self)`
 
-Bucle principal de actualización de estado en tiempo real.
+Actualiza el estado de la ventana en tiempo real.
 
-Se ejecuta cada _REFRESH_MS. Verifica servicio, reconstruye si cambios estructurales,
-actualiza indicadores, estados y controles sin recrear widgets.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_toggle_output(self, pin: int)`
 
@@ -175,17 +236,27 @@ Alterna el estado HIGH/LOW de un pin en modo OUTPUT.
 Args:
     pin (int): Número del pin.
 
-Lanza el comando en thread daemon, actualiza UI reactivamente.
+Raises:
+    None
+
+Returns:
+    None
+
+Nota: Lanza el comando en thread daemon, actualiza UI reactivamente.
 
 #### `_on_pwm_slide(self, pin: int, val: float)`
 
-Manejador de slider PWM: aplica duty cycle.
+Manejador de evento para actualizar el ciclo de trabajo de un pin PWM mediante un deslizador.
 
 Args:
-    pin (int): Número del pin PWM.
-    val (float): Valor del slider (0-100).
+    pin (int): Número del pin PWM que se está actualizando.
+    val (float): Valor porcentual del deslizador (0-100).
 
-Actualiza label duty inmediato y lanza comando en thread.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_status_text(self, state: dict) -> str`
 
@@ -195,11 +266,23 @@ Args:
     state (dict): Diccionario de estado de todos los pines.
 
 Returns:
-    str: Resumen como 'CTRL · 4 pines · 2 IN · 1 OUT · 1 PWM'.
+    str: Resumen del estado de los pines.
+
+Raises:
+    None
 
 #### `_open_config(self)`
 
 Abre el diálogo de configuración de pines.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_config_closed(self)`
 
@@ -207,11 +290,31 @@ Callback ejecutado al cerrar el diálogo de configuración.
 
 Reconstruye las filas de pines para reflejar cambios.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 </details>
 
 ## Clase `_GPIOConfigDialog(ctk.CTkToplevel)`
 
-Panel para añadir, eliminar y reconfigurar pines GPIO.
+Diálogo de configuración para pines GPIO.
+
+Args:
+    parent: Ventana padre del diálogo.
+    gpio_monitor: Instancia del monitor de pines GPIO.
+    on_close (callable, optional): Función a llamar al cerrar el diálogo.
+
+Raises:
+    None
+
+Returns:
+    None
 
 ### Atributos privados
 
@@ -224,7 +327,16 @@ Panel para añadir, eliminar y reconfigurar pines GPIO.
 
 #### `destroy(self) -> None`
 
-Cierra el diálogo y ejecuta callback si existe.
+Cierra el diálogo de configuración GPIO y ejecuta el callback de cierre si existe.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 <details>
 <summary>Métodos privados</summary>
@@ -235,52 +347,103 @@ Inicializa el diálogo de configuración de pines.
 
 Args:
     parent: Ventana padre.
-    gpio_monitor: Instancia del monitor.
-    on_close (callable, optional): Callback al cerrar.
+    gpio_monitor: Instancia del monitor de pines GPIO.
+    on_close (callable, optional): Función de llamada de vuelta al cerrar el diálogo.
 
 #### `_create_ui(self)`
 
-Crea la interfaz del diálogo de configuración.
+Crea la interfaz del diálogo de configuración de pines GPIO.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_build_list(self)`
 
 Reconstruye la lista de pines configurados en el diálogo.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_create_list_row(self, pin: int, data: dict)`
 
-Crea fila editable para un pin en la lista de configuración.
+Crea una fila editable para un pin específico en la lista de configuración.
 
 Args:
-    pin (int): Pin.
-    data (dict): Datos del pin.
+    pin (int): Número del pin.
+    data (dict): Diccionario con los datos del pin.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_add_pin(self)`
 
 Añade un nuevo pin con modo y etiqueta especificados.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_remove_pin(self, pin: int)`
 
-Elimina un pin de la configuración.
+Elimina un pin de la configuración del diálogo.
 
 Args:
-    pin (int): Pin a eliminar.
+    pin (int): El pin a eliminar de la configuración.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_change_mode(self, pin: int, mode: str, feedback_label: ctk.CTkLabel)`
 
 Cambia el modo de un pin y muestra feedback visual.
 
 Args:
-    pin (int): Pin.
-    mode (str): Nuevo modo.
-    feedback_label: Label para mostrar OK/ERR.
+    pin (int): Número del pin a modificar.
+    mode (str): Nuevo modo del pin.
+    feedback_label (ctk.CTkLabel): Etiqueta para mostrar el resultado de la operación.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_save_label(self, pin: int, entry: ctk.CTkEntry, feedback_label: ctk.CTkLabel)`
 
-Guarda nueva etiqueta para un pin con feedback.
+Guarda una nueva etiqueta para un pin específico y proporciona retroalimentación visual.
 
 Args:
-    pin (int): Pin.
-    entry: Entry con nueva etiqueta.
-    feedback_label: Label para feedback.
+    pin (int): Número del pin.
+    entry (ctk.CTkEntry): Campo de entrada con la nueva etiqueta.
+    feedback_label (ctk.CTkLabel): Etiqueta para mostrar retroalimentación.
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

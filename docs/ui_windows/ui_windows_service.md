@@ -41,7 +41,13 @@ from utils.logger import get_logger
 
 ## Clase `ServiceWindow(ctk.CTkToplevel)`
 
-Ventana de monitor de servicios
+Ventana emergente para monitorizar servicios del sistema.
+
+Args:
+    parent: Widget padre que contiene la ventana.
+    service_monitor (ServiceMonitor): Instancia del monitor de servicios.
+
+Configura la ventana y crea la interfaz de usuario para mostrar información de servicios.
 
 ### Atributos privados
 
@@ -64,14 +70,24 @@ Args:
     parent: Widget padre (ventana principal).
     service_monitor (ServiceMonitor): Instancia del monitor de servicios para obtener datos y ejecutar acciones.
 
-Configura la ventana, variables de estado y lanza la creación de la interfaz.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_ui(self)`
 
 Crea todos los componentes de la interfaz de usuario de la ventana.
 
-Incluye: header, barra de estadísticas, controles, encabezados de columnas,
-contenedor con scroll y frame inferior con botón de refresco manual.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_controls(self, parent)`
 
@@ -80,7 +96,11 @@ Crea los controles de búsqueda y filtrado en la parte superior.
 Args:
     parent: Frame contenedor para los controles.
 
-Incluye entrada de búsqueda con debounce y botones radio para filtrar por estado (todos, activos, inactivos, fallidos).
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_column_headers(self, parent)`
 
@@ -89,7 +109,11 @@ Crea la fila de encabezados de columnas de la tabla de servicios.
 Args:
     parent: Frame contenedor para los headers.
 
-Columnas: Servicio (ordenable), Estado, Autostart, Acciones.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_sort_change(self, column: str)`
 
@@ -98,20 +122,34 @@ Maneja el cambio de ordenación por columna.
 Args:
     column (str): Columna por la que ordenar ('name' o 'state').
 
-Pausa actualizaciones automáticas temporalmente, alterna orden en el monitor y refresca la UI.
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_on_filter_change(self)`
 
-Aplica el nuevo filtro de estado seleccionado (todos, activos, inactivos, fallidos).
+Aplica el nuevo filtro de estado seleccionado y refresca la vista filtrada.
 
-Pausa actualizaciones temporales y refresca la vista filtrada.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_search_change(self)`
 
 Maneja los cambios en la entrada de búsqueda del usuario.
 
-Implementa debounce: cancela timers previos y programa _do_search en 500ms.
-Pausa actualizaciones automáticas durante la búsqueda.
+Args: None
+
+Returns: None
+
+Raises: None
 
 #### `_do_search(self)`
 
@@ -119,27 +157,65 @@ Ejecuta la búsqueda real tras el período de debounce.
 
 Refresca la UI con resultados filtrados y reanuda actualizaciones en 3s.
 
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_resume_updates(self)`
 
 Reanuda las actualizaciones automáticas periódicas.
 
 Se llama automáticamente tras pausas por sort/filter/search.
 
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_force_update(self)`
 
-Realiza un refresco manual inmediato de todos los datos y UI.
+Forza una actualización inmediata de todos los datos y la interfaz de usuario.
 
-Desactiva pausa de updates y llama a _update_now.
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `_update(self)`
 
-Bucle de actualización — winfo_exists siempre primero.
+Actualiza el estado de la ventana de servicio en intervalos regulares.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_now(self)`
 
 Refresco inmediato y completo de la interfaz con datos actuales.
 
-Actualiza stats, aplica search/filter, crea filas de servicios (máx 30).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_service_row(self, service: dict, row: int)`
 
@@ -149,34 +225,50 @@ Args:
     service (dict): Datos del servicio {name, active, enabled}.
     row (int): Índice de fila para alternar colores de fondo.
 
-Incluye iconos de estado, botones de acción contextuales según estado.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_start_service(self, service: dict)`
 
-Inicia un servicio inactivo con diálogo de confirmación.
+Inicia un servicio inactivo solicitando confirmación al usuario.
 
 Args:
     service (dict): Información del servicio a iniciar.
 
-Llama ServiceMonitor.start_service y refresca UI si éxito.
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ningún valor de retorno específico.
 
 #### `_stop_service(self, service: dict)`
 
-Detiene un servicio activo con advertencia de confirmación.
+Detiene un servicio activo después de confirmar con el usuario.
 
 Args:
-    service (dict): Información del servicio a detener.
+    service (dict): Información del servicio a detener, incluyendo su nombre.
 
-Llama ServiceMonitor.stop_service y refresca UI si éxito.
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_restart_service(self, service: dict)`
 
-Reinicia un servicio (activo o inactivo) con confirmación.
+Reinicia un servicio con confirmación previa.
 
 Args:
     service (dict): Información del servicio a reiniciar.
 
-Llama ServiceMonitor.restart_service y refresca UI si éxito.
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_view_logs(self, service: dict)`
 
@@ -185,7 +277,11 @@ Abre una ventana modal con los últimos 30 logs del servicio.
 Args:
     service (dict): Información del servicio cuyos logs mostrar.
 
-Crea ventana con textbox de solo lectura y botón cerrar.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_enable_service(self, service: dict)`
 
@@ -194,15 +290,23 @@ Habilita el autostart del servicio al boot con confirmación detallada.
 Args:
     service (dict): Información del servicio a habilitar.
 
-Llama ServiceMonitor.enable_service y refresca UI si éxito.
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_disable_service(self, service: dict)`
 
-Deshabilita el autostart del servicio al boot con confirmación.
+Deshabilita el autostart de un servicio al boot con confirmación previa.
 
 Args:
     service (dict): Información del servicio a deshabilitar.
 
-Llama ServiceMonitor.disable_service y refresca UI si éxito.
+Raises:
+    None
+
+Returns:
+    None
 
 </details>

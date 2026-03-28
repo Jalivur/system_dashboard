@@ -46,7 +46,13 @@ from utils.logger import get_logger
 
 ## Clase `FanControlWindow(ctk.CTkToplevel)`
 
-Ventana de control de ventiladores y curvas PWM
+Ventana de control de ventiladores y curvas PWM.
+
+Args:
+    parent: Ventana padre (root).
+    fan_controller: Instancia de FanController para control PWM.
+    system_monitor: Instancia de SystemMonitor para lecturas de temperatura.
+    fan_service: Servicio opcional de ventiladores (puede ser None).
 
 ### Atributos privados
 
@@ -69,40 +75,97 @@ Ventana de control de ventiladores y curvas PWM
 
 #### `__init__(self, parent, fan_controller: FanController, system_monitor: SystemMonitor, fan_service = None)`
 
-Constructor de la ventana de control de ventiladores.
-
-Inicializa dependencias, variables de estado, carga configuración previa,
-configura geometría de ventana DSI y crea la UI completa.
+Inicializa la ventana de control de ventiladores con dependencias y configuración.
 
 Args:
     parent: Ventana padre (root).
     fan_controller: Instancia de FanController para control PWM.
-    system_monitor: Instancia de SystemMonitor para lecturas temp.
+    system_monitor: Instancia de SystemMonitor para lecturas de temperatura.
     fan_service: Servicio opcional de ventiladores (puede ser None).
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_load_initial_state(self)`
 
-Carga el estado inicial desde archivo
+Carga el estado inicial de la ventana de control del ventilador desde archivo.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario
+Crea la interfaz de usuario de la ventana de control de ventiladores.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_service_status(self)`
 
-Muestra u oculta el aviso según si _fan_service está corriendo.
+Actualiza el estado de la notificación de servicio según el estado del servicio de ventilador.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_mode_section(self, parent)`
 
-Crea la sección de selección de modo
+Crea la sección de selección de modo en la ventana de control del ventilador.
+
+Args:
+    parent: El contenedor padre donde se creará la sección de selección de modo.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_manual_pwm_section(self, parent)`
 
-Crea la sección de PWM manual
+Crea la sección de PWM manual en la ventana de control del ventilador.
+
+Args:
+    parent: El elemento padre en el que se creará la sección.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_curve_section(self, parent)`
 
-Crea la sección de curva temperatura-PWM
+Crea la sección de curva temperatura-PWM en la ventana de control del ventilador.
+
+Args:
+    parent: El elemento padre en el que se creará la sección.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_entry_focus_in(self, entry, var, placeholder)`
 
@@ -115,69 +178,114 @@ Args:
     var: Variable StringVar asociada al campo.
     placeholder: Texto placeholder original.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_entry_focus_out(self, entry, var, placeholder)`
 
-Maneja el evento de foco saliendo de un campo de entrada.
-
-Restaura el placeholder si el campo está vacío.
+Restaura el texto placeholder en un campo de entrada cuando pierde el foco y está vacío.
 
 Args:
     entry: Widget CTkEntry que pierde el foco.
     var: Variable StringVar asociada al campo.
     placeholder: Texto placeholder original.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_add_curve_point_from_entries(self)`
 
 Añade un nuevo punto a la curva temperatura-PWM desde los campos de entrada.
 
-Valida rangos (temp 0-100, PWM 0-255), actualiza controlador, refresca UI
-y muestra confirmación.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
+
+Nota: Valida rangos (temp 0-100, PWM 0-255), actualiza controlador, refresca UI y muestra confirmación.
 
 #### `_refresh_curve_points(self)`
 
-Refresca la visualización de puntos de la curva.
+Refresca la visualización de puntos de la curva en la ventana de control.
 
-Limpia frame actual, carga curva desde archivo y recrea labels/botones
-para cada punto. Muestra mensaje si no hay puntos.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_remove_curve_point(self, temp: int)`
 
 Elimina un punto específico de la curva por temperatura.
 
 Args:
-    temp: Temperatura del punto a eliminar (int).
+    temp (int): Temperatura del punto a eliminar.
+
+Raises:
+    Exception: Si el punto no existe en la curva.
+
+Returns:
+    None
 
 #### `_create_bottom_buttons(self, parent)`
 
-Crea los botones inferiores de la interfaz.
+Crea los botones inferiores de la interfaz de control de ventilador.
 
 Args:
     parent: Frame contenedor para los botones.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_on_mode_change(self, mode: str)`
 
-Callback al cambiar el modo de operación (Auto, Silent, etc.).
-
-Calcula PWM objetivo basado en modo/temperatura actual, actualiza UI
-y guarda estado.
+Actualiza el control de ventilador al cambiar el modo de operación.
 
 Args:
-    mode: Nuevo modo seleccionado ('auto', 'silent', etc.).
+    mode (str): Nuevo modo seleccionado.
+
+Raises:
+    None
 
 #### `_on_pwm_change(self, value)`
 
-Callback al cambiar el valor del slider PWM manual.
-
-Actualiza label de visualización y guarda estado si modo es 'manual'.
+Actualiza la interfaz y guarda el estado al cambiar el valor del PWM manual.
 
 Args:
-    value: Nuevo valor PWM del slider (float).
+    value (float): Nuevo valor PWM del slider.
+
+Raises:
+    Ninguna excepción relevante.
 
 #### `_update_pwm_display(self)`
 
-Actualización periódica (cada 2s) del display PWM.
+Actualiza periódicamente el display PWM cada 2 segundos.
 
-Recalcula PWM basado en modo/temperatura actual si no es manual,
-y programación recursiva.
+Recalcula el valor PWM según el modo y temperatura actuales si no está en modo manual.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 </details>

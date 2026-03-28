@@ -8,7 +8,16 @@ from config.settings import COLORS, FONT_FAMILY, FONT_SIZES, Icons
 
 class StyleManager:
     """
-    Gestor centralizado de estilos para todos los widgets
+    Establece el estilo para un radiobutton de tkinter.
+
+    Args:
+        rb (tk.Radiobutton): Widget radiobutton a estilizar.
+        fg (str, opcional): Color de texto. Por defecto, COLORS['primary'].
+        bg (str, opcional): Color de fondo. Por defecto, COLORS['bg_dark'].
+        hover_fg (str, opcional): Color de texto al pasar el mouse. Por defecto, COLORS['success'].
+
+    Returns:
+        None
     """
     
     @staticmethod
@@ -17,13 +26,19 @@ class StyleManager:
                             bg: str = None, 
                             hover_fg: str = None) -> None:
         """
-        Aplica estilo a radiobutton de tkinter
-        
+        Aplica estilo personalizado a un widget Radiobutton de tkinter.
+
         Args:
-            rb: Widget radiobutton
-            fg: Color de texto
-            bg: Color de fondo
-            hover_fg: Color al pasar el mouse
+            rb (tk.Radiobutton): El widget Radiobutton a estilizar.
+            fg (str, opcional): Color del texto. Por defecto, None.
+            bg (str, opcional): Color de fondo. Por defecto, None.
+            hover_fg (str, opcional): Color del texto al pasar el mouse. Por defecto, None.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         fg = fg or COLORS['primary']
         bg = bg or COLORS['bg_dark']
@@ -57,10 +72,15 @@ class StyleManager:
     @staticmethod
     def style_radiobutton_ctk(rb: ctk.CTkRadioButton, radiobutton_width: int = 25, radiobutton_height: int = 25) -> None:
         """
-        Aplica estilo a radiobutton de customtkinter
-        
+        Aplica estilo personalizado a un widget CTkRadioButton de customtkinter.
+
         Args:
-            rb: Widget radiobutton
+            rb (ctk.CTkRadioButton): El widget radiobutton a estilizar.
+            radiobutton_width (int): Ancho del radiobutton. Por defecto 25.
+            radiobutton_height (int): Alto del radiobutton. Por defecto 25.
+
+        Returns:
+            None
         """
         rb.configure(
             radiobutton_width=radiobutton_width,
@@ -72,11 +92,17 @@ class StyleManager:
     @staticmethod
     def style_slider(slider: tk.Scale, color: str = None) -> None:
         """
-        Aplica estilo a slider de tkinter
-        
+        Aplica estilo personalizado a un widget slider de tkinter.
+
         Args:
-            slider: Widget slider
-            color: Color personalizado
+            slider (tk.Scale): El widget slider a estilizar.
+            color (str, opcional): Color personalizado para el slider. Por defecto es None.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         color = color or COLORS['primary']
         slider.config(
@@ -92,11 +118,18 @@ class StyleManager:
     @staticmethod
     def style_slider_ctk(slider: ctk.CTkSlider, color: str = None, height=30) -> None:
         """
-        Aplica estilo a slider de customtkinter
-        
+        Aplica estilo personalizado a un widget CTkSlider de customtkinter.
+
         Args:
-            slider: Widget slider
-            color: Color personalizado
+            slider (ctk.CTkSlider): El widget slider a personalizar.
+            color (str, opcional): Color personalizado para el slider. Por defecto, None.
+            height (int, opcional): Altura del slider. Por defecto, 30.
+
+        Returns:
+            None
+
+        Raises:
+            Ninguna excepción específica.
         """
         color = color or COLORS['primary']  # " + Icons.CHECK_MARK + " Usar tema
         slider.configure(
@@ -110,11 +143,17 @@ class StyleManager:
     @staticmethod
     def style_scrollbar(sb: tk.Scrollbar, color: str = None) -> None:
         """
-        Aplica estilo a scrollbar de tkinter
-        
+        Aplica estilo personalizado a un widget Scrollbar de tkinter.
+
         Args:
-            sb: Widget scrollbar
-            color: Color personalizado
+            sb (tk.Scrollbar): El widget Scrollbar a estilizar.
+            color (str, opcional): Color personalizado para el scrollbar. Por defecto, None.
+
+        Returns:
+            None
+
+        Raises:
+            Ninguna excepción específica.
         """
         color = color or COLORS['bg_dark']
         sb.config(
@@ -128,11 +167,17 @@ class StyleManager:
     @staticmethod
     def style_scrollbar_ctk(sb: ctk.CTkScrollbar, color: str = None) -> None:
         """
-        Aplica estilo a scrollbar de customtkinter
-        
+        Aplica estilo personalizado a un scrollbar de customtkinter.
+
         Args:
-            sb: Widget scrollbar
-            color: Color personalizado
+            sb (ctk.CTkScrollbar): Widget scrollbar a personalizar.
+            color (str, opcional): Color personalizado para el scrollbar. Por defecto, usa el color primario del tema.
+
+        Returns:
+            None
+
+        Raises:
+            Ninguna excepción específica.
         """
         color = color or COLORS['primary']  # " + Icons.CHECK_MARK + " Usar tema
         sb.configure(
@@ -145,11 +190,17 @@ class StyleManager:
     def style_ctk_scrollbar(scrollable_frame: ctk.CTkScrollableFrame, 
                            color: str = None) -> None:
         """
-        Aplica estilo a scrollable frame de customtkinter
-        
+        Aplica estilo personalizado al scrollbar de un CTkScrollableFrame de customtkinter.
+
         Args:
-            scrollable_frame: Widget scrollable frame
-            color: Color personalizado
+            scrollable_frame (ctk.CTkScrollableFrame): El widget CTkScrollableFrame a estilizar.
+            color (str, opcional): Color personalizado para los botones del scrollbar. Por defecto, None.
+
+        Returns:
+            None
+
+        Raises:
+            Ninguna excepción específica.
         """
         color = color or COLORS['primary']  # " + Icons.CHECK_MARK + " Usar tema
         scrollable_frame.configure(
@@ -160,8 +211,17 @@ class StyleManager:
     @staticmethod
     def show_service_stopped_banner(parent_frame, service_name: str) -> None:
         """
-        Limpia parent_frame y pinta un banner de 'servicio detenido'.
-        Llamar cuando el monitor asociado a la ventana está parado.
+        Muestra un banner indicando que un servicio ha detenido su ejecución.
+
+        Args:
+            parent_frame: La ventana padre donde se mostrará el banner.
+            service_name (str): El nombre del servicio que ha detenido su ejecución.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         for w in parent_frame.winfo_children():
             w.destroy()
@@ -196,18 +256,22 @@ def make_futuristic_button(parent, text: str, command=None,
                           width: int = None, height: int = None, 
                           font_size: int = None, state: str = "normal") -> ctk.CTkButton:
     """
-    Crea un botón con estilo futurista
-    
+    Crea un botón con estilo futurista.
+
     Args:
-        parent: Widget padre
-        text: Texto del botón
-        command: Función a ejecutar al hacer clic
-        width: Ancho en unidades
-        height: Alto en unidades
-        font_size: Tamaño de fuente
-        
+        parent: Widget padre.
+        text (str): Texto del botón.
+        command: Función a ejecutar al hacer clic.
+        width (int): Ancho en unidades. Por defecto None.
+        height (int): Alto en unidades. Por defecto None.
+        font_size (int): Tamaño de fuente. Por defecto None.
+        state (str): Estado del botón. Por defecto 'normal'.
+
     Returns:
-        Widget CTkButton configurado
+        ctk.CTkButton: Widget CTkButton configurado.
+
+    Raises:
+        Ninguna excepción específica.
     """
     width = width or 20
     height = height or 10
@@ -250,25 +314,17 @@ def make_window_header(parent, title: str, on_close, status_text: str = None) ->
     """
     Crea una barra de cabecera unificada para ventanas de monitoreo.
 
-    Layout (altura fija 48px):
-    ┌─────────────────────────────────────────────────────────┐
-    │  ● TÍTULO DE VENTANA      status_text opcional   [" + Icons.CLOSE_X + "]   │
-    └─────────────────────────────────────────────────────────┘
+        Args:
+            parent:      Widget padre (normalmente el frame main de la ventana).
+            title:       Texto del título en mayúsculas.
+            on_close:    Callable ejecutado al pulsar el botón de cierre.
+            status_text: Texto informativo opcional a la derecha del título.
 
-    El indicador ● usa COLORS['secondary'] para identificar
-    visualmente que es una ventana hija del dashboard.
+        Returns:
+            CTkFrame de cabecera ya empaquetado con pack(fill="x").
 
-    Args:
-        parent:      Widget padre (normalmente el frame main de la ventana).
-        title:       Texto del título en mayúsculas (ej. "MONITOR DEL SISTEMA").
-        on_close:    Callable ejecutado al pulsar el botón " + Icons.CLOSE_X + ".
-        status_text: Texto informativo opcional a la derecha del título
-                     (ej. "CPU 12% · RAM 45% · 52°C"). Si es None no se muestra.
-
-    Returns:
-        CTkFrame de cabecera ya empaquetado con pack(fill="x").
-        Guarda referencia al label de estado en frame.status_label
-        para que la ventana pueda actualizarlo dinámicamente.
+        Raises:
+            Ninguno.
     """
     # ── Contenedor ───────────────────────────────────────────────────────────
     header = ctk.CTkFrame(
@@ -350,16 +406,6 @@ def make_homebridge_switch(
 ) -> ctk.CTkSwitch:
     """
     Crea un CTkSwitch estilado para el control de accesorios Homebridge.
-
-    Layout dentro de la tarjeta de dispositivo:
-    ┌─────────────────────────────────────────┐
-    │   NOMBRE DEL DISPOSITIVO   [══ ●]       │
-    └─────────────────────────────────────────┘
-
-    El switch usa los colores del tema activo:
-    - ON  → COLORS['success']  (verde por defecto)
-    - OFF → COLORS['bg_light'] (gris oscuro)
-    - Deshabilitado (fallo/inactivo) → COLORS['danger'] fijo, no interactivo
 
     Args:
         parent:   Widget padre (normalmente la tarjeta CTkFrame).

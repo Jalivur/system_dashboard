@@ -47,7 +47,17 @@ from utils.logger import get_logger
 
 ## Clase `AudioWindow(ctk.CTkToplevel)`
 
-Ventana de control de audio — volumen, mute, VU meter y accesos rápidos.
+Ventana emergente para controlar el audio, incluyendo volumen, muteo, medidor de nivel de audio (VU meter) y accesos rápidos.
+
+Args:
+    parent (CTk): Ventana padre que crea esta ventana emergente.
+    audio_service (AudioService): Servicio de audio asociado a esta ventana.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ninguno.
 
 ### Atributos privados
 
@@ -69,72 +79,230 @@ Ventana de control de audio — volumen, mute, VU meter y accesos rápidos.
 
 Inicializa la ventana de control de audio.
 
+Args:
+    parent: La ventana padre que contiene esta ventana de control de audio.
+    audio_service (AudioService): El servicio de audio asociado a esta ventana.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ninguno
+
 #### `_create_ui(self)`
 
-Crea todos los elementos de la interfaz de usuario.
+Crea todos los elementos de la interfaz de usuario para el control de audio.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_build_vu_segments(self)`
 
-Dibuja los segmentos iniciales del VU meter (todos apagados).
+Crea los segmentos iniciales del medidor VU, todos apagados.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_vu_tick(self)`
 
-Actualiza la animación del VU meter — suaviza y dibuja.
+Actualiza la animación del medidor de volumen (VU meter) suavizando y dibujando el nivel actual.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_draw_vu(self, level: float)`
 
-Dibuja los segmentos del VU meter según el nivel.
+Actualiza la visualización del medidor de nivel de audio (VU meter) según el nivel de audio proporcionado.
+
+Args:
+    level (float): Nivel de audio actual, utilizado para determinar el color y cantidad de segmentos a iluminar.
+
+Raises:
+    Ninguna excepción es lanzada explícitamente en este método.
 
 #### `_set_vu_from_vol(self, vol: int)`
 
-Convierte volumen 0-100 a segmentos y actualiza el target del VU.
+Establece el objetivo del medidor de volumen (VU) en función del volumen dado.
+
+Args:
+    vol (int): El volumen en el rango 0-100.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_run_async(self, fn, *args, on_done = None)`
 
-Ejecuta fn(*args) en un thread daemon. on_done se llama en el hilo UI.
+Ejecuta una función de manera asíncrona en un hilo daemon.
+
+Args:
+    fn: La función a ejecutar de manera asíncrona.
+    *args: Los argumentos a pasar a la función.
+
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_load_state(self)`
 
-Carga el estado actual del volumen y mute.
+Carga asincrónicamente el estado actual del volumen y mute.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_apply_state(self, vol: int, muted: bool)`
 
-Aplica el estado de volumen y mute a la UI.
+Aplica el estado de volumen y mute a la interfaz de usuario.
+
+Args:
+    vol (int): El volumen a aplicar, en porcentaje.
+    muted (bool): Indica si el audio está muteado.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_slider(self, value)`
 
-Maneja cambio en el slider de volumen.
+Actualiza el estado de la ventana de audio en respuesta a un cambio en el slider de volumen.
+
+Args:
+    value (int): El nuevo valor del slider de volumen.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_set_quick(self, pct: int)`
 
-Establece volumen con botones rápidos.
+Establece el volumen con botones rápidos.
+
+Args:
+    pct (int): Porcentaje de volumen.
+
+Raises:
+    Ninguna excepción relevante.
+
+Returns:
+    Ninguno
 
 #### `_unlock(self)`
 
-Desbloquea la UI después de operación rápida.
+Desbloquea la interfaz de usuario después de una operación rápida.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_control_change(self, _value)`
 
-Recarga estado al cambiar canal de control.
+Recarga el estado interno al detectar un cambio en el canal de control.
+
+Args:
+    _value: Nuevo valor del canal de control.
 
 #### `_toggle_mute(self)`
 
-Alterna estado de mute.
+Alterna el estado de mute del audio.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_apply_mute(self, muted: bool)`
 
-Aplica estado mute a la UI.
+Aplica el estado mute a la interfaz de usuario.
+
+Args:
+    muted (bool): Indica si el audio debe estar muteado o no.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_play_test(self)`
 
-Lanza aplay en thread — busca el wav en varias rutas conocidas.
+Inicia una reproducción de prueba de audio en un hilo independiente.
+
+La reproducción busca el archivo de prueba en varias rutas conocidas.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_mute_ui(self)`
 
-Actualiza elementos UI según estado de mute.
+Actualiza la interfaz de usuario según el estado de silencio del audio.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_close(self)`
 
-Maneja cierre de la ventana.
+Maneja el cierre de la ventana de audio.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

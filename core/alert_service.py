@@ -38,10 +38,18 @@ MAX_HISTORY_ENTRIES = 100
 _HISTORY_FILE = Path(__file__).resolve().parent.parent / "data" / "alert_history.json"
 
 def _load_telegram_config() -> tuple:
-    """Lee la configuración de Telegram desde el archivo .env o las variables de entorno.
-    Args: None
-    Returns: Una tupla con el token y el ID de chat de Telegram.
-    Raises: None"""
+    """
+    Carga la configuración de Telegram desde el archivo .env o las variables de entorno.
+
+    Args: 
+        None
+
+    Returns: 
+        tuple: Una tupla con el token y el ID de chat de Telegram.
+
+    Raises: 
+        None
+    """
     
     env_path = Path(__file__).resolve().parent.parent / ".env"
     if env_path.exists():
@@ -65,21 +73,30 @@ def _load_telegram_config() -> tuple:
 class AlertService:
     """
     Servicio de alertas que monitoriza métricas y envía notificaciones a Telegram.
+
     Args:
-        system_monitor: Monitor de métricas del sistema.
-        service_monitor: Monitor de servicios.
-    Returns:
-        None
+        system_monitor: Monitor de métricas del sistema como CPU, temperatura, RAM y disco.
+        service_monitor: Monitor de servicios para detectar fallas.
+
     Raises:
-        None
+        Ninguna excepción relevante.
+
+    Nota: Si no se configuran token y chat_id de Telegram, las alertas se desactivan.
     """
 
     def __init__(self, system_monitor, service_monitor):
         """
         Inicializa el servicio de alertas con los monitores del sistema y de servicios.
+
         Args:
             system_monitor: Monitor de métricas del sistema como CPU, temperatura, RAM y disco.
             service_monitor: Monitor de servicios para detectar fallas.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._system_monitor  = system_monitor
         self._service_monitor = service_monitor
@@ -106,9 +123,15 @@ class AlertService:
     def start(self) -> None:
         """
         Inicia el servicio de monitoreo de alertas en segundo plano.
-        Args: None
-        Returns: None
-        Raises: None
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self._running:
             return
@@ -122,10 +145,18 @@ class AlertService:
 
 
     def stop(self) -> None:
-        """Detiene el thread de alertas limpiamente.
-        Args: None
-        Returns: None
-        Raises: None"""
+        """
+        Detiene el servicio de alertas de manera segura.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -134,10 +165,18 @@ class AlertService:
 
     
     def is_running(self) -> bool:
-        """Indica si el servicio de alertas está actualmente en ejecución. 
-        Args: None
-        Returns: bool indicando el estado de ejecución del servicio.
-        Raises: None"""
+        """
+        Indica si el servicio de alertas está actualmente en ejecución.
+
+        Args:
+            None
+
+        Returns:
+            bool: Estado de ejecución del servicio.
+
+        Raises:
+            None
+        """
         return self._running
 
 
@@ -146,9 +185,16 @@ class AlertService:
     def _loop(self) -> None:
         """
         Ejecuta el bucle principal del servicio de alertas.
-        Args: None
-        Returns: None
-        Raises: Exception
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Si ocurre un error durante la ejecución del bucle.
+
         """
         while self._running:
             try:
@@ -164,12 +210,15 @@ class AlertService:
     def _check_metrics(self) -> None:
         """
         Verifica los valores actuales de temperatura, CPU, RAM y disco contra los umbrales configurados.
+
         Args:
             No aplica, utiliza atributos de instancia.
+
         Returns:
-            No aplica, no devuelve valor.
+            None
+
         Raises:
-            No aplica, no lanza excepciones explícitas.
+            No se lanzan excepciones explícitas.
         """
         stats = self._system_monitor.get_current_stats()
 
@@ -203,9 +252,15 @@ class AlertService:
     def _check_services(self) -> None:
         """
         Verifica el estado de los servicios y dispara una alerta si hay servicios con estado FAILED.
-        Args: None
-        Returns: None
-        Raises: None
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            None
         """
         stats  = self._service_monitor.get_stats()
 
@@ -226,13 +281,18 @@ class AlertService:
                 unit: str = "", level: str = "") -> None:
         """
         Activa una alerta con retardo anti-spam.
+
         Args:
             key (str): Identificador único de la alerta.
             message (str): Mensaje de la alerta.
             value (float): Valor asociado a la alerta (opcional).
             unit (str): Unidad del valor (opcional).
             level (str): Nivel de la alerta (opcional).
+
         Returns:
+            None
+
+        Raises:
             None
         """
         now = time.time()
@@ -250,28 +310,38 @@ class AlertService:
             self._save_to_history(key, message, value, unit, level)
 
     def _reset(self, key: str) -> None:
-        """Resetea el estado de una alerta (condición resuelta).
+        """
+        Resetea el estado de una alerta marcándola como condición resuelta.
+
         Args:
             key (str): La clave de la alerta a resetear.
+
         Returns:
             None
+
         Raises:
-            None"""
+            None
+        """
         with self._lock:
             self._state.pop(key, None)
             
     def _save_to_history(self, key: str, message: str, value: float, unit: str, level: str) -> None:
-        """Guarda la alerta disparada en el historial JSON.
+        """
+        Guarda una alerta disparada en el historial de registros.
+
         Args:
-            key (str): Clave de la alerta.
-            message (str): Mensaje de la alerta.
-            value (float): Valor de la alerta.
-            unit (str): Unidad de la alerta.
-            level (str): Nivel de la alerta.
+            key (str): Clave identificativa de la alerta.
+            message (str): Mensaje descriptivo de la alerta.
+            value (float): Valor numérico asociado a la alerta.
+            unit (str): Unidad de medida del valor.
+            level (str): Nivel de gravedad de la alerta.
+
         Returns:
             None
+
         Raises:
-            Exception: Si ocurre un error al guardar el historial."""
+            Exception: Si ocurre un error durante el guardado del historial.
+        """
         entry = {
             "ts":      time.strftime("%Y-%m-%d %H:%M:%S"),
             "key":     key,
@@ -295,11 +365,18 @@ class AlertService:
             logger.error("[AlertService] Error guardando historial: %s", e)
 
     def get_history(self) -> list:
-        """Obtiene el historial de alertas enviadas desde el archivo de datos.
-        Args: None
+        """
+        Obtiene el historial de alertas enviadas desde el archivo de datos.
+
+        Args:
+            None
+
         Returns:
             list[dict]: Entradas con información de alertas, incluyendo timestamp, clave, nivel, valor, unidad y mensaje, ordenadas por recencia.
-        Raises: None"""
+
+        Raises:
+            None
+        """
         try:
             if _HISTORY_FILE.exists():
                 with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
@@ -310,13 +387,18 @@ class AlertService:
 
 
     def clear_history(self) -> None:
-        """Borra el historial de alertas. 
-        Args: 
-            No tiene parámetros.
-        Returns: 
-            No devuelve nada.
-        Raises: 
-            Exception: Si ocurre un error al borrar el historial."""
+        """
+        Borra el historial de alertas.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Exception: Si ocurre un error al borrar el historial.
+        """
         try:
             if _HISTORY_FILE.exists():
                 _HISTORY_FILE.unlink()
@@ -327,13 +409,18 @@ class AlertService:
     # ── Envío a Telegram ──────────────────────────────────────────────────────
 
     def _send(self, text: str) -> bool:
-        """Envía un mensaje Markdown a Telegram. 
+        """
+        Envía un mensaje Markdown a Telegram.
+
         Args:
             text (str): El texto del mensaje a enviar.
+
         Returns:
             bool: True si el mensaje se envía con éxito, False en caso contrario.
+
         Raises:
-            Exception: Si ocurre un error durante el envío del mensaje."""
+            Exception: Si ocurre un error durante el envío del mensaje.
+        """
         if not self._token or not self._chat_id:
             return False
         url     = f"https://api.telegram.org/bot{self._token}/sendMessage"
@@ -360,13 +447,18 @@ class AlertService:
             return False
 
     def send_test(self) -> bool:
-        """Envía un mensaje de prueba para verificar la configuración. 
-        Args: 
+        """
+        Envía un mensaje de prueba para verificar la configuración.
+
+        Args:
             No requiere parámetros.
-        Returns: 
+
+        Returns:
             bool: True si el mensaje se envía correctamente.
-        Raises: 
-            No lanza excepciones explícitas."""
+
+        Raises:
+            No lanza excepciones explícitas.
+        """
         return self._send(
             "✅ *Dashboard — Test de alertas*\n"
             "La conexión con Telegram funciona correctamente."

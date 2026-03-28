@@ -13,16 +13,31 @@ PROCESS_POLL_INTERVAL = 10
 
 
 class ProcessMonitor:
-    """Monitor de procesos en tiempo real"""
+    """
+    Monitoriza procesos en tiempo real con configuración personalizable.
+
+    Args:
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
+    """
 
     def __init__(self):
         """
         Inicializa el monitor de procesos con configuración por defecto.
-        
-        Configuración inicial:
-        - sort_by: 'cpu' (cpu | memory | name | pid)
-        - sort_reverse: True
-        - filter_type: 'all' (all | user | system)
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self.sort_by      = "cpu"   # cpu | memory | name | pid
         self.sort_reverse = True
@@ -40,7 +55,18 @@ class ProcessMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self) -> None:
-        """Arranca el sondeo en background (llamado automáticamente en __init__)."""
+        """
+        Inicia el sondeo de procesos en segundo plano.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if self._running:
             return
         self._running = True
@@ -52,7 +78,18 @@ class ProcessMonitor:
         logger.info("[ProcessMonitor] Sondeo iniciado (cada %ds)", PROCESS_POLL_INTERVAL)
 
     def stop(self) -> None:
-        """Detiene el sondeo limpiamente."""
+        """
+        Detiene el sondeo de procesos limpiamente.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -64,18 +101,24 @@ class ProcessMonitor:
     def is_running(self) -> bool:
         """
         Verifica si el monitor de procesos está corriendo activamente.
-        
+
         Returns:
-            bool: True si el sondeo está activo
+            bool: True si el monitor está activo.
         """
         return self._running
 
     def toggle_sort(self, column: str) -> None:
         """
-        Alterna el criterio de ordenación o invierte el orden actual.
-        
+        Alterna el criterio de ordenación o invierte el orden actual de la columna especificada.
+
         Args:
-            column: Columna para ordenar ('cpu', 'memory', 'name', 'pid')
+            column (str): Columna para ordenar ('cpu', 'memory', 'name', 'pid')
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self.sort_by == column:
             self.sort_reverse = not self.sort_reverse
@@ -84,8 +127,16 @@ class ProcessMonitor:
             
     def _poll_loop(self) -> None:
         """
-        Bucle principal de sondeo en background (método privado).
-        Se ejecuta cada PROCESS_POLL_INTERVAL segundos.
+        Ejecuta el bucle principal de sondeo en segundo plano.
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            None
         """
         self._do_poll()
         while self._running:
@@ -97,7 +148,15 @@ class ProcessMonitor:
     def refresh_now(self) -> None:
         """
         Fuerza un refresco inmediato de la lista de procesos en background.
-        Útil para actualizar datos sin esperar al intervalo de sondeo.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         threading.Thread(
             target=self._do_poll, daemon=True, name="ProcessMonitor-ForceRefresh"
@@ -105,7 +164,16 @@ class ProcessMonitor:
 
     def _do_poll(self) -> None:
         """
-        Realiza un sondeo único de procesos y actualiza el caché (método privado).
+        Realiza un sondeo único de procesos y actualiza el caché interno.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Exception: Si ocurre un error durante el sondeo de procesos.
         """
         try:
             processes = self.get_processes()
@@ -118,13 +186,13 @@ class ProcessMonitor:
 
     def get_processes(self, limit: int = 20) -> List[Dict]:
         """
-        Obtiene lista de procesos con su información.
+        Obtiene una lista de procesos con su información, aplicando filtros según el tipo configurado.
 
         Args:
-            limit: Número máximo de procesos a retornar
+            limit (int): Número máximo de procesos a retornar. Por defecto, 20.
 
         Returns:
-            Lista de diccionarios con información de procesos
+            List[Dict]: Lista de diccionarios con información de procesos.
         """
         processes = []
         current_user = psutil.Process().username()
@@ -176,13 +244,16 @@ class ProcessMonitor:
 
     def search_processes(self, query: str) -> List[Dict]:
         """
-        Busca procesos por nombre o descripción.
+        Busca procesos por nombre o descripción que coincidan con la consulta dada.
 
         Args:
-            query: Texto a buscar
+            query (str): Texto a buscar en nombres y descripciones de procesos.
 
         Returns:
-            Lista de procesos que coinciden
+            List[Dict]: Lista de procesos que coinciden con la consulta.
+
+        Raises:
+            None
         """
         query = query.lower()
         all_processes = self.get_processes(limit=1000)
@@ -193,13 +264,17 @@ class ProcessMonitor:
 
     def kill_process(self, pid: int) -> tuple:
         """
-        Mata un proceso por su PID.
+        Mata un proceso por su ID de proceso (PID).
 
         Args:
-            pid: ID del proceso
+            pid: ID del proceso a terminar
 
         Returns:
-            Tupla (éxito, mensaje)
+            Tupla (éxito, mensaje) indicando si se terminó el proceso y un mensaje descriptivo
+
+        Raises:
+            psutil.NoSuchProcess: Si el proceso con el PID dado no existe
+            psutil.AccessDenied: Si no hay permisos para terminar el proceso
         """
         try:
             proc = psutil.Process(pid)
@@ -238,7 +313,14 @@ class ProcessMonitor:
         Obtiene estadísticas generales del sistema.
 
         Returns:
-            Diccionario con estadísticas
+            Dict: Diccionario con estadísticas del sistema, incluyendo uso de CPU, memoria utilizada y total, porcentaje de memoria usada, número total de procesos y tiempo de actividad.
+
+        Raises:
+            Ninguna excepción específica.
+
+        Args:
+            Ninguno.
+
         """
         cpu_percent  = psutil.cpu_percent(interval=0.1)
         mem          = psutil.virtual_memory()
@@ -256,7 +338,15 @@ class ProcessMonitor:
 
     @staticmethod
     def _format_uptime(seconds: float) -> str:
-        """Formatea uptime en formato legible."""
+        """
+        Formatea el tiempo de actividad (uptime) en un formato legible.
+
+        Args:
+            seconds (float): Tiempo de actividad en segundos.
+
+        Returns:
+            str: Cadena con el tiempo de actividad formateado (días, horas, minutos).
+        """
         days    = int(seconds // 86400)
         hours   = int((seconds % 86400) // 3600)
         minutes = int((seconds % 3600) // 60)
@@ -271,33 +361,45 @@ class ProcessMonitor:
     def set_sort(self, column: str, reverse: bool = True):
         """
         Establece el criterio de ordenación de la lista de procesos.
-        
+
         Args:
-            column: Columna para ordenar ('cpu', 'memory', 'name', 'pid')
-            reverse: Si ordenar de forma descendente (por defecto True)
+            column (str): Columna para ordenar ('cpu', 'memory', 'name', 'pid')
+            reverse (bool): Si ordenar de forma descendente (por defecto True)
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self.sort_by      = column
         self.sort_reverse = reverse
 
     def set_filter(self, filter_type: str):
         """
-        Establece el filtro de visualización de procesos.
-        
+        Establece el tipo de filtro para la visualización de procesos.
+
         Args:
-            filter_type: Tipo de filtro ('all', 'user', 'system')
+            filter_type (str): Tipo de filtro a aplicar. Puede ser 'all', 'user' o 'system'.
+
+        Raises:
+            ValueError: Si el tipo de filtro no es válido.
         """
         self.filter_type = filter_type
 
     @staticmethod
     def get_process_color(value: float) -> str:
         """
-        Obtiene color según porcentaje de uso.
+        Obtiene la clave de color según el porcentaje de uso del proceso.
 
         Args:
-            value: Porcentaje (0-100)
+            value (float): Porcentaje de uso del proceso (0-100)
 
         Returns:
-            Clave de color en COLORS
+            str: Clave de color ("danger", "warning" o "success")
+
+        Raises:
+            Ninguna excepción explícita.
         """
         if value >= 70:
             return "danger"

@@ -22,13 +22,20 @@ _SYSTEM_USER = "jalivur"
 
 
 class CrontabWindow(ctk.CTkToplevel):
-    """Ventana de gestión de crontab — ver, añadir, editar y eliminar."""
+    """
+    Ventana de gestión de crontab para visualizar, agregar, editar y eliminar entradas.
+
+    Args:
+        parent: Widget padre que representa la ventana principal de la aplicación.
+
+    """
 
     def __init__(self, parent):
-        """Inicializa la ventana principal de gestión de crontab.
-        
+        """
+        Inicializa la ventana principal de gestión de crontab.
+
         Configura la ventana toplevel, variables de estado, UI y carga las entradas iniciales.
-        
+
         Args:
             parent: Widget padre (ventana principal).
         """
@@ -62,7 +69,18 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea todos los elementos de la interfaz de usuario de la ventana."""
+        """
+        Crea todos los elementos de la interfaz de usuario de la ventana.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         self._main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -122,10 +140,17 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── Panel formulario de edición / nueva entrada ───────────────────────────
 
     def _build_edit_panel(self, parent):
-        """Construye el panel deslizable de formulario para nueva/edición de entradas.
-        
+        """
+        Construye el panel deslizable de formulario para nueva/edición de entradas.
+
         Args:
             parent: Frame contenedor del panel.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._panel_title = ctk.CTkLabel(
             parent, text="NUEVA ENTRADA",
@@ -212,7 +237,18 @@ class CrontabWindow(ctk.CTkToplevel):
         ).pack(side="left", padx=4)
 
     def _update_preview(self):
-        """Actualiza la etiqueta de previsualización de la programación cron en lenguaje natural."""
+        """
+        Actualiza la etiqueta de previsualización de la programación cron en lenguaje natural.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         if not hasattr(self, "_preview_label"):
             return
         m  = self._f_minute.get().strip()  or "*"
@@ -223,10 +259,21 @@ class CrontabWindow(ctk.CTkToplevel):
         self._preview_label.configure(text=f"→ {describe_cron(m, h, d, mo, wd)}")
 
     def _apply_quick(self, m, h, d, mo, wd):
-        """Aplica una programación cron de acceso rápido a los campos del formulario.
-        
+        """
+        Aplica una programación cron de acceso rápido a los campos del formulario.
+
         Args:
-            m, h, d, mo, wd: Valores para minuto, hora, día-mes, mes, día-semana (o '@' especial).
+            m (str): Valor para minuto, o '@' para un valor especial.
+            h (str): Valor para hora.
+            d (str): Valor para día-mes.
+            mo (str): Valor para mes.
+            wd (str): Valor para día-semana.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if m.startswith("@"):
             self._f_minute.set(m)
@@ -243,9 +290,17 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── Abrir / cerrar formulario ─────────────────────────────────────────────
 
     def _open_new_form(self):
-        """Abre el panel para crear nueva entrada.
-        
-        Resetea campos del formulario y muestra/oculta panel.
+        """
+        Abre el panel para crear una nueva entrada en la Crontab.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._edit_index = None
         self._panel_title.configure(text="NUEVA ENTRADA")
@@ -262,12 +317,16 @@ class CrontabWindow(ctk.CTkToplevel):
             self._panel_open = True
 
     def _open_edit_form(self, index: int):
-        """Abre el panel para editar entrada existente.
-        
-        Carga datos del índice en campos.
-        
+        """
+        Abre el panel para editar una entrada existente en la Crontab.
+
+        Carga los datos de la entrada seleccionada en los campos del formulario.
+
         Args:
-            index (int): Índice de entrada a editar.
+            index (int): Índice de la entrada a editar.
+
+        Raises:
+            Ninguna excepción específica.
         """
         entry = self._parsed[index]
         self._edit_index = index
@@ -290,7 +349,18 @@ class CrontabWindow(ctk.CTkToplevel):
             self._panel_open = True
 
     def _close_form(self):
-        """Cierra el panel de formulario y resetea estado de edición."""
+        """
+        Cierra el panel de formulario y resetea el estado de edición.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._edit_panel.pack_forget()
         self._panel_open = False
         self._edit_index = None
@@ -298,9 +368,17 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── Guardar entrada ───────────────────────────────────────────────────────
 
     def _save_entry(self):
-        """Valida los campos del formulario y guarda la entrada (nueva o edición).
-        
-        Construye la línea cron, actualiza self._lines y escribe al crontab del usuario.
+        """
+        Guarda la entrada de un formulario de Crontab después de validación.
+
+            Args:
+                Ninguno
+
+            Returns:
+                Ninguno
+
+            Raises:
+                Ninguno
         """
         m   = self._f_minute.get().strip()
         h   = self._f_hour.get().strip()
@@ -341,12 +419,14 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── Eliminar entrada ──────────────────────────────────────────────────────
 
     def _delete_entry(self, index: int):
-        """Inicia proceso de eliminación de entrada con confirmación de diálogo.
-        
-        Actualiza self._lines y escribe al crontab.
-        
-        Args:
-            index: Índice en self._parsed de la entrada a eliminar.
+        """
+        Inicia proceso de eliminación de entrada con confirmación de diálogo.
+
+            Args:
+                index (int): Índice en self._parsed de la entrada a eliminar.
+
+            Raises:
+                None
         """
         raw = self._parsed[index]["raw"]
 
@@ -372,18 +452,34 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── Carga y renderizado ───────────────────────────────────────────────────
 
     def _load(self):
-        """Carga las entradas del crontab del usuario actual en self._lines y self._parsed.
-        
-        Invoca _render_list() para actualizar la vista.
+        """
+        Carga las entradas del crontab del usuario actual en la ventana.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._lines  = read_crontab(self._user_var.get())
         self._parsed = parse_crontab(self._lines)
         self._render_list()
 
     def _render_list(self):
-        """Limpia el frame de lista y renderiza todas las entradas parseadas.
-        
-        Muestra mensaje si no hay entradas.
+        """
+        Limpia el frame de lista y renderiza todas las entradas parseadas del crontab.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         for w in self._list_frame.winfo_children():
             w.destroy()
@@ -415,11 +511,18 @@ class CrontabWindow(ctk.CTkToplevel):
             self._create_entry_row(i, entry)
 
     def _create_entry_row(self, index: int, entry: dict):
-        """Crea y configura una fila de entrada en la lista.
-        
+        """
+        Crea y configura una fila de entrada en la lista para mostrar información de una tarea programada.
+
         Args:
-            index: Índice de la entrada.
-            entry: Diccionario parseado de la entrada cron.
+            index (int): Índice de la entrada.
+            entry (dict): Diccionario parseado de la entrada cron.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         row = ctk.CTkFrame(self._list_frame, fg_color=COLORS['bg_dark'], corner_radius=6)
         row.pack(fill="x", padx=6, pady=2)
@@ -475,9 +578,19 @@ class CrontabWindow(ctk.CTkToplevel):
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     def _on_user_change(self):
-        """Callback invocado al cambiar el usuario seleccionado.
-        
+        """
+        Callback invocado al cambiar el usuario seleccionado.
+
         Cierra formulario abierto y recarga la lista para el nuevo usuario.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._close_form()
         self._load()

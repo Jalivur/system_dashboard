@@ -38,30 +38,48 @@ from core.event_bus import get_event_bus
 
 ### `custom_msgbox(parent, text: str, title: str = 'Info') -> None`
 
-Muestra un cuadro de mensaje personalizado
+Muestra un cuadro de mensaje personalizado con título y texto.
 
 Args:
-    parent: Ventana padre
-    text: Texto del mensaje
-    title: Título del diálogo
+    parent: Ventana padre del diálogo.
+    text (str): Texto del mensaje a mostrar.
+    title (str): Título del diálogo. Por defecto es 'Info'.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción específica.
 
 ### `confirm_dialog(parent, text: str, title: str = 'Confirmar', on_confirm = None, on_cancel = None) -> None`
 
-Muestra un diálogo de confirmación
+Muestra un diálogo de confirmación con un mensaje y botones para confirmar o cancelar.
 
 Args:
-    parent: Ventana padre
-    text: Texto del mensaje
-    title: Título del diálogo
-    on_confirm: Callback al confirmar
-    on_cancel: Callback al cancelar
+    parent: Ventana padre del diálogo.
+    text (str): Texto del mensaje a mostrar.
+    title (str): Título del diálogo. Por defecto, 'Confirmar'.
+    on_confirm: Función a llamar al confirmar. Por defecto, None.
+    on_cancel: Función a llamar al cancelar. Por defecto, None.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### `terminal_dialog(parent, script_path, title = 'Consola de Sistema', on_close = None)`
 
-Muestra un diálogo de terminal/consola para ejecutar scripts del sistema
+Muestra un diálogo de terminal/consola para ejecutar scripts del sistema.
 
 Args:
-    parent: Ventana padre
-    script_path: Ruta al script bash a ejecutar
-    title: Título del diálogo
-    on_close: Callback opcional al cerrar
+    parent: Ventana padre del diálogo.
+    script_path: Ruta al script bash a ejecutar en la terminal.
+    title: Título del diálogo de terminal (por defecto, 'Consola de Sistema').
+    on_close: Función de llamada opcional cuando el diálogo se cierra.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción específica.

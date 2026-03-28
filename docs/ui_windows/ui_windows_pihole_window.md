@@ -43,6 +43,16 @@ import threading
 
 Ventana de estadísticas de Pi-hole.
 
+Args:
+    parent: Ventana padre (generalmente la ventana principal del dashboard).
+    pihole_monitor (PiholeMonitor): Instancia del monitor para obtener estadísticas.
+
+Raises:
+    None
+
+Returns:
+    None
+
 ### Atributos privados
 
 | Atributo | Valor inicial |
@@ -65,44 +75,76 @@ Args:
     parent: Ventana padre (generalmente la ventana principal del dashboard).
     pihole_monitor (PiholeMonitor): Instancia del monitor para obtener estadísticas.
 
+Raises:
+    None
+Returns:
+    None
+
 #### `_create_ui(self)`
 
-Crea toda la interfaz gráfica de usuario (UI) de la ventana.
+Crea la interfaz gráfica de usuario de la ventana.
 
-Construye el frame principal, el header con título y estado, el contenedor
-con scroll, el canvas, el grid de 6 tarjetas métricas (queries, bloqueadas,
-% bloqueado, dominios, clientes, estado), y el botón de actualización manual.
-Inicializa labels para valores dinámicos.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_schedule_update(self)`
 
-Programa la primera actualización/renderizado de la interfaz.
+Programa la primera actualización de la interfaz.
 
-Utiliza self.after(100ms) para llamar a _render inicialmente, iniciando
-el ciclo de actualizaciones automáticas.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_force_refresh(self)`
 
-Fuerza actualización manual de estadísticas Pi-hole en background.        
+Fuerza la actualización manual de estadísticas Pi-hole en segundo plano de manera no bloqueante.
 
-1. Verifica monitor activo       
-2. Lanza thread daemon -> self._pihole.fetch_now()        
-3. Status -> "Actualizando..."        
-4. self._render() @2000ms        
+Args:
+    Ninguno
 
-Non-blocking UI.
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
+Nota: Verifica si el monitor está activo antes de forzar la actualización.
 
 #### `_render(self)`
 
 Actualiza los valores en pantalla con la caché del monitor.
 
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_on_close(self)`
 
 Maneja el cierre ordenado de la ventana de Pi-hole.
 
-Realiza cleanup:
-- Cancela el job de actualización pendiente
-- Registra el cierre en logs
-- Destruye la ventana
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

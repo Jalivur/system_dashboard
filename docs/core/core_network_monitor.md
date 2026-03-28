@@ -53,7 +53,16 @@ from utils.logger import get_logger
 
 ## Clase `NetworkMonitor`
 
-Monitor de red con gestión de estadísticas y speedtest
+Inicia y gestiona el monitor de red para recopilar estadísticas y realizar pruebas de velocidad.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 ### Atributos privados
 
@@ -73,82 +82,166 @@ Monitor de red con gestión de estadísticas y speedtest
 
 #### `start(self) -> None`
 
-Activa monitor de red.
+Inicia el monitor de red.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `stop(self) -> None`
 
-Limpia historiales y speedtest cache.
+Detiene el monitor de red y limpia los historiales y caché de speedtest.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `is_running(self) -> bool`
 
-Estado del monitor.
+Indica si el monitor de red está actualmente activo.
 
 Returns:
-    bool: True si activo.
+    bool: True si el monitor está activo, False en caso contrario.
 
 #### `get_current_stats(self, interface: Optional[str] = None) -> Dict`
 
-Obtiene estadísticas actuales de red.
+Obtiene estadísticas actuales de red de una interfaz específica o mediante auto-detección.
 
 Args:
-    interface: Interfaz específica o None para auto-detección
+    interface (str, opcional): Nombre de la interfaz de red o None para auto-detección. Por defecto es None.
 
 Returns:
-    Diccionario con estadísticas de red
+    dict: Diccionario con estadísticas de red, incluyendo la interfaz, velocidad de descarga y velocidad de subida.
+
+Raises:
+    None
 
 #### `update_history(self, stats: Dict) -> None`
 
-Append velocidades a deques HISTORY para gráficos.
+Actualiza el historial de velocidades de descarga y subida con los estadísticos proporcionados.
 
 Args:
-    stats (Dict): {'download_mb':float, 'upload_mb':float}
+    stats (Dict): Diccionario con claves 'download_mb' y 'upload_mb' que contienen las velocidades de descarga y subida en megabytes.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `adaptive_scale(self, current_max: float, recent_data: list) -> float`
 
-Ajusta escala gráfica auto (zoom basado peaks recientes/idle).
+Ajusta la escala gráfica de manera adaptativa según los picos recientes de datos.
 
 Args:
-    current_max (float): Máximo actual escala.
-    recent_data (list): Datos velocidades MB/s últimos HISTORY.
+    current_max (float): El máximo actual de la escala.
+    recent_data (list): Lista de datos de velocidades en MB/s de los últimos registros.
 
 Returns:
-    float: Nueva escala NET_MIN_SCALE..NET_MAX_SCALE.
+    float: La nueva escala ajustada dentro del rango NET_MIN_SCALE a NET_MAX_SCALE.
+
+Raises:
+    None
 
 #### `update_dynamic_scale(self) -> None`
 
-Recalcula _dynamic_max desde historial DL/UL combinado.
+Recalcula el máximo dinámico de escala en función del historial combinado de descarga y subida.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `get_history(self) -> Dict`
 
-Obtiene historiales de red.
+Obtiene el historial de uso de red.
+
+Args: 
+    Ninguno
+
+Returns:
+    Dict: Diccionario con los historiales de descarga y subida, y el máximo dinámico.
+
+Raises:
+    Ninguno
 
 #### `run_speedtest(self) -> None`
 
-Ejecuta speedtest (CLI oficial Ookla) en un thread separado.
+Ejecuta una prueba de velocidad de red utilizando la herramienta speedtest CLI de Ookla en un hilo separado.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `get_speedtest_result(self) -> Dict`
 
 Obtiene el resultado del speedtest.
 
+Args:
+    Ninguno
+
+Returns:
+    Dict: Una copia del resultado del speedtest.
+
+Raises:
+    Ninguno
+
 #### `reset_speedtest(self) -> None`
 
-Resetea el estado del speedtest.
+Restablece el estado del test de velocidad a su condición inicial.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `net_color(value: float) -> str`
 
-Determina el color según el tráfico de red.
+Determina el color según el tráfico de red en función de un valor de velocidad.
 
 Args:
-    value: Velocidad en MB/s
+    value (float): Velocidad en MB/s.
 
 Returns:
-    Color en formato hex
+    str: Color en formato hexadecimal.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self)`
 
-Inicializa historiales, caches speedtest, dynamic scale.
+Inicializa el monitor de red con historiales y configuraciones por defecto.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

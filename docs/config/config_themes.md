@@ -41,59 +41,83 @@ from pathlib import Path
 
 ### `get_theme(theme_name: str) -> dict`
 
-Obtiene un tema por su nombre
+Recuperación de un tema mediante su nombre.
 
 Args:
-    theme_name: Nombre del tema
+    theme_name (str): Nombre del tema a recuperar.
 
 Returns:
-    Diccionario con los colores del tema
+    dict: Diccionario con los colores asociados al tema.
+
+Raises:
+    KeyError: Si el tema por defecto no está configurado.
 
 ### `get_available_themes() -> list`
 
-Obtiene lista de temas disponibles
+Obtiene una lista de temas disponibles.
 
 Returns:
-    Lista de tuplas (id, nombre_descriptivo)
+    list: Lista de tuplas que contienen el identificador y el nombre descriptivo de cada tema.
 
 ### `get_theme_colors(theme_name: str) -> dict`
 
-Obtiene los colores de un tema
+Recupera los colores asociados a un tema específico.
 
 Args:
-    theme_name: Nombre del tema
+    theme_name (str): Nombre del tema del que obtener los colores.
 
 Returns:
-    Diccionario de colores
+    dict: Diccionario que contiene los colores del tema.
+
+Raises:
+    Exception: Si el tema no existe o no tiene colores definidos.
 
 ### `get_theme_preview() -> str`
 
-Genera un texto con preview de todos los temas
+Obtiene una vista previa en texto de todos los temas disponibles.
 
 Returns:
-    String con la lista de temas y sus colores principales
+    str: Cadena con la lista de temas y sus colores principales.
+
+Raises:
+    None
 
 ### `create_custom_theme(name: str, colors: dict) -> dict`
 
-Crea un tema personalizado
+Crea un tema personalizado con un nombre descriptivo y colores específicos.
 
 Args:
-    name: Nombre descriptivo del tema
-    colors: Diccionario con los colores personalizados
+    name (str): Nombre descriptivo del tema.
+    colors (dict): Diccionario con los colores personalizados.
 
 Returns:
-    Diccionario del tema creado
+    dict: Diccionario del tema creado.
+
+Raises:
+    ValueError: Si falta algún color requerido en el tema personalizado.
 
 ### `save_selected_theme(theme_name: str)`
 
-Guarda el tema seleccionado en archivo
+Guarda el tema seleccionado en un archivo de configuración.
 
 Args:
-    theme_name: Nombre del tema a guardar
+    theme_name (str): Nombre del tema a guardar.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### `load_selected_theme() -> str`
 
-Carga el tema seleccionado desde archivo
+Carga el tema seleccionado desde archivo de configuración.
+
+Args:
+    Ninguno
 
 Returns:
-    Nombre del tema seleccionado o DEFAULT_THEME
+    str: Nombre del tema seleccionado o el tema predeterminado.
+
+Raises:
+    Ninguna excepción relevante, se maneja internamente.

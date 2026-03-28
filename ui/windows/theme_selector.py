@@ -14,13 +14,31 @@ logger = get_logger(__name__)
 
 
 class ThemeSelector(ctk.CTkToplevel):
-    """Ventana de selección de temas"""
+    """
+    Ventana emergente para seleccionar temas de la aplicación.
+
+    Args:
+        parent: Widget padre CTkToplevel del dashboard.
+
+    Raises:
+        None
+
+    Returns:
+        None
+    """
     
     def __init__(self, parent):
-        """Inicializa la ventana selector de temas del dashboard.
+        """
+        Inicializa la ventana selector de temas del dashboard.
 
         Args:
             parent: Widget padre CTkToplevel del dashboard.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         super().__init__(parent)
         
@@ -41,7 +59,18 @@ class ThemeSelector(ctk.CTkToplevel):
 
     
     def _create_ui(self):
-        """Crea la interfaz de usuario"""
+        """
+        Crea la interfaz de usuario del selector de temas.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         # Frame principal
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -90,7 +119,18 @@ class ThemeSelector(ctk.CTkToplevel):
         self._create_bottom_buttons(main)
     
     def _create_theme_cards(self, parent):
-        """Crea las tarjetas de cada tema"""
+        """
+        Crea las tarjetas de cada tema disponible en la aplicación.
+
+        Args:
+            parent: El elemento padre donde se crearán las tarjetas de temas.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         themes = get_available_themes()
         
         for theme_id, theme_name in themes:
@@ -177,7 +217,18 @@ class ThemeSelector(ctk.CTkToplevel):
                 color_label.pack(pady=(2, 0))
     
     def _create_bottom_buttons(self, parent):
-        """Crea los botones inferiores"""
+        """
+        Crea los botones inferiores de la interfaz de selección de temas.
+
+        Args:
+            parent: El elemento padre donde se crearán los botones.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         bottom = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         bottom.pack(fill="x", pady=10, padx=10)
         
@@ -192,12 +243,34 @@ class ThemeSelector(ctk.CTkToplevel):
         apply_btn.pack(side="right", padx=5)
     
     def _on_theme_change(self):
-        """Callback cuando se selecciona un tema"""
+        """
+        Actualiza la configuración del tema seleccionado.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         # Simplemente actualiza la variable, no aplica aún
         pass
     
     def _apply_theme(self):
-        """Aplica el tema seleccionado y reinicia la aplicación"""
+        """
+        Aplica el tema seleccionado y reinicia la aplicación si es diferente al actual.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         selected = self.selected_theme_var.get()
         
         if selected == self.current_theme:

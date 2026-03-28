@@ -14,22 +14,33 @@ import os
 # ── Filtro de nivel exacto ────────────────────────────────────────────────────
 
 class _ExactLevelFilter(logging.Filter):
-    """Deja pasar únicamente registros cuyo nivel sea exactamente el indicado."""
+    """
+    Filtra registros de log permitiendo solo aquellos con un nivel de log exacto.
+
+    Args:
+        level (int): Nivel de logging exacto (e.g., logging.INFO).
+
+    Returns:
+        bool: True si el nivel coincide, False en caso contrario.
+
+    Raises:
+        None
+    """
 
     def __init__(self, level: int):
         """
         Inicializa el filtro con el nivel de log exacto especificado.
 
         Args:
-            level (int): Nivel de logging exacto (e.g., logging.INFO).
+            level (int): Nivel de logging exacto.
+
         """
         super().__init__()
         self._level = level
 
     def filter(self, record: logging.LogRecord) -> bool:
         """
-        Filtra registros de log, permitiendo solo aquellos cuyo nivel coincide exactamente
-        con el nivel configurado.
+        Filtra registros de log según su nivel exacto.
 
         Args:
             record (logging.LogRecord): Registro de log a evaluar.
@@ -43,16 +54,36 @@ class _ExactLevelFilter(logging.Filter):
 # ── Logger central ────────────────────────────────────────────────────────────
 
 class DashboardLogger:
-    """Logger centralizado para el dashboard."""
+    """
+    Clase que implementa un logger centralizado para el dashboard siguiendo el patrón Singleton.
+
+    Args:
+        Ninguno
+
+    Returns:
+        DashboardLogger: La instancia única del logger.
+
+    Raises:
+        Ninguna excepción explícita.
+
+    Notas:
+        La instancia única se crea automáticamente al invocar la clase.
+    """
 
     _instance = None
 
     def __new__(cls):
         """
-        Implementa el patrón Singleton para asegurar una única instancia del logger.
+        Crea una nueva instancia del logger, aplicando el patrón Singleton para garantizar una única instancia.
+
+        Args:
+            cls: La clase DashboardLogger.
 
         Returns:
             DashboardLogger: La instancia única del logger.
+
+        Raises:
+            None
         """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -60,7 +91,18 @@ class DashboardLogger:
         return cls._instance
 
     def _setup_logger(self):
-        """Configura el logger con rutas absolutas y rotación automática."""
+        """
+        Configura el logger con rutas absolutas y rotación automática.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
 
         if hasattr(sys, '_MEIPASS'):
             project_root = Path(sys._MEIPASS)
@@ -132,9 +174,16 @@ class DashboardLogger:
 
     def _load_saved_config(self, project_root: Path) -> dict:
         """
-        Lee log_file_level, log_console_level, log_console_exact y
-        log_module_levels desde local_settings.py sin importar el módulo
-        local_settings_io para evitar dependencias circulares en el arranque.
+        Carga la configuración guardada de niveles de registro desde el archivo local_settings.py.
+
+        Args:
+            project_root: Ruta raíz del proyecto.
+
+        Returns:
+            Un diccionario con la configuración guardada de niveles de registro.
+
+        Raises:
+            Ninguna excepción es propagada explícitamente, aunque puede ocurrir una excepción genérica durante la ejecución.
         """
         result = {}
         settings_path = project_root / "config" / "local_settings.py"
@@ -154,13 +203,36 @@ class DashboardLogger:
     # ── API pública de control ────────────────────────────────────────────────
 
     def set_file_level(self, level: int) -> None:
-        """Cambia el nivel del handler de fichero y persiste."""
+        """
+        Establece el nivel de registro para el handler de fichero y persiste los cambios.
+
+        Args:
+            level (int): El nuevo nivel de registro.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._file_handler.setLevel(level)
         self._persist()
         self.logger.info("[Logger] Nivel fichero -> %s", logging.getLevelName(level))
 
     def set_console_level(self, level: int, exact: bool = False) -> None:
-        """Cambia el nivel del handler de consola y persiste."""
+        """
+        Establece el nivel de registro de la consola y persiste la configuración.
+
+        Args:
+            level (int): El nuevo nivel de registro.
+            exact (bool): Si True, solo se mostrarán mensajes con el nivel exacto. Por defecto es False.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._console_handler.filters = [
             f for f in self._console_handler.filters
             if not isinstance(f, _ExactLevelFilter)
@@ -178,8 +250,17 @@ class DashboardLogger:
 
     def set_module_level(self, module: str, level: int) -> None:
         """
-        Fija el nivel de un sub-logger concreto y persiste.
-        level=NOTSET restablece la herencia del padre.
+        Establece el nivel de registro para un módulo específico en el sistema de registro.
+
+        Args:
+            module (str): Nombre del módulo para el que se establece el nivel de registro.
+            level (int): Nivel de registro que se asigna al módulo.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         name = f"Dashboard.{module}" if module else "Dashboard"
         logging.getLogger(name).setLevel(level)
@@ -189,13 +270,33 @@ class DashboardLogger:
         )
 
     def force_rollover(self) -> None:
-        """Fuerza la rotación del fichero de log inmediatamente."""
+        """
+        Fuerza la rotación inmediata del fichero de log.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._file_handler.doRollover()
         self.logger.info("[Logger] Rotacion manual forzada")
 
     def get_status(self) -> dict:
         """
         Devuelve el estado actual de los handlers y módulos con nivel explícito.
+
+        Args:
+            Ninguno
+
+        Returns:
+            dict: Diccionario con el estado de los handlers y módulos, incluyendo niveles de registro.
+
+        Raises:
+            Ninguno
         """
         modules = {}
         prefix = "Dashboard."
@@ -218,7 +319,18 @@ class DashboardLogger:
         }
 
     def get_active_modules(self) -> list:
-        """Lista de nombres cortos de todos los sub-loggers instanciados."""
+        """
+        Obtiene una lista de nombres cortos de todos los sub-loggers activos instanciados en el dashboard.
+
+        Args:
+            Ninguno
+
+        Returns:
+            list: Lista ordenada de nombres cortos de sub-loggers activos.
+
+        Raises:
+            Ninguno
+        """
         prefix = "Dashboard."
         result = []
         for name, lgr in logging.Logger.manager.loggerDict.items():
@@ -244,9 +356,13 @@ class DashboardLogger:
 
     def _persist(self) -> None:
         """
-        Guarda la configuración de logging en local_settings.py via
-        local_settings_io.update_params(). Importación local para evitar
-        dependencia circular en el arranque del logger.
+        Guarda la configuración actual de logging en el archivo local_settings.py.
+
+        Args: Ninguno
+
+        Returns: None
+
+        Raises: Exception - Si ocurre un error al persistir la configuración, se registra una advertencia.
         """
         try:
             from config.local_settings_io import update_params  # noqa: PLC0415
@@ -277,11 +393,16 @@ _dashboard_logger = None
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Obtiene logger para un módulo.
+    Obtiene un logger para un módulo específico.
 
-    Uso:
-        from utils.logger import get_logger
-        logger = get_logger(__name__)
+    Args:
+        name (str): Nombre del módulo que solicita el logger.
+
+    Returns:
+        logging.Logger: Instancia de logger configurada para el módulo.
+
+    Raises:
+        None
     """
     global _dashboard_logger
     if _dashboard_logger is None:
@@ -290,7 +411,18 @@ def get_logger(name: str) -> logging.Logger:
 
 
 def get_dashboard_logger() -> DashboardLogger:
-    """Devuelve la instancia singleton de DashboardLogger para control en runtime."""
+    """
+    Devuelve la instancia singleton de DashboardLogger para control en runtime.
+
+    Args:
+        Ninguno
+
+    Returns:
+        DashboardLogger: La instancia singleton de DashboardLogger.
+
+    Raises:
+        Ninguno
+    """
     global _dashboard_logger
     if _dashboard_logger is None:
         _dashboard_logger = DashboardLogger()
@@ -298,7 +430,18 @@ def get_dashboard_logger() -> DashboardLogger:
 
 
 def log_startup_info():
-    """Log información de inicio del sistema."""
+    """
+    Registra información de inicio del sistema en el registro de eventos.
+
+    Args:
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
+    """
     logger = get_logger('startup')
     logger.info("Python: %s", sys.version)
     logger.info("Platform: %s", sys.platform)

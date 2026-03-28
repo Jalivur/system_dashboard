@@ -39,7 +39,17 @@ from utils.logger import get_logger
 
 ## Clase `NetworkLocalWindow(ctk.CTkToplevel)`
 
-Panel de dispositivos en la red local.
+Ventana emergente que muestra dispositivos detectados en la red local.
+
+Args:
+    parent: Ventana principal padre de esta ventana.
+    network_scanner: Instancia del escáner de red externa para obtener dispositivos.
+
+Raises:
+    None
+
+Returns:
+    None
 
 ### Atributos privados
 
@@ -57,7 +67,7 @@ Panel de dispositivos en la red local.
 Inicializa y configura la ventana emergente del panel de red local.
 
 Esta ventana muestra dispositivos detectados en la red mediante arp-scan,
-mostrando IP, MAC, fabricante y hostname. Configura geometría, UI y escaneo inicial.
+mostrando IP, MAC, fabricante y hostname.
 
 Args:
     parent: Ventana principal (CTkToplevel) padre de esta ventana.
@@ -67,34 +77,82 @@ Args:
 
 Construye toda la interfaz de usuario de la ventana.
 
-Crea:
-    - Header con título y controles de ventana
-    - Canvas scrollable para lista de dispositivos
-    - Frame inferior con contador y botón de escaneo manual
+Crea los componentes visuales principales, incluyendo el encabezado con título y 
+controles de ventana, un área scrollable para la lista de dispositivos y un 
+frame inferior con funcionalidades adicionales.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_start_scan(self)`
 
-Lanza el escaneo y activa el polling de resultado.
+Inicia el proceso de escaneo de la red y activa la verificación periódica de resultados.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_poll_result(self)`
 
-Comprueba cada 500ms si el escaneo terminó.
+Verifica periódicamente el estado del escaneo y actualiza la interfaz gráfica accordingly.
+
+Args: 
+    None
+
+Returns: 
+    None
+
+Raises: 
+    None
 
 #### `_render(self)`
 
-Redibuja la lista con los dispositivos encontrados.
+Redibuja la lista con los dispositivos encontrados en la red local.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_device_row(self, device: dict)`
 
-Fila de un dispositivo: IP | hostname | MAC | fabricante.
+Crea una fila que representa un dispositivo en la interfaz gráfica.
+
+Args:
+    device (dict): Diccionario que contiene la información del dispositivo, incluyendo 'ip', 'hostname' y 'MAC' (aunque este último no se utiliza en este método).
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_close(self)`
 
 Gestiona el cierre ordenado de la ventana.
 
-Cancela:
-    - Tareas de refresco automático (_auto_job)
-    - Polling de resultados de escaneo (_poll_job)
-Registra cierre en logs y destruye la ventana.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

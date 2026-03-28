@@ -26,13 +26,26 @@ logger = get_logger(__name__)
 
 
 class LedWindow(ctk.CTkToplevel):
-    """Ventana de control de LEDs RGB."""
+    """
+    Ventana de control de LEDs RGB flotante.
+
+    Args:
+        parent: Ventana principal (CTk).
+        led_service: Instancia del servicio LED para control y estado.
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
 
     def __init__(self, parent, led_service):
-        """Inicializa la ventana de control LED como Toplevel flotante.
-        
+        """
+        Inicializa la ventana de control LED como Toplevel flotante.
+
         Configura geometría, variables RGB/modo, crea UI y inicia loops de update.
-        
+
         Args:
             parent: Ventana principal (CTk).
             led_service: Instancia del servicio LED para control y estado.
@@ -63,7 +76,18 @@ class LedWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea la interfaz de usuario principal de la ventana LED, incluyendo frame principal, header, canvas con scrollbar y frame interno para contenido."""
+        """
+        Crea la interfaz de usuario principal de la ventana LED.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -88,10 +112,14 @@ class LedWindow(ctk.CTkToplevel):
         self._build_content(inner)
 
     def _build_content(self, inner):
-        """Construye todos los widgets del contenido: selector de modo, sliders RGB, preview de color, botones de colores rápidos y label de estado.
-        
+        """
+        Construye el contenido real de la ventana de LEDs.
+
         Args:
-            inner (ctk.CTkFrame): Frame contenedor para los widgets.
+            inner (ctk.CTkFrame): Frame contenedor para los widgets del contenido.
+
+        Raises:
+            Ninguna excepción específica.
         """
         """Construye el contenido real de la ventana."""
         # ── Selector de modo ──
@@ -213,10 +241,18 @@ class LedWindow(ctk.CTkToplevel):
     # ── Loop de actualización con banner ──────────────────────────────────────
 
     def _update(self):
-        """Loop principal de actualización periódica (cada UPDATE_MS ms). Monitorea estado del servicio LED:
-        - Muestra banner si servicio parado.
-        - Reconstruye UI si servicio reanuda.
-        Programa la siguiente actualización."""
+        """
+        Actualiza periódicamente el estado de la ventana LED, monitoreando el servicio LED.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self.winfo_exists():
             return
 
@@ -240,10 +276,16 @@ class LedWindow(ctk.CTkToplevel):
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     def _set_mode(self, mode: str):
-        """Cambia el modo de operación de los LEDs y aplica el color RGB actual.
-        
+        """
+        Cambia el modo de operación de los LEDs y aplica el color RGB actual.
+
         Args:
-            mode (str): Modo LED (e.g., 'static', 'auto', 'rainbow'). Ver LED_MODES.
+            mode (str): Modo LED (e.g., 'static', 'auto', 'rainbow'). 
+
+        Raises:
+            None
+        Returns:
+            None
         """
         r, g, b = self._r.get(), self._g.get(), self._b.get()
         self._led_service.set_mode(mode, r, g, b)
@@ -252,11 +294,33 @@ class LedWindow(ctk.CTkToplevel):
         self._update_status()
 
     def _on_color_change(self):
-        """Callback invocado al cambiar valores de sliders RGB. Actualiza el preview del color en tiempo real."""
+        """
+        Actualiza el previsualizador de color en tiempo real cuando se modifican los valores de los deslizadores RGB.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._update_preview()
 
     def _apply_color(self):
-        """Aplica el color RGB actual del preview al servicio LED, ajustando modo a 'static' si necesario. Actualiza UI y estado."""
+        """
+        Aplica el color RGB actual del preview al servicio LED, ajustando modo a 'static' si necesario.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         r, g, b = self._r.get(), self._g.get(), self._b.get()
         mode = self._mode_var.get()
         if mode in ("auto", "rainbow", "off"):
@@ -267,8 +331,9 @@ class LedWindow(ctk.CTkToplevel):
         self._update_status()
 
     def _quick_color(self, r: int, g: int, b: int):
-        """Establece un color RGB predefinido en los sliders, actualiza el preview y aplica inmediatamente al servicio LED.
-        
+        """
+        Establece un color RGB predefinido en los sliders, actualiza el preview y aplica inmediatamente al servicio LED.
+
         Args:
             r (int): Valor rojo (0-255).
             g (int): Valor verde (0-255).
@@ -281,7 +346,18 @@ class LedWindow(ctk.CTkToplevel):
         self._apply_color()
 
     def _update_preview(self):
-        """Actualiza el canvas de preview con el color RGB actual de los sliders y refresca las etiquetas numéricas de valores R/G/B."""
+        """
+        Actualiza el canvas de preview con el color RGB actual de los sliders y refresca las etiquetas numéricas de valores R/G/B.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not hasattr(self, "_preview_canvas"):
             return
         r, g, b = self._r.get(), self._g.get(), self._b.get()
@@ -293,10 +369,17 @@ class LedWindow(ctk.CTkToplevel):
             self._b_lbl.configure(text=str(b))
 
     def _highlight_mode_btn(self, active_mode: str):
-        """Resalta visualmente el botón del modo LED activo y desactiva los demás.
-        
+        """
+        Resalta visualmente el botón del modo LED activo y desactiva los demás.
+
         Args:
             active_mode (str): Modo actualmente seleccionado.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if not hasattr(self, "_mode_btns"):
             return
@@ -309,7 +392,18 @@ class LedWindow(ctk.CTkToplevel):
                               border_color=COLORS['border'])
 
     def _update_status(self):
-        """Actualiza el label de estado con el modo LED actual y valores RGB si aplica (obtenidos del servicio)."""
+        """
+        Actualiza el label de estado con el modo LED actual y valores RGB si aplica.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not hasattr(self, "_status_label"):
             return
         state = self._led_service.get_state()
@@ -324,7 +418,18 @@ class LedWindow(ctk.CTkToplevel):
             )
 
     def _load_current_state(self):
-        """Carga el estado actual del servicio LED (modo y RGB), lo refleja en sliders/botones/UI y actualiza preview/estado."""
+        """
+        Carga el estado actual del servicio LED y actualiza la interfaz gráfica reflejando el modo y los valores RGB.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         state = self._led_service.get_state()
         mode  = state.get("mode", "auto")
         self._mode_var.set(mode)

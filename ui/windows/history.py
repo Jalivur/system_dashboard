@@ -20,14 +20,33 @@ _DATE_FMT = "%Y-%m-%d %H:%M"
 
 
 class HistoryWindow(ctk.CTkToplevel):
-    """Ventana de visualización de histórico"""
+    """
+    Ventana de visualización de histórico de datos del sistema.
+
+    Args:
+        parent: Ventana padre CTkToplevel.
+        cleanup_service: Instancia de CleanupService para gestión de limpieza.
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
 
     def __init__(self, parent, cleanup_service: CleanupService):
-        """Inicializa la ventana de histórico de datos del sistema.
+        """
+        Inicializa la ventana de histórico de datos del sistema.
 
         Args:
             parent: Ventana padre CTkToplevel.
             cleanup_service: Instancia de CleanupService para gestión de limpieza.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         super().__init__(parent)
 
@@ -66,7 +85,18 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea la interfaz de usuario completa de la ventana, incluyendo frames, canvas y widgets principales."""
+        """
+        Crea la interfaz de usuario completa de la ventana de historial.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         self._main.pack(fill="both", expand=True, padx=5, pady=5) 
         # ── Header unificado ──────────────────────────────────────────────────
@@ -116,7 +146,18 @@ class HistoryWindow(ctk.CTkToplevel):
 
 
     def _create_period_controls(self, parent):
-        """Fila 1: radio buttons 24h/7d/30d + botón para abrir/cerrar el panel de rango."""
+        """
+        Crea los controles de periodo en la ventana de historial.
+
+        Args:
+            parent: El elemento padre donde se crearán los controles.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._controls_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         self._controls_frame.pack(fill="x", padx=10, pady=(5, 0))
 
@@ -152,8 +193,16 @@ class HistoryWindow(ctk.CTkToplevel):
 
     def _create_range_panel(self, parent):
         """
-        Fila 2 (oculta por defecto): selectores día/mes/año/hora/min
-        para inicio y fin del rango. Sin teclado — todo por OptionMenu.
+        Crea un panel para seleccionar un rango de fechas con campos para inicio y fin.
+
+        Args:
+            parent: El padre del panel.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._range_panel = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         # No se hace pack aquí → empieza oculto
@@ -207,7 +256,18 @@ class HistoryWindow(ctk.CTkToplevel):
         self._apply_btn.pack(side="right", padx=(10, 5))
 
     def _create_graphs_area(self, parent):
-        """Crea el área de gráficas utilizando matplotlib integrado en Tkinter con canvas y toolbar."""
+        """
+        Crea el área de gráficas utilizando matplotlib integrado en Tkinter con canvas y toolbar.
+
+        Args:
+            parent: El widget padre donde se creará el área de gráficas.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         graphs_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         graphs_frame.pack(fill="both", expand=True, padx=(0, 10), pady=(0, 10))
 
@@ -241,7 +301,18 @@ class HistoryWindow(ctk.CTkToplevel):
         self._canvas.mpl_connect('motion_notify_event',  self._on_motion)
 
     def _create_stats_area(self, parent):
-        """Crea el frame y label para mostrar las estadísticas calculadas de los datos."""
+        """
+        Crea el área de estadísticas en la ventana de historial.
+
+        Args:
+            parent: El padre del frame de estadísticas.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         stats_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         stats_frame.pack(fill="x", padx=10, pady=5)
 
@@ -262,7 +333,18 @@ class HistoryWindow(ctk.CTkToplevel):
         self._stats_label.pack(pady=(0, 10), padx=20)
 
     def _create_buttons(self, parent):
-        """Crea los botones de acción: actualizar datos, exportar CSV y limpiar archivos antiguos."""
+        """
+        Crea los botones de acción en la ventana de historial.
+
+        Args:
+            parent: El elemento padre donde se crearán los botones.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         buttons = ctk.CTkFrame(parent, fg_color=COLORS['bg_medium'])
         buttons.pack(fill="x", pady=10, padx=10)
 
@@ -280,7 +362,15 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _toggle_range_panel(self):
-        """Muestra u oculta la fila de OptionMenus de rango personalizado."""
+        """
+        Muestra u oculta la fila de OptionMenus de rango personalizado.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
+        """
         if self._range_panel.winfo_ismapped():
             self._range_panel.pack_forget()
             self._toggle_btn.configure(text=f"{Icons.CALENDAR_RANGE}  Rango")
@@ -302,24 +392,62 @@ class HistoryWindow(ctk.CTkToplevel):
     _PLACEHOLDER = "YYYY-MM-DD HH:MM"
 
     def _entry_focus_in(self, entry: ctk.CTkEntry, var: ctk.StringVar):
-        """Al enfocar: si tiene el texto de ejemplo, lo borra y pone color normal."""
+        """
+        Establece el comportamiento al enfocar un campo de entrada de texto.
+
+        Args:
+            entry (ctk.CTkEntry): El campo de entrada de texto que ha obtenido el foco.
+            var (ctk.StringVar): La variable asociada al campo de entrada de texto.
+
+        """
         if var.get() == self._PLACEHOLDER:
             var.set("")
             entry.configure(text_color=COLORS['text'])
 
     def _entry_focus_out(self, entry: ctk.CTkEntry, var: ctk.StringVar):
-        """Al perder foco: si quedó vacío, restaura el texto de ejemplo en gris."""
+        """
+        Restaura el texto de ejemplo en gris cuando un campo de entrada pierde el foco y queda vacío.
+
+        Args:
+            entry (ctk.CTkEntry): El campo de entrada que perdió el foco.
+            var (ctk.StringVar): La variable asociada al campo de entrada.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if var.get().strip() == "":
             var.set(self._PLACEHOLDER)
             entry.configure(text_color=COLORS['text_dim'])
 
     def _on_period_radio(self):
-        """Al pulsar radio button fijo: desactiva modo custom y actualiza."""
+        """
+        Desactiva el modo de rango personalizado y actualiza la ventana de historial al seleccionar un período fijo.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
+        """
         self._using_custom_range = False
         self._update_data()
 
     def _apply_custom_range(self):
-        """Lee los OptionMenus y aplica el rango sin necesidad de teclado."""
+        """
+        Aplica un rango de fechas personalizado sin necesidad de interacción con el teclado.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         _PH = self._PLACEHOLDER
         start_dt_text = self._period_start.get().strip()
         end_dt_text   = self._period_end.get().strip()
@@ -357,7 +485,18 @@ class HistoryWindow(ctk.CTkToplevel):
         self._update_data()
 
     def _update_data(self):
-        """Actualiza estadísticas y gráficas según el modo activo."""
+        """
+        Actualiza estadísticas y gráficas según el modo activo.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if self._using_custom_range:
             start = self._custom_start
             end   = self._custom_end
@@ -422,7 +561,18 @@ class HistoryWindow(ctk.CTkToplevel):
     ]
 
     def _update_graphs(self, hours: int):
-        """Actualiza todas las gráficas de métricas para un período fijo en horas."""
+        """
+        Actualiza todas las gráficas de métricas para un período fijo en horas.
+
+        Args:
+            hours (int): Período en horas para el cual se actualizarán las gráficas.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._fig.clear()
         axes = [self._fig.add_subplot(8, 1, i) for i in range(1, 9)]
         for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
@@ -432,7 +582,19 @@ class HistoryWindow(ctk.CTkToplevel):
         self._canvas.draw()
 
     def _update_graphs_between(self, start: datetime, end: datetime):
-        """Actualiza todas las gráficas de métricas para un rango de fechas personalizado."""
+        """
+        Actualiza todas las gráficas de métricas para un rango de fechas personalizado.
+
+        Args:
+            start (datetime): Fecha de inicio del rango.
+            end (datetime): Fecha de fin del rango.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._fig.clear()
         axes = [self._fig.add_subplot(8, 1, i) for i in range(1, 9)]
         for (metric, ylabel, color_key), ax in zip(self._METRICS, axes):
@@ -442,7 +604,22 @@ class HistoryWindow(ctk.CTkToplevel):
         self._canvas.draw()
 
     def _draw_metric(self, ax, timestamps, values, ylabel: str, color: str):
-        """Dibuja una métrica específica en su eje subplot: configura estilo, grid y plotea datos."""
+        """
+        Dibuja una métrica específica en su eje subplot con estilo configurado.
+
+        Args:
+            ax: Eje subplot donde se dibujará la métrica.
+            timestamps: Fechas o timestamps de los datos a plotear.
+            values: Valores de la métrica a plotear.
+            ylabel: Etiqueta del eje Y.
+            color: Color de la línea de la métrica.
+
+        Returns:
+            None
+
+        Raises:
+            Ninguna excepción relevante.
+        """
         ax.set_facecolor(COLORS['bg_dark'])
         ax.tick_params(colors=COLORS['text'])
         ax.set_ylabel(ylabel, color=COLORS['text'])
@@ -456,7 +633,18 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _export_csv(self):
-        """Exporta los datos del período actual (fijo o custom) a archivo CSV en el directorio de exports."""
+        """
+        Exporta los datos del período actual a archivo CSV en el directorio de exports.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Exception: Si ocurre un error durante la exportación.
+        """
         if self._using_custom_range:
             start = self._custom_start
             end   = self._custom_end
@@ -486,7 +674,15 @@ class HistoryWindow(ctk.CTkToplevel):
                 custom_msgbox(self, f"Error al exportar:\n{e}\n{Icons.ERROR} Error")
 
     def _clean_old_data(self):
-        """Fuerza un ciclo de limpieza completo a través de CleanupService."""
+        """
+        Fuerza un ciclo de limpieza completo de datos antiguos a través del servicio de limpieza.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Exception si ocurre un error durante la limpieza.
+        """
         status = self._cleanup_service.get_status()
 
         def do_clean():
@@ -521,7 +717,18 @@ class HistoryWindow(ctk.CTkToplevel):
         )
 
     def _export_figure_image(self):
-        """Exporta la figura actual de gráficas como imagen PNG al directorio de screenshots."""
+        """
+        Exporta la figura actual de gráficas como imagen PNG al directorio de screenshots.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Exception: Si ocurre un error al guardar la imagen.
+        """
         
         try:
             save_dir = str(EXPORTS_SCR_DIR)
@@ -550,14 +757,47 @@ class HistoryWindow(ctk.CTkToplevel):
     # ─────────────────────────────────────────────
 
     def _on_click(self, event):
-        """Maneja el evento de clic del mouse en el canvas de las gráficas."""
+        """
+        Maneja el evento de clic del mouse en el canvas de las gráficas.
+
+        Args:
+            event: Evento de clic del mouse.
+
+        Raises:
+            None
+
+        Returns:
+            None
+        """
         if event.inaxes:
             logger.debug("Click en gráfica: x=%s, y=%s", event.xdata, event.ydata)
 
     def _on_release(self, event):
-        """Maneja el evento de liberación del botón del mouse en el canvas."""
+        """
+        Maneja el evento de liberación del botón del mouse en el canvas.
+
+        Args:
+            event: El evento de liberación del botón del mouse.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         pass
 
     def _on_motion(self, event):
-        """Maneja el evento de movimiento del mouse sobre el canvas de gráficas."""
+        """
+        Maneja el evento de movimiento del mouse sobre el canvas de gráficas.
+
+        Args:
+            event: Evento de movimiento del mouse.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         pass

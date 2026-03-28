@@ -67,7 +67,18 @@ from utils.logger import get_logger
 
 ## Clase `MainWindow`
 
-Ventana principal del dashboard
+Inicializa la ventana principal del dashboard.
+
+Args:
+    root (CTk): Ventana root DSI fullscreen.
+    registry (ServiceRegistry): Registro de todos los monitores y servicios.
+    update_interval (int): Intervalo de actualización de badges/UI en milisegundos (por defecto 2000).
+
+Raises:
+    None
+
+Returns:
+    None
 
 ### Atributos públicos
 
@@ -117,53 +128,92 @@ Ventana principal del dashboard
 
 #### `__init__(self, root, registry, update_interval = 2000)`
 
-Inicializa MainWindow principal dashboard.
+Inicializa la ventana principal del dashboard.
 
 Args:
     root (CTk): Ventana root DSI fullscreen.
-    registry (ServiceRegistry): Todos monitors/servicios.
-    update_interval (int): ms badges/UI update (default 2000).
+    registry (ServiceRegistry): Registro de todos los monitores y servicios.
+    update_interval (int): Intervalo de actualización de insignias/UI en milisegundos (predeterminado 2000).
 
-Inyecta self.services, build UI, managers, pestañas inicial overview.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_ui(self)`
 
-Construye layout completo: header (hostname/clock), pestañas scroll H/V, área botones, footer (gestor/reiniciar/salir).
-Inicializa managers (Badge, WindowLifecycle, WindowManager, UpdateLoop).
+Crea la interfaz de usuario completa, incluyendo el diseño de la ventana principal 
+con header, pestañas, área de botones y footer.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_register_windows(self)`
 
-Registra ~35 ventanas hijas en WindowLifecycleManager con label/badge_keys.
-Lambdas inyectan self.services donde needed.
+Registra ventanas hijas en el administrador de ciclo de vida de ventanas.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_build_buttons_meta(self)`
 
-Mapea button_labels.BL → (lambda abrir ventana, list badge keys).
+Crea un diccionario que mapeia etiquetas de botones a tuplas con funciones de apertura de ventanas y listas de claves de insignias.
 
-Usado en _switch_tab para render botones pestañas dinámicamente.
+Usado en _switch_tab para renderizar botones de pestañas dinámicamente.
 
 Returns:
     dict: label → (command, [badges]).
 
 #### `_switch_tab(self, key: str) -> None`
 
-Cambia pestaña activa, destruye botones viejos, renderiza nuevos basados en pestaña/UI config.
+Cambia la pestaña activa y actualiza la interfaz de usuario en consecuencia.
 
 Args:
-    key (str): ID pestaña (e.g., 'overview', 'services').
+    key (str): La clave de identificación de la pestaña a activar (por ejemplo, 'overview', 'services').
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_btn_active(self, text_key: str) -> None`
 
-Resalta botón activo (llamado por WindowLifecycleManager).
+Resalta el botón activo en la ventana principal.
 
 Args:
-    text_key (str): Label botón desde button_labels.py.
+    text_key (str): Clave de texto del botón, según se define en button_labels.py.
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error al configurar el botón.
 
 #### `_btn_idle(self, text_key: str) -> None`
 
-Restaura estilo idle botón (llamado por WindowLifecycleManager).
+Restaura el estilo idle de un botón.
 
 Args:
-    text_key (str): Label botón desde button_labels.py.
+    text_key (str): Clave de texto del botón desde button_labels.py.
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error al configurar el botón.
 
 </details>

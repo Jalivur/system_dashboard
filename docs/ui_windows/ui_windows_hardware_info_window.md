@@ -51,25 +51,74 @@ from utils.logger import get_logger
 
 ### `_read_cpu_model() -> str`
 
-Lee el modelo de CPU desde /proc/cpuinfo.
+Lee el modelo de CPU desde el sistema.
+
+Args:
+    Ninguno
+
+Returns:
+    str: El modelo de CPU.
+
+Raises:
+    Ninguno
+
+Nota: Si no se puede leer el modelo de CPU desde /proc/cpuinfo, 
+      se devuelve el resultado de platform.processor() o "Desconocido".
 
 ### `_read_pi_model() -> str`
 
-Lee el modelo de Raspberry Pi desde /proc/device-tree/model.
+Lee el modelo de Raspberry Pi desde el archivo /proc/device-tree/model.
+
+Args: 
+    Ninguno
+
+Returns:
+    str: El modelo de Raspberry Pi como cadena de texto.
+
+Raises:
+    Ninguno
 
 ### `_read_os() -> str`
 
-Devuelve el nombre del SO.
+Obtiene el nombre del sistema operativo.
+
+Args:
+    Ninguno
+
+Returns:
+    str: El nombre del sistema operativo.
+
+Raises:
+    Ninguna excepción específica, manejo genérico de excepciones.
 
 ### `_gather_static_info() -> dict`
 
-Recopila toda la información estática del hardware.
+Recopila información estática del hardware y sistema operativo.
+
+Args:
+    Ninguno
+
+Returns:
+    dict: Diccionario con información estática del hardware y sistema operativo.
+
+Raises:
+    Ninguno
 
 </details>
 
 ## Clase `HardwareInfoWindow(ctk.CTkToplevel)`
 
-Ventana de información del hardware — datos estáticos + uptime dinámico.
+Ventana emergente que muestra información estática del hardware y uptime dinámico.
+
+Args:
+    parent: Ventana padre (CTkToplevel) que crea esta ventana.
+    system_monitor: Instancia para obtener uptime dinámico.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ningún valor de retorno.
 
 ### Atributos privados
 
@@ -91,35 +140,100 @@ Args:
     parent: Ventana padre (CTkToplevel).
     system_monitor: Instancia para obtener uptime dinámico.
 
+Raises:
+    None
+
 #### `_load_info(self) -> None`
 
-Carga info estática en background y rellena la UI.
+Carga información estática en segundo plano y actualiza la interfaz de usuario.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_populate_info(self, info: dict) -> None`
 
-Rellena la UI con los datos ya cargados (main thread).
+Rellena la UI con los datos de hardware proporcionados.
+
+Args:
+    info (dict): Diccionario con la información de hardware.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_ui(self)`
 
-Crea la estructura de la interfaz de usuario principal con scroll y placeholder de carga.
+Crea la estructura de la interfaz de usuario principal para mostrar información del hardware.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_show_loading(self, parent) -> None`
 
-Muestra texto de carga mientras _gather_static_info trabaja.
+Muestra un mensaje de carga mientras se recopila información del hardware.
+
+Args:
+    parent: El elemento padre donde se mostrará el mensaje de carga.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_build_content(self, inner)`
 
-Construye secciones de contenido con datos reales del hardware (Sistema, CPU, RAM, Uptime).
+Construye secciones de contenido con datos reales del hardware.
 
 Args:
     inner: Frame contenedor para los widgets de secciones.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_section(self, parent, title: str, rows: list)`
 
-Crea una tarjeta de sección con filas etiqueta-valor.
+Crea una tarjeta de sección con filas etiqueta-valor en la ventana de información de hardware.
+
+Args:
+    parent: El elemento padre donde se creará la tarjeta de sección.
+    title (str): El título de la sección.
+    rows (list): Una lista de tuplas (etiqueta, valor) que representan las filas de la sección.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_tick_uptime(self)`
 
-Refresca el uptime cada _UPTIME_EVERY segundos.
+Refresca el tiempo de actividad (uptime) de la ventana cada segundo.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

@@ -41,7 +41,18 @@ from utils.logger import get_logger
 
 ## Clase `MonitorWindow(ctk.CTkToplevel)`
 
-Ventana de monitoreo del sistema
+Ventana de monitoreo del sistema con información de métricas y estado.
+
+Args:
+    parent: Ventana padre (CTkToplevel).
+    system_monitor: Instancia de SystemMonitor para métricas CPU/RAM/TEMP.
+    hardware_monitor: Instancia opcional de monitor hardware FNK0100K (fase1).
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -60,30 +71,29 @@ Ventana de monitoreo del sistema
 Inicializa la ventana de monitoreo del sistema.
 
 Configura la ventana toplevel con geometría fija para DSI, título, colores y
-comportamientos (no redimensionable, sin barra título). Registra monitores de
-sistema/hardware, crea la interfaz de usuario y lanza el ciclo de actualizaciones.
+comportamientos. Registra monitores de sistema/hardware y crea la interfaz de usuario.
 
 Args:
-    parent: Ventana padre (CTkToplevel).
+    parent: Ventana padre.
     system_monitor: Instancia de SystemMonitor para métricas CPU/RAM/TEMP.
-    hardware_monitor: Instancia opcional de monitor hardware FNK0100K (fase1).
+    hardware_monitor: Instancia opcional de monitor hardware.
 
 #### `_create_ui(self)`
 
 Crea la interfaz de usuario completa de la ventana de monitoreo.
 
-Construye el frame principal, header de ventana, contenedor scrollable con canvas,
-grid de celdas para métricas CPU/RAM/TEMP con labels, valores y gráficos. 
-Condicionalmente añade tarjeta de hardware FNK0100K si self._hardware_monitor existe.
-Registra todos los widgets y graphs en self._widgets/self._graphs.
+    Args: 
+        Ninguno
+
+    Returns: 
+        Ninguno
+
+    Raises: 
+        Ninguno
 
 #### `_create_cell(self, parent, row, col, title, key, unit, graph_h)`
 
 Crea una celda individual para mostrar y graficar una métrica del sistema.
-
-Construye frame para celda con label de título, label dinámico de valor/unidad,
-y GraphWidget. Aplica colores y estilos según StyleManager. Registra los widgets
-en self._widgets y el gráfico con max_val en self._graphs.
 
 Args:
     parent: Frame contenedor (grid).
@@ -93,29 +103,44 @@ Args:
     unit: Unidad de medida ('%', '°C').
     graph_h: Altura del gráfico en píxeles.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_update(self)`
 
 Actualiza todas las métricas del monitoreo en ciclo recursivo.
 
-Verifica existencia de ventana y estado del servicio SystemMonitor. Obtiene
-estadísticas actuales/históricas, actualiza celdas métricas (CPU/RAM/TEMP),
-header resumen, tarjeta hardware FNK0100K si disponible (con colores por umbrales),
-y programa la próxima actualización en UPDATE_MS milisegundos.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_metric(self, key, value, history, unit, warn, crit)`
 
 Actualiza visualmente una métrica específica según su valor actual.
 
-Determina color según umbrales de advertencia (warn) y crítico (crit) usando
-SystemMonitor.level_color(). Actualiza label de valor/unidad y título con el color,
-y refresca el gráfico con historia y máximo configurado.
+Determina color según umbrales de advertencia y crítico. Actualiza label de valor/unidad 
+y título con el color, y refresca el gráfico con historia y máximo configurado.
 
 Args:
-    key: Identificador de métrica ('cpu', 'ram', 'temp').
-    value: Valor numérico actual.
-    history: Lista histórica de valores para el gráfico.
-    unit: Unidad ('%', '°C').
-    warn: Umbral de advertencia.
-    crit: Umbral crítico.
+    key (str): Identificador de métrica.
+    value (float): Valor numérico actual.
+    history (list): Lista histórica de valores para el gráfico.
+    unit (str): Unidad de medida.
+    warn (float): Umbral de advertencia.
+    crit (float): Umbral crítico.
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

@@ -55,16 +55,25 @@ from utils.logger import get_logger, get_dashboard_logger
 Convierte un nivel numérico de logging en su nombre legible.
 
 Args:
-    level (int): Nivel numérico de logging (ej: logging.DEBUG).
+    level (int): Nivel numérico de logging.
 
 Returns:
-    str: Nombre del nivel (ej: "DEBUG") o el nombre por defecto si no está mapeado.
+    str: Nombre del nivel o el nombre por defecto si no está mapeado.
 
 </details>
 
 ## Clase `LogConfigWindow(ctk.CTkToplevel)`
 
 Ventana de control de niveles de logging en runtime.
+
+Args:
+    parent: Ventana padre (CTkToplevel).
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -84,66 +93,166 @@ Ventana de control de niveles de logging en runtime.
 
 Inicializa la ventana de configuración de logging.
 
-Configura posición, estado de handlers/módulos desde dashboard_logger,
-y construye la interfaz de usuario.
+Configura posición y estado de handlers/módulos.
 
 Args:
     parent: Ventana padre (CTkToplevel).
 
+Raises:
+    None
+
 #### `_create_ui(self)`
 
-Crea la estructura principal de la UI con header y dos columnas (izq/der).
+Crea la estructura principal de la UI para la configuración de logging.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_build_left(self, parent)`
 
-Construye columna izquierda: selectores handlers, checkbox consola,
-botones acción (rotar/reset) y path del log actual.
+Construye la columna izquierda de la ventana de configuración de logs.
+
+Args:
+    parent: El padre de la columna izquierda.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_build_handler_row(self, parent, label: str, var, active: bool, command)`
 
-Crea fila horizontal reusable para selector de nivel de handler.
+Crea una fila horizontal reusable para selector de nivel de handler.
 
 Args:
     parent: Frame contenedor.
-    label: Etiqueta (ej: "Fichero:").
+    label (str): Etiqueta a mostrar (ej: "Fichero:").
     var: StringVar con nivel actual.
-    active: Si está habilitado.
-    command: Callback al cambiar.
+    active (bool): Indica si el handler está habilitado.
+    command: Callback a ejecutar al cambiar el nivel.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_file_level_change(self, value: str)`
 
-Callback: cambia nivel de logging del handler de fichero.
+Actualiza el nivel de logging del handler de fichero según el valor seleccionado.
+
+Args:
+    value (str): Nuevo nivel de logging.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_console_level_change(self, value: str = None)`
 
-Callback: cambia nivel/exactitud del handler de consola.
+Establece el nivel de precisión del registro en la consola según el valor seleccionado.
+
+Args:
+    value (str): El nuevo nivel de precisión. Si no se proporciona, se usa el valor actual.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_build_right(self, parent)`
 
-Construye columna derecha: listbox módulos, scrollbar, selector nivel y botón aplicar.
+Construye la columna derecha de la ventana de configuración de logs.
+
+Args:
+    parent: El elemento padre donde se construirá la columna derecha.
 
 #### `_reload_modules(self)`
 
-Recarga la lista de módulos activos desde dashboard_logger y actualiza listbox.
+Recarga la lista de módulos activos desde dashboard_logger y actualiza la lista visualizada.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_listbox_select(self, _event)`
 
-Callback selección en listbox: actualiza selector y status del módulo.
+Actualiza el selector y el estado del módulo según la selección realizada en el listbox.
+
+Args:
+    _event: Evento de selección en el listbox.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_apply_module_level(self)`
 
-Aplica nivel de log al módulo seleccionado y actualiza listbox/status.
+Aplica el nivel de log seleccionado al módulo actualmente elegido y actualiza la lista y el estado.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_force_rollover(self)`
 
-Fuerza rotación manual del archivo de log y muestra confirmación.
+Fuerza la rotación manual del archivo de log y muestra una confirmación.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_reset_all_modules(self)`
 
 Restablece todos los módulos a nivel HEREDAR y recarga listbox.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_on_close(self)`
 
-Maneja cierre de ventana: enfoca padre y destruye self.
+Maneja el evento de cierre de la ventana de configuración de registro.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

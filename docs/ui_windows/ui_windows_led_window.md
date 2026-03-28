@@ -54,7 +54,17 @@ from utils.logger import get_logger
 
 ## Clase `LedWindow(ctk.CTkToplevel)`
 
-Ventana de control de LEDs RGB.
+Ventana de control de LEDs RGB flotante.
+
+Args:
+    parent: Ventana principal (CTk).
+    led_service: Instancia del servicio LED para control y estado.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -83,36 +93,77 @@ Args:
 
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario principal de la ventana LED, incluyendo frame principal, header, canvas con scrollbar y frame interno para contenido.
+Crea la interfaz de usuario principal de la ventana LED.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_build_content(self, inner)`
 
-Construye todos los widgets del contenido: selector de modo, sliders RGB, preview de color, botones de colores rápidos y label de estado.
+Construye el contenido real de la ventana de LEDs.
 
 Args:
-    inner (ctk.CTkFrame): Frame contenedor para los widgets.
+    inner (ctk.CTkFrame): Frame contenedor para los widgets del contenido.
+
+Raises:
+    Ninguna excepción específica.
 
 #### `_update(self)`
 
-Loop principal de actualización periódica (cada UPDATE_MS ms). Monitorea estado del servicio LED:
-- Muestra banner si servicio parado.
-- Reconstruye UI si servicio reanuda.
-Programa la siguiente actualización.
+Actualiza periódicamente el estado de la ventana LED, monitoreando el servicio LED.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_set_mode(self, mode: str)`
 
 Cambia el modo de operación de los LEDs y aplica el color RGB actual.
 
 Args:
-    mode (str): Modo LED (e.g., 'static', 'auto', 'rainbow'). Ver LED_MODES.
+    mode (str): Modo LED (e.g., 'static', 'auto', 'rainbow'). 
+
+Raises:
+    None
+Returns:
+    None
 
 #### `_on_color_change(self)`
 
-Callback invocado al cambiar valores de sliders RGB. Actualiza el preview del color en tiempo real.
+Actualiza el previsualizador de color en tiempo real cuando se modifican los valores de los deslizadores RGB.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_apply_color(self)`
 
-Aplica el color RGB actual del preview al servicio LED, ajustando modo a 'static' si necesario. Actualiza UI y estado.
+Aplica el color RGB actual del preview al servicio LED, ajustando modo a 'static' si necesario.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_quick_color(self, r: int, g: int, b: int)`
 
@@ -127,6 +178,15 @@ Args:
 
 Actualiza el canvas de preview con el color RGB actual de los sliders y refresca las etiquetas numéricas de valores R/G/B.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_highlight_mode_btn(self, active_mode: str)`
 
 Resalta visualmente el botón del modo LED activo y desactiva los demás.
@@ -134,12 +194,36 @@ Resalta visualmente el botón del modo LED activo y desactiva los demás.
 Args:
     active_mode (str): Modo actualmente seleccionado.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_update_status(self)`
 
-Actualiza el label de estado con el modo LED actual y valores RGB si aplica (obtenidos del servicio).
+Actualiza el label de estado con el modo LED actual y valores RGB si aplica.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_load_current_state(self)`
 
-Carga el estado actual del servicio LED (modo y RGB), lo refleja en sliders/botones/UI y actualiza preview/estado.
+Carga el estado actual del servicio LED y actualiza la interfaz gráfica reflejando el modo y los valores RGB.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 </details>

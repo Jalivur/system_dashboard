@@ -81,9 +81,16 @@ FONT_SIZES = {
 
 class Icons:
     """
-    Iconos Nerd Font y emoji usados en la UI.
-    Definidos como escape Unicode para evitar corrupcion al editar.
-    Todos los literales de icono deben vivir AQUI — nunca en otros ficheros.
+    Iconos Nerd Font y emoji usados en la UI, definidos como escape Unicode.
+
+    Args: Ninguno
+
+    Returns: Ninguno
+
+    Raises: Ninguno
+
+    Nota: Clase que almacena iconos como literales Unicode para evitar corrupción al editar.
+          Todos los literales de icono deben vivir en esta clase.
     """
 
     # Botones del menu principal
@@ -227,9 +234,19 @@ class Icons:
 class UI:
     """
     Configuración visual del menú principal.
-    MENU_COLUMNS: número de columnas del grid de botones (ajustable sin tocar lógica).
-    MENU_TABS: definición de pestañas — lista de (clave, icono, label, [button_labels_keys]).
-    Los button_labels_keys deben coincidir exactamente con los atributos de config.button_labels.
+
+    Args:
+        Ninguno
+
+    Attributes:
+        MENU_COLUMNS (int): Número de columnas del grid de botones.
+        MENU_TABS (list): Definición de pestañas, cada una contiene clave, icono, label y lista de claves de etiquetas de botones.
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
     """
     MENU_COLUMNS = 2
 

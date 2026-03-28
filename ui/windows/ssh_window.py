@@ -18,7 +18,18 @@ _REFRESH_MS = 30_000
 # ── Helpers de formato ────────────────────────────────────────────────────────
 
 def _fmt_tty(raw: str) -> str:
-    """pts/0 → Sesión 1 · tty1 → Consola local"""
+    """
+    Formatea una cadena de texto que representa un terminal de tty para su visualización.
+
+    Args:
+        raw (str): La cadena de texto a formatear.
+
+    Returns:
+        str: La cadena de texto formateada.
+
+    Raises:
+        None
+    """
     if not raw:
         return ""
     if raw.startswith("pts/"):
@@ -33,7 +44,16 @@ def _fmt_tty(raw: str) -> str:
 
 
 def _fmt_ip(raw: str) -> str:
-    """192.168.x.x → 192.168.x.x (local) · vacío → Consola local"""
+    """
+    Formatea una dirección IP para su visualización.
+
+    Args:
+        raw (str): La dirección IP a formatear.
+
+    Returns:
+        str: La dirección IP formateada con indicador de red local si corresponde.
+
+    """
     if not raw:
         return "Consola local"
     if raw.startswith("192.168.") or raw.startswith("10.") or raw.startswith("172."):
@@ -42,7 +62,19 @@ def _fmt_ip(raw: str) -> str:
 
 
 def _fmt_time_active(date: str, time: str) -> str:
-    """2026-03-04 10:22 → Conectado desde las 10:22"""
+    """
+    Formatea la fecha y hora de conexión activa en un formato legible.
+
+    Args:
+        date (str): Fecha de conexión en formato YYYY-MM-DD.
+        time (str): Hora de conexión en formato HH:MM.
+
+    Returns:
+        str: Cadena formateada con la hora y fecha de conexión, o cadena vacía si no se proporciona la hora.
+
+    Raises:
+        None
+    """
     if not time:
         return ""
     if date:
@@ -52,12 +84,16 @@ def _fmt_time_active(date: str, time: str) -> str:
 
 def _fmt_time_history(raw: str) -> str:
     """
-    Transforma la cadena de time_info del historial en algo legible.
-    Ejemplos de entrada:
-        'Tue Mar  4 10:22   still logged in'
-        'Mon Mar  3 21:10 - 21:45  (00:35)'
-        'Mon Mar  3 09:00 - crash'
-        'Mon Mar  3 09:00 - down'
+    Formatea una cadena de historial de tiempo en un formato legible.
+
+    Args:
+        raw (str): Cadena de tiempo en formato raw.
+
+    Returns:
+        str: Cadena formateada con información de tiempo.
+
+    Raises:
+        Ninguna excepción relevante.
     """
     if not raw:
         return ""
@@ -108,14 +144,33 @@ def _fmt_time_history(raw: str) -> str:
 # ── Ventana ───────────────────────────────────────────────────────────────────
 
 class SSHWindow(ctk.CTkToplevel):
-    """Ventana de monitor de sesiones SSH."""
+    """
+    Ventana emergente para monitorizar sesiones SSH en tiempo real.
+
+    Args:
+        parent: Ventana padre (CTkToplevel) que alberga la ventana de monitor.
+        ssh_monitor: Instancia de SSHMonitor para obtener estadísticas en tiempo real.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ninguno.
+    """
 
     def __init__(self, parent, ssh_monitor):
-        """Inicializa la ventana de monitor SSH.
+        """
+        Inicializa la ventana de monitor SSH.
 
         Args:
             parent: Ventana padre (CTkToplevel).
             ssh_monitor: Instancia de SSHMonitor para obtener estadísticas en tiempo real.
+
+        Raises:
+            None
+
+        Returns:
+            None
         """
         super().__init__(parent)
         self._ssh_monitor = ssh_monitor
@@ -144,10 +199,14 @@ class SSHWindow(ctk.CTkToplevel):
     # ── Construcción UI (una sola vez) ────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea toda la interfaz de usuario una sola vez al inicializar la ventana.
+        """
+        Crea la interfaz de usuario de la ventana de SSH.
 
-        Incluye header, scrollable canvas, tarjetas de sesiones e historial,
-        y barra de controles con botón de actualización manual.
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
 
@@ -199,7 +258,18 @@ class SSHWindow(ctk.CTkToplevel):
         ).pack(side="right", padx=4)
 
     def _build_sessions_card(self):
-        """Crea la tarjeta de sesiones activas con filas fijas (máximo 10)."""
+        """
+        Crea la tarjeta de sesiones activas con filas fijas.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         MAX_SESSIONS = 10
 
         card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
@@ -276,7 +346,18 @@ class SSHWindow(ctk.CTkToplevel):
         ctk.CTkFrame(card, fg_color="transparent", height=6).pack()
 
     def _build_history_card(self):
-        """Crea la tarjeta de historial con filas fijas (50 entradas)."""
+        """
+        Crea la tarjeta de historial con filas fijas para mostrar conexiones.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         MAX_HISTORY = 50
 
         card = ctk.CTkFrame(self._inner, fg_color=COLORS['bg_dark'], corner_radius=8)
@@ -343,13 +424,19 @@ class SSHWindow(ctk.CTkToplevel):
     # ── Actualización de valores (sin recrear widgets) ─────────────────────────
 
     def _update(self):
-        """Actualiza los datos visuales de sesiones activas e historial de conexiones.
+        """
+        Actualiza los datos visuales de sesiones activas e historial de conexiones.
 
         Obtiene estadísticas del SSHMonitor, refresca widgets sin recrearlos,
-        maneja estado parado del monitor, y programa la próxima actualización
-        cada 30 segundos.
+        maneja estado parado del monitor, y programa la próxima actualización.
 
-        Returns:
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
             None
         """
         if not self.winfo_exists():
@@ -375,7 +462,8 @@ class SSHWindow(ctk.CTkToplevel):
         self._refresh_job = self.after(_REFRESH_MS, self._update)
 
     def _refresh_sessions(self, sessions: list):
-        """Refresca la visualización de las sesiones SSH activas actuales.
+        """
+        Refresca la visualización de las sesiones SSH activas actuales.
 
         Muestra hasta 10 filas; oculta filas extras y mensaje 'Ninguna' si vacío.
         Actualiza badges de conteo y colores de estado.
@@ -383,6 +471,12 @@ class SSHWindow(ctk.CTkToplevel):
         Args:
             sessions: Lista de dicts con claves 'user', 'tty', 'ip' (opcional),
                       'date' (opcional), 'time'.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         n = len(sessions)
 
@@ -410,13 +504,13 @@ class SSHWindow(ctk.CTkToplevel):
                 widgets["row"].pack_forget()
 
     def _refresh_history(self, history: list):
-        """Refresca la visualización del historial reciente de conexiones SSH.
+        """
+        Refresca la visualización del historial reciente de conexiones SSH.
 
-        Muestra hasta 50 entradas con colores alternos; oculta extras si vacío.
+            Args:
+                history: Lista de diccionarios con claves 'user', 'tty', 'ip' (opcional) y 'time_info'.
 
-        Args:
-            history: Lista de dicts con claves 'user', 'tty', 'ip' (opcional),
-                     'time_info' (cadena con detalles de tiempo).
+            Nota: Muestra hasta 50 entradas con colores alternos y oculta extras si la lista está vacía.
         """
         n = len(history)
 
@@ -437,9 +531,17 @@ class SSHWindow(ctk.CTkToplevel):
                 widgets["row"].pack_forget()
 
     def _force_refresh(self):
-        """Fuerza una actualización inmediata de todos los datos SSH.
+        """
+        Fuerza una actualización inmediata de todos los datos SSH.
 
-        Cancela el job automático pendiente y llama a _update directamente.
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         if self._refresh_job:
 
@@ -449,9 +551,17 @@ class SSHWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
-        """Limpia recursos y cierra la ventana de forma segura.
+        """
+        Limpia recursos y cierra la ventana de forma segura.
 
-        Cancela jobs de refresco pendientes y registra cierre en logger.
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         if self._refresh_job:
 

@@ -19,9 +19,12 @@ MAX_PHOTOS = 20
 
 def _ensure_dirs():
     """
-    Crea directorios necesarios si no existen.
+    Crea los directorios necesarios si no existen.
+
     Args: None
+
     Returns: None
+
     Raises: None
     """
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,12 +36,15 @@ def _ensure_dirs():
 
 def capture(width: str, height: str) -> tuple[bool, str, Path | None]:
     """
-    Captura una foto con rpicam-still.
+    Captura una foto con el comando rpicam-still y devuelve el resultado.
+
     Args:
-        width (str): Ancho de la foto.
-        height (str): Alto de la foto.
+        width (str): Ancho de la foto en píxeles.
+        height (str): Alto de la foto en píxeles.
+
     Returns:
-        tuple[bool, str, Path | None]: Tupla con éxito, mensaje y ruta de la foto, o None si falla.
+        tuple[bool, str, Path | None]: Tupla con éxito (True/False), mensaje de resultado y ruta del archivo de foto (o None si falla).
+
     Raises:
         No se lanzan excepciones explícitas.
     """
@@ -54,15 +60,20 @@ def capture(width: str, height: str) -> tuple[bool, str, Path | None]:
 
 
 def _rpicam_capture(filename: Path, w: str, h: str) -> tuple[bool, str]:
-    """Captura una imagen utilizando rpicam-still y devuelve el resultado de la operación.
+    """
+    Captura una imagen utilizando rpicam-still y devuelve el resultado de la operación.
+
     Args:
         filename (Path): Ruta donde se guardará la imagen capturada.
         w (str): Ancho de la imagen en píxeles.
         h (str): Alto de la imagen en píxeles.
+
     Returns:
         tuple[bool, str]: Un par que indica si la captura fue exitosa y un mensaje descriptivo.
+
     Raises:
-        Exception: Si ocurre un error durante la captura de la imagen."""
+        Exception: Si ocurre un error durante la captura de la imagen.
+    """
     cmd = [
         "rpicam-still", "-o", str(filename),
         "--width", w, "--height", h,
@@ -88,11 +99,16 @@ def _rpicam_capture(filename: Path, w: str, h: str) -> tuple[bool, str]:
 
 def scan(lang: str = "spa") -> tuple[str | None, str]:
     """
-    Captura a máxima resolución, preprocesa y ejecuta OCR.
+    Captura a máxima resolución, preprocesa y ejecuta OCR para extraer texto de una imagen.
+
     Args:
-        lang: idioma Tesseract ("spa", "eng", "spa+eng")
+        lang: idioma Tesseract, por defecto 'spa' ("spa", "eng", "spa+eng")
+
     Returns:
         (texto_extraído_o_None, mensaje_de_estado)
+
+    Raises:
+        Exception: si falla la eliminación de archivos temporales.
     """
     _ensure_dirs()
     ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -122,14 +138,19 @@ def scan(lang: str = "spa") -> tuple[str | None, str]:
 
 
 def preprocess_image(src: Path, dst: Path):
-    """Aplica filtros de escala de grises, contraste y nitidez a una imagen para mejorar el reconocimiento óptico de caracteres.
+    """
+    Aplica filtros de escala de grises, contraste y nitidez a una imagen para mejorar el reconocimiento óptico de caracteres.
+
     Args:
         src (Path): Ruta de la imagen de origen.
         dst (Path): Ruta de la imagen de destino.
+
     Returns:
         None
+
     Raises:
-        Exception: Si el preprocesamiento de la imagen falla, se guarda la imagen original en la ruta de destino."""
+        Exception: Si el preprocesamiento de la imagen falla, se guarda la imagen original en la ruta de destino.
+    """
     try:
         from PIL import Image, ImageFilter, ImageEnhance
         img = Image.open(src).convert("L")
@@ -145,11 +166,14 @@ def preprocess_image(src: Path, dst: Path):
 def run_ocr(img_path: Path, lang: str) -> tuple[str | None, str]:
     """
     Ejecuta Tesseract sobre la imagen dada para extraer texto.
+
     Args:
         img_path (Path): Ruta a la imagen a procesar.
         lang (str): Código de idioma para el OCR.
+
     Returns:
         tuple[str | None, str]: Texto extraído o None si no se detectó texto, y un mensaje de resultado.
+
     Raises:
         ImportError: Si pytesseract no está instalado.
         Exception: Si ocurre un error durante el proceso de OCR.
@@ -177,15 +201,20 @@ def run_ocr(img_path: Path, lang: str) -> tuple[str | None, str]:
 # ── Guardado de resultados ────────────────────────────────────────────────────
 
 def save_txt(path: Path, text: str, ts: str):
-    """Guarda el texto extraído como archivo .txt con cabecera que incluye el momento del escaneo.
+    """
+    Guarda el texto extraído como archivo .txt con cabecera que incluye el momento del escaneo.
+
     Args:
         path (Path): Ruta donde se guardará el archivo .txt.
         text (str): Texto a guardar en el archivo.
         ts (str): Momento del escaneo en formato de timestamp.
+
     Returns:
         None
+
     Raises:
-        Exception: Si ocurre un error al guardar el archivo .txt."""
+        Exception: Si ocurre un error al guardar el archivo .txt.
+    """
     try:
         path.write_text(
             f"Escaneo: {ts}\n{'─' * 40}\n\n{text}", encoding="utf-8"
@@ -196,16 +225,21 @@ def save_txt(path: Path, text: str, ts: str):
 
 
 def save_md(path: Path, text: str, ts: str, lang: str = "spa"):
-    """Guarda el texto extraído como archivo markdown con metadatos.
+    """
+    Guarda el texto extraído como archivo markdown con metadatos.
+
     Args:
         path (Path): Ruta donde se guardará el archivo.
         text (str): Texto extraído a guardar.
         ts (str): Timestamp en formato "%Y%m%d_%H%M%S".
         lang (str): Idioma del texto (por defecto "spa").
+
     Returns:
         None
+
     Raises:
-        Exception: Si ocurre un error al guardar el archivo."""
+        Exception: Si ocurre un error al guardar el archivo.
+    """
     try:
         dt    = datetime.strptime(ts, "%Y%m%d_%H%M%S").strftime("%d/%m/%Y %H:%M:%S")
         lines = [
@@ -226,32 +260,51 @@ def save_md(path: Path, text: str, ts: str, lang: str = "spa"):
 # ── Gestión de ficheros ───────────────────────────────────────────────────────
 
 def list_photos() -> list[Path]:
-    """Devuelve fotos ordenadas de más reciente a más antigua.
-    Args: None
-    Returns: Una lista de objetos Path que representan las fotos.
-    Raises: None"""
+    """
+    Devuelve una lista de fotos ordenadas de más reciente a más antigua.
+
+    Args:
+        None
+
+    Returns:
+        list[Path]: Una lista de objetos Path que representan las fotos.
+
+    Raises:
+        None
+    """
     return sorted(PHOTO_DIR.glob("foto_*.jpg"), reverse=True)
 
 
 def list_scans() -> list[tuple[Path, Path]]:
     """
     Devuelve pares de archivos de escaneo en formato txt y md, ordenados del más reciente al más antiguo.
-    Args: None
-    Returns: Una lista de tuplas conteniendo la ruta al archivo txt y su correspondiente archivo md.
-    Raises: None
+
+    Args:
+        None
+
+    Returns:
+        list[tuple[Path, Path]]: Lista de tuplas con rutas a archivos txt y sus correspondientes archivos md.
+
+    Raises:
+        None
     """
     txts = sorted(SCAN_DIR.glob("scan_*.txt"), reverse=True)
     return [(txt, txt.with_suffix(".md")) for txt in txts]
 
 
 def load_scan_text(txt_path: Path) -> str | None:
-    """Lee el contenido de un archivo de texto de escaneo. 
+    """
+    Lee el contenido de un archivo de texto de escaneo.
+
     Args:
         txt_path: Ruta del archivo de texto a leer.
+
     Returns:
         El contenido del archivo como cadena o None si falla.
+
     Raises:
-        Excepciones al leer el archivo, registradas en el log."""
+        Excepciones al leer el archivo, registradas en el log.
+    """
     try:
         return txt_path.read_text(encoding="utf-8")
     except Exception as e:
@@ -260,13 +313,15 @@ def load_scan_text(txt_path: Path) -> str | None:
 
 
 def delete_photo(path: Path):
-    """Elimina una foto del sistema de archivos.
+    """
+    Elimina una foto del sistema de archivos.
+
     Args:
         path (Path): Ruta de la foto a eliminar.
-    Returns:
-        None
+
     Raises:
-        Exception: Si ocurre un error al eliminar la foto."""
+        Exception: Si ocurre un error al eliminar la foto.
+    """
     try:
         path.unlink(missing_ok=True)
     except Exception as e:
@@ -274,14 +329,19 @@ def delete_photo(path: Path):
 
 
 def delete_scan(txt: Path, md: Path):
-    """Elimina un par de ficheros de escaneo (.txt y .md).
+    """
+    Elimina un par de ficheros de escaneo (.txt y .md).
+
     Args:
         txt (Path): Ruta del fichero .txt.
         md (Path): Ruta del fichero .md.
+
     Returns:
         None
+
     Raises:
-        Exception: Si ocurre un error al eliminar los ficheros."""
+        Exception: Si ocurre un error al eliminar los ficheros.
+    """
     for p in [txt, md]:
         try:
             p.unlink(missing_ok=True)
@@ -290,10 +350,18 @@ def delete_scan(txt: Path, md: Path):
 
 
 def delete_all_photos():
-    """Elimina todas las fotos del directorio de fotos. 
-    Args: None
-    Returns: None
-    Raises: None"""
+    """
+    Elimina todas las fotos del directorio de fotos.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
     for p in PHOTO_DIR.glob("foto_*.jpg"):
         try:
             p.unlink(missing_ok=True)
@@ -303,13 +371,18 @@ def delete_all_photos():
 
 
 def delete_all_scans():
-    """Elimina todos los ficheros de escaneo. 
-    Args: 
-        No requiere parámetros.
-    Returns: 
-        No devuelve valor.
-    Raises: 
-        No lanza excepciones."""
+    """
+    Elimina todos los ficheros de escaneo.
+
+    Args:
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguna excepción
+    """
     for p in SCAN_DIR.glob("scan_*"):
         try:
             p.unlink(missing_ok=True)
@@ -319,10 +392,18 @@ def delete_all_scans():
 
 
 def cleanup_old_photos():
-    """Elimina las fotos más antiguas si se supera el límite de fotos permitidas. 
-    Args: None
-    Returns: None
-    Raises: None"""
+    """
+    Elimina las fotos más antiguas si se supera el límite de fotos permitidas.
+
+    Args:
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
+    """
     photos = sorted(PHOTO_DIR.glob("foto_*.jpg"))
     while len(photos) > MAX_PHOTOS:
         photos[0].unlink(missing_ok=True)

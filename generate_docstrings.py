@@ -9,10 +9,12 @@ API key: variable de entorno GROQ_API_KEY o argumento --api-key
 import ast
 import sys
 import os
+import json
 import argparse
 import textwrap
 import time
 from pathlib import Path
+from datetime import datetime
 
 try:
     from groq import Groq
@@ -22,6 +24,8 @@ except ImportError:
 
 # ── Configuración ─────────────────────────────────────────────────────────────
 
+PROGRESS_FILE = "docs/.docstring_progress.json"
+
 LAYERS = [
     "core/",
     "ui/",
@@ -30,8 +34,21 @@ LAYERS = [
     "utils/",
 ]
 
-# Modelo Groq — llama-3.3-70b es el más capaz en tier gratuito
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# Modelos disponibles en el free tier de Groq (cupo independiente por modelo)
+# Límites reales del free tier (verificados en console.groq.com/settings/limits)
+GROQ_MODELS = {
+    "1": ("llama-3.3-70b-versatile",                   "Llama 3.3 70B      — mejor calidad   100K/día  [recomendado]"),
+    "2": ("meta-llama/llama-4-scout-17b-16e-instruct", "Llama 4 Scout 17B  — más moderno     500K/día"),
+    "3": ("moonshotai/kimi-k2-instruct",               "Kimi K2             — potente         300K/día"),
+    "4": ("qwen/qwen3-32b",                            "Qwen3 32B           — bueno en código 500K/día"),
+    "5": ("openai/gpt-oss-120b",                       "GPT-OSS 120B        — alternativa GPT 200K/día"),
+    "6": ("openai/gpt-oss-20b",                        "GPT-OSS 20B         — más ligero      200K/día"),
+    "7": ("llama-3.1-8b-instant",                      "Llama 3.1 8B        — más rápido      500K/día"),
+}
+GROQ_MODEL_DEFAULT = "1"
+
+# Modelo activo — asignado en main() tras selección interactiva
+_ACTIVE_MODEL = ""
 
 # Pausa entre llamadas a la API para no saturar el rate limit (requests/min)
 API_CALL_DELAY_S = 2.0
@@ -169,7 +186,7 @@ def generate_docstring(client: Groq, prompt: str) -> str | None:
     """Llama a la API de Groq y devuelve el docstring generado o None si falla."""
     try:
         response = client.chat.completions.create(
-            model=GROQ_MODEL,
+            model=_ACTIVE_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": prompt},
@@ -276,6 +293,84 @@ def process_file(
     return generated, errors
 
 
+# ── Selección de modelo ───────────────────────────────────────────────────────
+
+def select_model(preselected: str = None) -> str:
+    """
+    Muestra el menú de selección de modelo y devuelve el model ID elegido.
+    Si preselected es un número válido lo usa directamente sin preguntar.
+    """
+    if preselected and preselected in GROQ_MODELS:
+        model_id, desc = GROQ_MODELS[preselected]
+        print(f"   Modelo seleccionado: {desc.strip()}")
+        return model_id
+
+    print("\n🤖 Selecciona el modelo Groq:")
+    for key, (model_id, desc) in GROQ_MODELS.items():
+        print(f"   [{key}] {desc}")
+    print()
+
+    while True:
+        choice = input(f"Elige modelo [1-{len(GROQ_MODELS)}] (Enter = recomendado): ").strip()
+        if choice == "":
+            choice = GROQ_MODEL_DEFAULT
+        if choice in GROQ_MODELS:
+            model_id, desc = GROQ_MODELS[choice]
+            print(f"   ✓ Usando: {desc.strip()}\n")
+            return model_id
+        print(f"   ⚠️  Opción no válida, elige entre 1 y {len(GROQ_MODELS)}")
+
+
+# ── Progreso de sesión ────────────────────────────────────────────────────────
+
+def load_progress(project_root: Path) -> dict | None:
+    """Carga el fichero de progreso si existe. Devuelve None si no hay sesión previa."""
+    progress_path = project_root / PROGRESS_FILE
+    if not progress_path.exists():
+        return None
+    try:
+        with open(progress_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def save_progress(project_root: Path, all_files: list[Path], completed: list[Path]) -> None:
+    """Persiste el estado actual de la sesión en el fichero de progreso."""
+    progress_path = project_root / PROGRESS_FILE
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    last = str(completed[-1].relative_to(project_root)) if completed else ""
+    data = {
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "total": len(all_files),
+        "completed": len(completed),
+        "completed_files": [str(f.relative_to(project_root)) for f in completed],
+        "last_file": last,
+    }
+    with open(progress_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def clear_progress(project_root: Path) -> None:
+    """Elimina el fichero de progreso al completar una sesión."""
+    progress_path = project_root / PROGRESS_FILE
+    if progress_path.exists():
+        progress_path.unlink()
+
+
+def ask_resume(progress: dict) -> bool:
+    """Muestra el estado de la sesión anterior y pregunta si continuar."""
+    print(f"\n⚠️  Sesión anterior encontrada ({progress['date']})")
+    print(f"   Completados : {progress['completed']}/{progress['total']} archivos")
+    print(f"   Último archivo: {progress['last_file']}")
+    while True:
+        answer = input("¿Continuar desde ese punto? [s/n]: ").strip().lower()
+        if answer in ("s", "si", "sí", "y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+
+
 # ── Recolección de archivos ────────────────────────────────────────────────────
 
 def collect_py_files(project_root: Path, layer_filter: str = None) -> list[Path]:
@@ -310,6 +405,12 @@ def main():
     parser.add_argument("--api-key", help="Groq API key (o usa GROQ_API_KEY env)")
     parser.add_argument("--file", help="Procesar solo este archivo .py (ruta relativa al proyecto)")
     parser.add_argument("--layer", help="Procesar solo una capa: core, ui, ui/windows, config, utils")
+    parser.add_argument("--model", metavar="N", choices=list(GROQ_MODELS.keys()),
+                        help="Modelo sin preguntar: 1=llama-3.3-70b, 2=llama-3.1-70b, "
+                             "3=llama-4-scout, 4=mixtral, 5=gemma2, 6=llama-3.1-8b, 7=deepseek-r1")
+    parser.add_argument("--from", dest="from_file", metavar="ARCHIVO",
+                        help="Continuar desde este archivo (ruta relativa al proyecto, inclusive)")
+    parser.add_argument("--skip-existing", action="store_true", help="No regenerar docstrings ya existentes — solo añadir donde faltan")
     parser.add_argument("--dry-run", action="store_true", help="Simular sin escribir cambios")
     args = parser.parse_args()
 
@@ -325,6 +426,10 @@ def main():
 
     client = Groq(api_key=api_key)
 
+    # Selección de modelo — interactiva o via --model
+    global _ACTIVE_MODEL
+    _ACTIVE_MODEL = select_model(preselected=getattr(args, "model", None))
+
     if args.file:
         py_files = [project_root / args.file]
     elif args.layer:
@@ -336,17 +441,55 @@ def main():
         print("❌ No se encontraron archivos .py")
         sys.exit(1)
 
-    mode = "DRY-RUN" if args.dry_run else "REGENERAR TODOS"
+    # ── Gestión de progreso ──
+    completed_files: list[Path] = []
+    start_index = 0
+
+    if args.from_file and not args.file:
+        # Continuar manualmente desde un archivo concreto (inclusive)
+        from_path = project_root / args.from_file
+        if from_path not in py_files:
+            print(f"❌ Archivo no encontrado en la lista: {args.from_file}")
+            sys.exit(1)
+        idx = py_files.index(from_path)
+        skipped = idx
+        py_files = py_files[idx:]
+        print(f"   ↩️  Saltando {skipped} archivos anteriores a {args.from_file}")
+
+    elif not args.dry_run and not args.file:
+        progress = load_progress(project_root)
+        if progress:
+            resume = ask_resume(progress)
+            if resume:
+                completed_set = set(progress.get("completed_files", []))
+                # Filtrar py_files eliminando los ya completados
+                remaining = [f for f in py_files
+                             if str(f.relative_to(project_root)) not in completed_set]
+                skipped = len(py_files) - len(remaining)
+                print(f"   ↩️  Saltando {skipped} archivos ya procesados")
+                py_files = remaining
+                completed_files = [project_root / p for p in progress.get("completed_files", [])]
+            else:
+                print("   🔄 Empezando desde cero")
+                clear_progress(project_root)
+
+    if args.dry_run:
+        mode = "DRY-RUN"
+    elif args.skip_existing:
+        mode = "SOLO NUEVOS (skip existing)"
+    else:
+        mode = "REGENERAR TODOS"
     scope = args.layer or args.file or "proyecto completo"
     print(f"\n🚀 Dashboard RPi — Generador de docstrings via Groq")
     print(f"   Modo    : {mode}")
     print(f"   Alcance : {scope}")
-    print(f"   Modelo  : {GROQ_MODEL}")
+    print(f"   Modelo  : {_ACTIVE_MODEL}")
     print(f"   Archivos: {len(py_files)}")
     print(f"   Delay   : {API_CALL_DELAY_S}s entre llamadas\n")
 
     total_generated = 0
     total_errors = 0
+    all_files = collect_py_files(project_root) if not args.file else py_files
 
     for py_file in py_files:
         rel = py_file.relative_to(project_root)
@@ -355,16 +498,26 @@ def main():
             py_file,
             client,
             dry_run=args.dry_run,
-            regenerate_all=True,
+            regenerate_all=not args.skip_existing,
         )
         total_generated += gen
         total_errors += err
+
+        # Guardar progreso tras cada archivo completado
+        if not args.dry_run and not args.file:
+            completed_files.append(py_file)
+            save_progress(project_root, all_files, completed_files)
 
     print(f"\n{'─' * 50}")
     print(f"✅ Completado: {total_generated} docstrings generados")
     if total_errors:
         print(f"⚠️  Errores API: {total_errors} (revisar manualmente)")
     print(f"{'─' * 50}\n")
+
+    # Limpiar progreso si se completó todo
+    if not args.dry_run and not args.file and not args.layer:
+        clear_progress(project_root)
+        print("🗑️  Progreso limpiado — sesión completada\n")
 
 
 if __name__ == "__main__":

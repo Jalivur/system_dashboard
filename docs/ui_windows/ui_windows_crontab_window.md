@@ -43,7 +43,10 @@ from utils.logger import get_logger
 
 ## Clase `CrontabWindow(ctk.CTkToplevel)`
 
-Ventana de gestión de crontab — ver, añadir, editar y eliminar.
+Ventana de gestión de crontab para visualizar, agregar, editar y eliminar entradas.
+
+Args:
+    parent: Widget padre que representa la ventana principal de la aplicación.
 
 ### Atributos privados
 
@@ -77,6 +80,15 @@ Args:
 
 Crea todos los elementos de la interfaz de usuario de la ventana.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_build_edit_panel(self, parent)`
 
 Construye el panel deslizable de formulario para nueva/edición de entradas.
@@ -84,75 +96,156 @@ Construye el panel deslizable de formulario para nueva/edición de entradas.
 Args:
     parent: Frame contenedor del panel.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_update_preview(self)`
 
 Actualiza la etiqueta de previsualización de la programación cron en lenguaje natural.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_apply_quick(self, m, h, d, mo, wd)`
 
 Aplica una programación cron de acceso rápido a los campos del formulario.
 
 Args:
-    m, h, d, mo, wd: Valores para minuto, hora, día-mes, mes, día-semana (o '@' especial).
+    m (str): Valor para minuto, o '@' para un valor especial.
+    h (str): Valor para hora.
+    d (str): Valor para día-mes.
+    mo (str): Valor para mes.
+    wd (str): Valor para día-semana.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_open_new_form(self)`
 
-Abre el panel para crear nueva entrada.
+Abre el panel para crear una nueva entrada en la Crontab.
 
-Resetea campos del formulario y muestra/oculta panel.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_open_edit_form(self, index: int)`
 
-Abre el panel para editar entrada existente.
+Abre el panel para editar una entrada existente en la Crontab.
 
-Carga datos del índice en campos.
+Carga los datos de la entrada seleccionada en los campos del formulario.
 
 Args:
-    index (int): Índice de entrada a editar.
+    index (int): Índice de la entrada a editar.
+
+Raises:
+    Ninguna excepción específica.
 
 #### `_close_form(self)`
 
-Cierra el panel de formulario y resetea estado de edición.
+Cierra el panel de formulario y resetea el estado de edición.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_save_entry(self)`
 
-Valida los campos del formulario y guarda la entrada (nueva o edición).
+Guarda la entrada de un formulario de Crontab después de validación.
 
-Construye la línea cron, actualiza self._lines y escribe al crontab del usuario.
+    Args:
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
 
 #### `_delete_entry(self, index: int)`
 
 Inicia proceso de eliminación de entrada con confirmación de diálogo.
 
-Actualiza self._lines y escribe al crontab.
+    Args:
+        index (int): Índice en self._parsed de la entrada a eliminar.
 
-Args:
-    index: Índice en self._parsed de la entrada a eliminar.
+    Raises:
+        None
 
 #### `_load(self)`
 
-Carga las entradas del crontab del usuario actual en self._lines y self._parsed.
+Carga las entradas del crontab del usuario actual en la ventana.
 
-Invoca _render_list() para actualizar la vista.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_render_list(self)`
 
-Limpia el frame de lista y renderiza todas las entradas parseadas.
+Limpia el frame de lista y renderiza todas las entradas parseadas del crontab.
 
-Muestra mensaje si no hay entradas.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_create_entry_row(self, index: int, entry: dict)`
 
-Crea y configura una fila de entrada en la lista.
+Crea y configura una fila de entrada en la lista para mostrar información de una tarea programada.
 
 Args:
-    index: Índice de la entrada.
-    entry: Diccionario parseado de la entrada cron.
+    index (int): Índice de la entrada.
+    entry (dict): Diccionario parseado de la entrada cron.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_user_change(self)`
 
 Callback invocado al cambiar el usuario seleccionado.
 
 Cierra formulario abierto y recarga la lista para el nuevo usuario.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

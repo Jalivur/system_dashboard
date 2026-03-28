@@ -50,13 +50,16 @@ from utils.logger import get_logger
 
 ## Clase `NetworkScanner`
 
-Escáner de red local con arp-scan.
+Activa el escáner de red para iniciar el proceso de detección de dispositivos.
 
-Uso:
-    scanner = NetworkScanner()
-    scanner.scan()                    # lanza en background
-    devices = scanner.get_devices()   # lee caché (no bloquea)
-    status  = scanner.get_status()    # 'idle' | 'scanning' | 'done' | 'error'
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 ### Atributos privados
 
@@ -71,54 +74,157 @@ Uso:
 
 #### `start(self) -> None`
 
-Activa el scanner.
+Inicia el escaneo de red.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `stop(self) -> None`
 
-Limpia cache dispositivos/status.
+Detiene el escaneo de red y limpia la caché de dispositivos y estados.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `is_running(self) -> bool`
 
-Verifica si el servicio está corriendo.
+Indica si el servicio de escaneo de red está actualmente en ejecución.
+
+Args:
+    None
+
+Returns:
+    bool: True si el servicio está corriendo, False en caso contrario.
+
+Raises:
+    None
 
 #### `scan(self) -> None`
 
-Lanza el escaneo en background. Si ya hay uno en curso, no hace nada.
+Inicia el escaneo de la red en segundo plano si no hay uno en curso.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `get_devices(self) -> List[Dict]`
 
-Devuelve la lista de dispositivos del último escaneo (caché).
+Devuelve la lista de dispositivos del último escaneo almacenada en caché.
+
+Args:
+    Ninguno
+
+Returns:
+    List[Dict]: Lista de dispositivos detectados en el último escaneo.
+
+Raises:
+    Ninguno
 
 #### `get_status(self) -> str`
 
-Estado actual: 'idle' | 'scanning' | 'done' | 'error'.
+Obtiene el estado actual del escaneo de red.
+
+Args:
+    Ninguno
+
+Returns:
+    str: Estado actual del escaneo, puede ser 'idle', 'scanning', 'done' o 'error'.
+
+Raises:
+    Ninguno
 
 #### `get_error(self) -> str`
 
-Mensaje de error si status == 'error'.
+Obtiene el mensaje de error registrado en el escáner de red.
+
+Args:
+    Ninguno
+
+Returns:
+    str: El mensaje de error registrado.
+
+Raises:
+    Ninguno
 
 #### `get_last_scan_age(self) -> Optional[float]`
 
-Segundos desde el último escaneo completado. None si nunca se escaneó.
+Devuelve la edad del último escaneo completado en segundos.
+
+Args:
+    None
+
+Returns:
+    float: Edad del último escaneo en segundos. 
+    None: Si nunca se ha realizado un escaneo.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self)`
 
-Inicializa listas dispositivos, status, locks.
+Inicializa el NetworkScanner con listas de dispositivos y estado.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `_do_scan(self) -> None`
 
-Ejecuta arp-scan y parsea el resultado.
+Ejecuta arp-scan para detectar dispositivos en la red local y parsea el resultado.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: 
+- RuntimeError: Si arp-scan devuelve un código de salida distinto de cero.
+- subprocess.TimeoutExpired: Si arp-scan excede el tiempo límite establecido.
+- FileNotFoundError: Si no se encuentran archivos necesarios para arp-scan.
 
 #### `_parse_output(self, output: str) -> list`
 
-Parsea stdout de arp-scan: IP/MAC/Vendor → lista Dict ordenada.
-Filtra headers/stats, resolve hostname por IP.
+Parsea la salida de arp-scan para extraer información de dispositivos en la red.
+
+Args:
+    output (str): La salida de arp-scan a parsear.
+
+Returns:
+    list: Una lista de diccionarios ordenados con la información de cada dispositivo, 
+          incluyendo IP, MAC, proveedor y nombre de host.
+
+Raises:
+    None
 
 #### `_resolve_hostname(ip: str) -> str`
 
-Intenta resolver el hostname de una IP. Devuelve '' si falla.
+Resuelve el hostname asociado a una dirección IP.
+
+Args:
+    ip (str): La dirección IP a resolver.
+
+Returns:
+    str: El hostname asociado a la IP, o cadena vacía si falla la resolución.
+
+Raises:
+    Exception: Si ocurre un error durante la resolución.
 
 </details>

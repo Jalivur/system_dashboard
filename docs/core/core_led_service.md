@@ -45,8 +45,13 @@ from utils.logger import get_logger
 
 ## Clase `LedService`
 
-Escribe led_state.json para controlar los LEDs via fase1.py.
-No tiene thread permanente — escritura directa al pulsar en la UI.
+Servicio para controlar los LEDs mediante archivo de estado.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 ### Atributos privados
 
@@ -60,66 +65,118 @@ No tiene thread permanente — escritura directa al pulsar en la UI.
 
 #### `start(self) -> None`
 
-Activa el servicio (habilita set_mode/set_color).
+Inicia el servicio de LED, habilitando el modo y el color.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `stop(self) -> None`
 
-Apaga los LEDs y desactiva el servicio.
+Detiene el servicio de LEDs, apagándolos y desactivando su funcionamiento.
+
+Args: 
+    None
+
+Returns: 
+    None
+
+Raises: 
+    None
 
 #### `is_running(self) -> bool`
 
-Estado del servicio.
+Indica si el servicio de LED está actualmente en ejecución.
 
 Returns:
-    bool: True si activo.
+    bool: True si el servicio está activo, False en caso contrario.
 
 #### `get_state(self) -> dict`
 
-Lee estado actual thread-safe (modo/color).
+Obtiene el estado actual del LED de manera segura para hilos.
+
+Args:
+    Ninguno
 
 Returns:
-    dict: {'mode': str, 'r': int, 'g': int, 'b': int}
+    dict: Un diccionario con el modo y valores de color RGB actuales, en el formato {'mode': str, 'r': int, 'g': int, 'b': int}
+
+Raises:
+    Ninguno
 
 #### `set_mode(self, mode: str, r: int = 0, g: int = 255, b: int = 0) -> bool`
 
-Cambia modo LED y RGB, valida, guarda led_state.json atomically.
+Cambia el modo del LED y los valores RGB, validándolos y guardando el estado en led_state.json de manera atómica.
 
 Args:
-    mode (str): 'auto'|'off'|'static'|... (LED_MODES)
-    r, g, b (int): Colores 0-255 clamped.
+    mode (str): El modo del LED, puede ser 'auto', 'off', 'static', etc. (ver LED_MODES).
+    r (int): El valor del rojo, entre 0 y 255. Por defecto es 0.
+    g (int): El valor del verde, entre 0 y 255. Por defecto es 255.
+    b (int): El valor del azul, entre 0 y 255. Por defecto es 0.
 
 Returns:
-    bool: True si guardado OK.
+    bool: True si el estado se guardó correctamente.
+
+Raises:
+    None
 
 #### `set_color(self, r: int, g: int, b: int) -> bool`
 
-Actualiza solo RGB manteniendo modo actual.
+Establece el color del LED actualizando solo los componentes RGB.
 
 Args:
-    r, g, b (int): Colores 0-255 clamped.
+    r (int): Componente rojo del color (0-255).
+    g (int): Componente verde del color (0-255).
+    b (int): Componente azul del color (0-255).
 
 Returns:
-    bool: True si guardado OK (via set_mode).
+    bool: True si el color se guardó correctamente.
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self)`
 
-Constructor: carga estado desde led_state.json, inicializa lock.
+Inicializa el servicio de LED, cargando el estado desde el archivo led_state.json y configurando el bloqueo de ejecución.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_save(self, state: dict) -> bool`
 
-Guarda estado atomically a data/led_state.json (.tmp → replace).
+Guarda el estado del LED de manera atómica en un archivo JSON.
+
+Args:
+    state (dict): El estado del LED a ser guardado.
 
 Returns:
-    bool: True si escrito OK.
+    bool: True si el estado se guardó correctamente, False en caso de error.
+
+Raises:
+    Exception: Si ocurre un error durante el proceso de guardado.
 
 #### `_load(self) -> dict`
 
-Carga led_state.json o retorna default.
+Carga el estado de la configuración de LED desde un archivo o retorna un estado por defecto.
+
+Args:
+    Ninguno
 
 Returns:
-    dict: Estado parseado o {'mode':'auto','r':0,'g':255,'b':0}
+    dict: Estado parseado del LED o un diccionario con valores por defecto {'mode':'auto','r':0,'g':255,'b':0}
+
+Raises:
+    Ninguno
 
 </details>

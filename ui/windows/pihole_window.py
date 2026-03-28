@@ -17,19 +17,36 @@ UPDATE_MS = 5000   # refresco visual de la ventana
 
 
 class PiholeWindow(ctk.CTkToplevel):
-    """Ventana de estadísticas de Pi-hole."""
+    """
+    Ventana de estadísticas de Pi-hole.
+
+    Args:
+        parent: Ventana padre (generalmente la ventana principal del dashboard).
+        pihole_monitor (PiholeMonitor): Instancia del monitor para obtener estadísticas.
+
+    Raises:
+        None
+
+    Returns:
+        None
+    """
 
     def __init__(self, parent, pihole_monitor: PiholeMonitor):
         """
         Inicializa la ventana de estadísticas de Pi-hole.
-        
+
         Configura el título, geometría, posición y propiedades de la ventana Toplevel.
         Crea la interfaz de usuario, programa la primera actualización automática
         y registra la apertura en el logger.
-        
+
         Args:
             parent: Ventana padre (generalmente la ventana principal del dashboard).
             pihole_monitor (PiholeMonitor): Instancia del monitor para obtener estadísticas.
+
+        Raises:
+            None
+        Returns:
+            None
         """
         super().__init__(parent)
         self._pihole = pihole_monitor
@@ -51,12 +68,16 @@ class PiholeWindow(ctk.CTkToplevel):
 
     def _create_ui(self):
         """
-        Crea toda la interfaz gráfica de usuario (UI) de la ventana.
-        
-        Construye el frame principal, el header con título y estado, el contenedor
-        con scroll, el canvas, el grid de 6 tarjetas métricas (queries, bloqueadas,
-        % bloqueado, dominios, clientes, estado), y el botón de actualización manual.
-        Inicializa labels para valores dinámicos.
+        Crea la interfaz gráfica de usuario de la ventana.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -139,24 +160,34 @@ class PiholeWindow(ctk.CTkToplevel):
 
     def _schedule_update(self):
         """
-        Programa la primera actualización/renderizado de la interfaz.
-        
-        Utiliza self.after(100ms) para llamar a _render inicialmente, iniciando
-        el ciclo de actualizaciones automáticas.
+        Programa la primera actualización de la interfaz.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._update_job = self.after(100, self._render)
 
     def _force_refresh(self):        
-        """        
-        Fuerza actualización manual de estadísticas Pi-hole en background.        
-        
-        1. Verifica monitor activo       
-        2. Lanza thread daemon -> self._pihole.fetch_now()        
-        3. Status -> "Actualizando..."        
-        4. self._render() @2000ms        
-        
-        Non-blocking UI.        
-        """        
+        """
+        Fuerza la actualización manual de estadísticas Pi-hole en segundo plano de manera no bloqueante.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+
+        Nota: Verifica si el monitor está activo antes de forzar la actualización.
+        """
         if not self._pihole.is_running():            
             return
 
@@ -169,7 +200,18 @@ class PiholeWindow(ctk.CTkToplevel):
         self.after(2000, self._render)
 
     def _render(self):
-        """Actualiza los valores en pantalla con la caché del monitor."""
+        """
+        Actualiza los valores en pantalla con la caché del monitor.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if not self.winfo_exists():
             return
         if not self._pihole.is_running():
@@ -214,11 +256,15 @@ class PiholeWindow(ctk.CTkToplevel):
     def _on_close(self):
         """
         Maneja el cierre ordenado de la ventana de Pi-hole.
-        
-        Realiza cleanup:
-        - Cancela el job de actualización pendiente
-        - Registra el cierre en logs
-        - Destruye la ventana
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         if self._update_job:
             self.after_cancel(self._update_job)

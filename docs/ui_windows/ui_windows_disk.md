@@ -41,7 +41,17 @@ from utils.logger import get_logger
 
 ## Clase `DiskWindow(ctk.CTkToplevel)`
 
-Ventana de monitoreo de disco
+Ventana emergente para monitorear el estado del disco.
+
+Args:
+    parent: Widget padre que crea esta ventana.
+    disk_monitor: Instancia de DiskMonitor para obtener estadísticas de disco.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ningún valor de retorno.
 
 ### Atributos privados
 
@@ -68,38 +78,92 @@ Args:
 
 #### `_create_ui(self)`
 
-Construye toda la interfaz gráfica de la ventana:
+Crea la interfaz gráfica completa de la ventana del disco.
 
-- Header con título y botón de cierre.
-- Contenedor scrollable con canvas.
-- Grid 2x2 de celdas con labels, valores numéricos y widgets GraphWidget.
-- Tarjeta inferior para métricas SMART NVMe (2 filas x 3 columnas).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_cell(self, parent, row, col, title, key, unit, graph_h)`
 
-Celda original con gráfica — sin cambios.
+Crea una celda con gráfica en la ventana de disco.
+
+Args:
+    parent: El widget padre donde se creará la celda.
+    row: La fila donde se posicionará la celda en la cuadrícula.
+    col: La columna donde se posicionará la celda en la cuadrícula.
+    title: El título de la celda.
+    key: La clave única para identificar la celda.
+    unit: La unidad de medida para el valor de la celda.
+    graph_h: La altura de la gráfica en la celda.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_smart_col(self, parent, col_idx: int, key: str, title: str)`
 
-Columna de un campo SMART — sin gráfica.
+Crea una columna para mostrar información de un campo SMART sin gráfica.
+
+Args:
+    parent: El widget padre donde se creará la columna.
+    col_idx (int): El índice de la columna.
+    key (str): La clave para guardar la referencia del widget.
+    title (str): El título de la columna.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_update(self)`
 
-Actualiza la interfaz con datos actuales e históricos del DiskMonitor.
+Actualiza la interfaz de DiskWindow con datos actuales e históricos del DiskMonitor.
 
-- Refresca labels, colores y gráficos de métricas (% uso, temp, I/O).
-- Actualiza header status.
-- SMART cada _SMART_EVERY ciclos (lento).
-- Llama recursivamente cada UPDATE_MS ms.
-- Maneja si monitor no corre (muestra banner stopped).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_refresh_smart(self)`
 
-Llama a get_nvme_smart() y actualiza las etiquetas SMART.
+Actualiza las etiquetas SMART del disco duro mediante la información obtenida de get_nvme_smart().
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_set_smart(self, key: str, text: str, warn)`
 
 Actualiza una etiqueta SMART con color según warn.
+
+Args:
+    key (str): Clave de la etiqueta SMART.
+    text (str): Texto a mostrar en la etiqueta.
+    warn: Indica el color a utilizar en la etiqueta.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_fmt_hours(hours) -> str`
 
@@ -109,17 +173,17 @@ Args:
     hours (float | None): Horas totales.
 
 Returns:
-    str: Formato '125d 3h' o '--'.
+    str: Formato 'Dd Hh' o '--' si hours es None.
 
 #### `_fmt_int(val) -> str`
 
-Formatea valor entero o None como string.
+Formatea un valor entero o None como cadena.
 
 Args:
     val (int | None): Valor a formatear.
 
 Returns:
-    str: str(val) o '--'.
+    str: Representación en cadena del valor o '--' si es None.
 
 #### `_fmt_tb(val) -> str`
 
@@ -129,19 +193,25 @@ Args:
     val (float | None): TB a formatear.
 
 Returns:
-    str: '1.23 TB', '456 GB' o '--'.
+    str: Representación formateada del valor en TB o GB, o '--' si el valor es None.
 
 #### `_update_metric(self, key, value, history, unit, warn, crit)`
 
-Actualiza label, color y gráfico de una métrica con umbral.
+Actualiza la etiqueta, el color y el gráfico de una métrica con umbrales.
 
 Args:
-    key (str): ID métrica.
-    value (float): Valor actual.
-    history (list): Historial para gráfico.
-    unit (str): Unidad ('%', '°C').
-    warn (float): Umbral warning.
+    key (str): Identificador de la métrica.
+    value (float): Valor actual de la métrica.
+    history (list): Historial de valores para el gráfico.
+    unit (str): Unidad de medida de la métrica ('%', '°C').
+    warn (float): Umbral de advertencia.
     crit (float): Umbral crítico.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_update_io(self, key, value, history)`
 
@@ -153,5 +223,11 @@ Args:
     key (str): 'disk_read' o 'disk_write'.
     value (float): MB/s actual.
     history (list): Historial.
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

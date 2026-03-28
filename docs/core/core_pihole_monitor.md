@@ -64,16 +64,30 @@ from dotenv import load_dotenv
 
 Carga las variables de entorno desde el archivo .env del proyecto.
 
-Busca el archivo .env en el directorio padre del módulo actual.
-Intenta usar python-dotenv si está disponible; si no, realiza
-el parsing manual del archivo línea por línea.
+Args: 
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>
 
 ## Clase `PiholeMonitor`
 
-Monitor de Pi-hole v6 con sondeo en background.
-Autenticación por sesión (sid) con renovación automática antes de expirar.
+Inicializa el monitor de Pi-hole con sus configuraciones y locks.
+
+Configura las estadísticas iniciales, los locks para thread-safety,
+y verifica si PIHOLE_HOST está configurado en las variables de entorno.
+Si no está configurado, el monitor permanece desactivado.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 ### Atributos privados
 
@@ -90,57 +104,103 @@ Autenticación por sesión (sid) con renovación automática antes de expirar.
 
 Inicia el monitor de Pi-hole en un thread daemon.
 
-No hace nada si ya está corriendo o si PIHOLE_HOST no está configurado.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `stop(self) -> None`
 
 Detiene el monitor de Pi-hole de forma ordenada.
 
-Señaliza la parada al thread de sondeo, espera a que termine,
-cierra la sesión en Pi-hole y limpia las estadísticas en caché.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `is_running(self) -> bool`
 
-Estado del monitor de Pi-hole.
+Indica si el monitor de Pi-hole está en ejecución.
+
+Args:
+    Ninguno
 
 Returns:
-    bool: True si el thread de sondeo está activo.
+    bool: True si el monitor está activo, False en caso contrario.
 
 #### `fetch_now(self) -> None`
 
-Fuerza sondeo inmediato de Pi-hole en thread separado (non-blocking).
+Fuerza un sondeo inmediato de Pi-hole en un hilo separado sin bloquear la llamada.
 
-No bloquea el caller.
+Args: Ninguno
+
+Returns: None
+
+Raises: Ninguna excepción
+
+Nota: Si el monitor no está en ejecución, esta llamada no tiene efecto.
 
 #### `get_stats(self) -> Dict`
 
 Devuelve las estadísticas de Pi-hole almacenadas en caché.
 
-No realiza ninguna petición HTTP, solo devuelve los datos
-del último sondeo realizado por el thread de fondo.
+Args:
+    None
 
 Returns:
     Dict: Diccionario con estadísticas de consultas, bloqueos,
           dominios bloqueados, clientes únicos y estado de conexión.
           Devuelve estadísticas vacías si el monitor está parado.
 
+Raises:
+    None
+
 #### `is_reachable(self) -> bool`
 
 Indica si Pi-hole está alcanzable en la red.
 
+Args:
+    None
+
 Returns:
-    bool: True si la última conexión con Pi-hole fue exitosa.
+    bool: True si Pi-hole está alcanzable.
+
+Raises:
+    None
 
 #### `is_enabled(self) -> bool`
 
 Verifica si el bloqueo de Pi-hole está activado.
 
+Args:
+    Ninguno
+
 Returns:
     bool: True si el estado de Pi-hole es 'enabled'.
 
+Raises:
+    Ninguna excepción relevante.
+
 #### `get_offline_count(self) -> int`
 
-Para badge: 1 si Pi-hole no responde, 0 si ok.
+Obtiene el número de instancias de Pi-hole que se encuentran fuera de línea.
+
+Args:
+    Ninguno
+
+Returns:
+    int: 1 si Pi-hole no responde, 0 si está en línea.
+
+Raises:
+    Ninguno
 
 <details>
 <summary>Métodos privados</summary>
@@ -149,38 +209,88 @@ Para badge: 1 si Pi-hole no responde, 0 si ok.
 
 Inicializa el monitor de Pi-hole con sus configuraciones y locks.
 
-Configura las estadísticas iniciales, los locks para thread-safety,
-y verifica si PIHOLE_HOST está configurado en las variables de entorno.
-Si no está configurado, el monitor permanece desactivado.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_poll_loop(self) -> None`
 
-Bucle principal del thread daemon de sondeo periódico.
+Ejecuta el bucle principal del hilo daemon de sondeo periódico.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_authenticate(self) -> bool`
 
-Obtiene un sid de sesión. Devuelve True si tiene éxito.
+Establece una sesión autenticada con el servidor Pi-hole obteniendo un sid.
+
+Args: 
+    Ninguno
+
+Returns:
+    bool: True si la autenticación es exitosa, False en caso contrario.
+
+Raises:
+    Ninguna excepción específica, pero registra errores en el logger.
 
 #### `_sid_valid(self) -> bool`
 
-Verifica si el token de sesión (sid) sigue siendo válido.
+Verifica si el token de sesión sigue siendo válido.
+
+Args: 
+    Ninguno
 
 Returns:
-    bool: True si el sid existe y no ha expirado (con margen de 60s).
+    bool: True si el sid existe y no ha expirado con margen de 60 segundos.
+
+Raises:
+    Ninguno
 
 #### `_get_sid(self) -> Optional[str]`
 
-Devuelve el sid válido, autenticando si es necesario.
+Obtiene un sid válido, realizando autenticación si es necesario.
+
+Args: Ninguno
+
+Returns: El sid válido o None si no se pudo obtener.
+
+Raises: Ninguna excepción específica
 
 #### `_logout(self) -> None`
 
-Cierra la sesión en Pi-hole al parar el monitor.
+Cierra la sesión en Pi-hole invalidando el token de sesión actual.
 
-Envía una petición DELETE a la API de autenticación para
-invalidar el token de sesión actual (sid).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_fetch(self) -> None`
 
-Llama a la API v6 de Pi-hole y actualiza la caché.
+Llama a la API v6 de Pi-hole y actualiza la caché de estadísticas.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Excepciones relacionadas con urllib.request y json.loads si la solicitud o el parseo falla.
 
 </details>

@@ -51,7 +51,12 @@ from utils.logger import get_logger
 
 ## Clase `LaunchersWindow(ctk.CTkToplevel)`
 
-Ventana de lanzadores de scripts del sistema
+Representa una ventana emergente que contiene lanzadores de scripts del sistema.
+
+Args:
+    parent: Widget padre que representa la ventana principal del dashboard.
+
+Configura la geometría, colores y título de la ventana, y crea la interfaz de usuario completa.
 
 ### Atributos públicos
 
@@ -69,22 +74,47 @@ Inicializa la ventana de lanzadores.
 Args:
     parent: Widget padre (ventana principal del dashboard).
 
-Configura geometría, colores, título y crea la UI completa.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario
+Crea la interfaz de usuario para la ventana de lanzadores.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_launcher_buttons(self, parent)`
 
-Crea los botones de lanzadores en layout grid
+Crea los botones de lanzadores en un diseño de rejilla dentro de la ventana.
+
+Args:
+    parent: El elemento padre donde se crearán los botones.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_run_script(self, script_path: str, label: str)`
 
-Ejecuta un script usando la terminal integrada tras confirmar.
+Ejecuta un script tras confirmar su ejecución.
 
 Args:
     script_path (str): Ruta absoluta al script ejecutable.
     label (str): Nombre descriptivo del lanzador para logging y UI.
+
+Raises:
+    Ninguna excepción específica.
 
 </details>

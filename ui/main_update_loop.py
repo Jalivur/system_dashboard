@@ -32,24 +32,33 @@ logger = get_logger(__name__)
 
 class UpdateLoop:
     """
-    Encapsula los dos loops de actualizacion del dashboard:
-    reloj/uptime y badges del menu principal.
+    Encapsula los dos loops de actualización del dashboard: reloj/uptime y badges del menú principal.
+
+    Args:
+        root:            widget Tk raíz
+        badge_mgr:       instancia de BadgeManager
+        monitors:        diccionario con monitores necesarios
+        update_interval: intervalo en milisegundos para el loop de badges
+        clock_label:     etiqueta del reloj en el encabezado
+        uptime_label:    etiqueta del uptime en el encabezado
+        weather_service: servicio meteorológico opcional para el badge de lluvia
     """
 
     def __init__(self, root, badge_mgr, monitors: dict,
                  update_interval: int, clock_label, uptime_label,
                  weather_service=None):
         """
+        Inicializa el bucle de actualización de la aplicación.
+
         Args:
-            root:            widget Tk raiz
-            badge_mgr:       instancia de BadgeManager
-            monitors:        dict con los monitores necesarios:
-                             system_monitor, update_monitor, homebridge_monitor,
-                             pihole_monitor, vpn_monitor, service_monitor
-            update_interval: intervalo en ms para el loop de badges
-            clock_label:     CTkLabel del reloj en el header
-            uptime_label:    CTkLabel del uptime en el header
-            weather_service: WeatherService opcional para badge de lluvia
+            root:            widget Tk raíz de la aplicación.
+            badge_mgr:       instancia de BadgeManager para gestionar las insignitas.
+            monitors:        diccionario con monitores necesarios (system, update, homebridge, pihole, vpn, service).
+            update_interval: intervalo en milisegundos para el bucle de actualización de insignitas.
+            clock_label:     etiqueta CTkLabel del reloj en el encabezado.
+            uptime_label:    etiqueta CTkLabel del tiempo de actividad en el encabezado.
+            weather_service: servicio WeatherService opcional para la insignita de lluvia.
+
         """
         self._root            = root
         self._badge_mgr       = badge_mgr
@@ -66,16 +75,34 @@ class UpdateLoop:
     # ── Arranque / parada ─────────────────────────────────────────────────────
 
     def start(self) -> None:
-        """Arranca ambos loops. Llamar una sola vez tras construir la UI."""
+        """
+        Inicia el ciclo de actualización. 
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            None
+        """
         self._running = True
         self._tick_clock()
         self._update_badges()
 
     def stop(self) -> None:
         """
-        Detiene ambos loops cancelando los after() pendientes.
-        Llamar antes de root.destroy() para evitar callbacks sobre
-        widgets ya destruidos.
+        Detiene el bucle de actualización cancelando los callbacks pendientes.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._running = False
         if self._clock_after_id is not None:
@@ -96,7 +123,16 @@ class UpdateLoop:
 
     def _tick_clock(self) -> None:
         """
-        Actualiza reloj cada segundo y uptime cada minuto
+        Actualiza el reloj y el tiempo de actividad del sistema.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         if not self._running:
             return
@@ -115,7 +151,18 @@ class UpdateLoop:
     # ── Loop de badges ────────────────────────────────────────────────────────
 
     def _update_badges(self) -> None:
-        """Actualiza todos los badges del menu. Solo lee caches — nunca bloquea la UI."""
+        """
+        Actualiza todos los badges del menú.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         if not self._running:
             return
         get_event_bus().process_events()
@@ -129,7 +176,16 @@ class UpdateLoop:
 
     def _update_misc_badges(self) -> None:
         """
-        Actualiza badges misceláneos: updates, homebridge, pihole, vpn
+        Actualiza los badges misceláneos de actualizaciones, Homebridge, Pi-hole y VPN.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Exception: Si ocurre un error al actualizar algún badge.
         """
         bm = self._badge_mgr
 
@@ -163,7 +219,16 @@ class UpdateLoop:
 
     def _update_service_badge(self) -> None:
         """
-        Actualiza badge de servicios fallidos desde service_monitor
+        Actualiza el distintivo de servicios fallidos desde el monitor de servicios.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Excepción genérica en caso de error durante la actualización del distintivo.
         """
         bm = self._badge_mgr
         try:
@@ -174,7 +239,18 @@ class UpdateLoop:
             logger.warning("[UpdateLoop] badge 'services' error: %s", e)
 
     def _update_weather_badge(self) -> None:
-        """Muestra badge en el botón de clima si hay lluvia probable en las próximas 3h."""
+        """
+        Actualiza el distintivo del botón de clima para indicar probabilidad de lluvia en las próximas 3 horas.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Exception: Si ocurre un error al actualizar el distintivo, se registra un mensaje de advertencia.
+        """
         if self._weather_service is None:
             return
         bm = self._badge_mgr
@@ -196,9 +272,16 @@ class UpdateLoop:
     
     def _update_watchdog_badge(self) -> None:
         """
-        Actualiza badge de reinicios del service_watchdog
+        Actualiza el badge de reinicios del service watchdog con el contador de reinicios del día.
 
-        Muestra contados de reinicios del día si hay alguno.
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Excepción genérica en caso de error durante la actualización del badge.
         """
         bm = self._badge_mgr
         try:
@@ -213,7 +296,16 @@ class UpdateLoop:
 
     def _update_system_badges(self) -> None:
         """
-        Actualiza badges de sistema (temp, cpu, ram, disk) desde system_monitor cache
+        Actualiza los badges de sistema relacionados con temperatura, CPU, RAM y disco duro.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         bm = self._badge_mgr
         try:

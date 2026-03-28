@@ -19,15 +19,30 @@ _MAX_AGE_S = 30
 
 class HardwareMonitor:
     """
-    Lee hardware_state.json en background cada 6s.
-    El fichero lo escribe fase1.py cada 5s.
+    Monitoriza el estado del hardware leyendo periódicamente el archivo hardware_state.json.
+
+    Args: Ninguno
+
+    Returns: Ninguno
+
+    Raises: Ninguno
     """
 
     def __init__(self):
         """
-        Inicializa monitor hardware (GPIO board Freenove).
+        Inicializa el monitor de hardware.
 
-        Cache interno thread-safe para chassis_temp, fans %.
+        Configura el estado inicial del monitor, incluyendo la creación de un bloqueo interno para asegurar la seguridad en hilos,
+        y la inicialización de los datos de estado del hardware.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._lock    = threading.Lock()
         self._running = False
@@ -44,7 +59,13 @@ class HardwareMonitor:
 
     def start(self):
         """
-        Inicia thread daemon de polling hardware_state.json cada 6s.
+        Inicia el hilo daemon para sondear el estado del hardware cada 6 segundos.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         if self._running:
             return
@@ -58,7 +79,13 @@ class HardwareMonitor:
 
     def stop(self):
         """
-        Detiene el thread de polling, limpia cache.
+        Detiene el monitor de hardware y limpia la caché de datos.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         self._running = False
         self._stop_evt.set()
@@ -69,14 +96,34 @@ class HardwareMonitor:
 
         
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Indica si el servicio de monitoreo de hardware está en ejecución.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si el servicio está corriendo, False en caso contrario.
+
+        Raises:
+            None
+        """
         return self._running
 
     # ── Bucle ─────────────────────────────────────────────────────────────────
 
     def _loop(self):
         """
-        Bucle thread daemon: poll cada 6s hasta stop().
+        Ejecuta un bucle en un hilo daemon que sondea cada 6 segundos hasta ser detenido.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         while self._running:
             try:
@@ -89,7 +136,16 @@ class HardwareMonitor:
 
     def _poll(self):
         """
-        Lee hardware_state.json escrito por fase1.py, valida antigüedad <30s, actualiza cache thread-safe si válido.
+        Actualiza la información de estado del hardware leyendo el archivo hardware_state.json.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         if not _HW_FILE.exists():
             with self._lock:
@@ -119,10 +175,16 @@ class HardwareMonitor:
 
     def get_stats(self) -> dict:
         """
-        Retorna estado hardware actual (temp chassis, % fans).
+        Retorna el estado actual del hardware, incluyendo temperatura del chasis y porcentajes de ventiladores.
+
+        Args:
+            Ninguno
 
         Returns:
-            dict: {'chassis_temp': float, 'fan0_pct': int, ... 'available': bool}
+            dict: Un diccionario con el estado actual del hardware, incluyendo 'chassis_temp', 'fan0_pct' y 'available'.
+
+        Raises:
+            Ninguno
         """
         if not self._running:
             return {}
@@ -131,10 +193,16 @@ class HardwareMonitor:
 
     def is_available(self) -> bool:
         """
-        True si hardware_state.json existe y actualizado <30s (fase1 corriendo).
+        Indica si el hardware está disponible según el estado actualizado recientemente.
+
+        Args:
+            Ninguno
 
         Returns:
-            bool: Datos válidos.
+            bool: True si el hardware está disponible, False en caso contrario.
+
+        Raises:
+            Ninguno
         """
         if not self._running:
             return False

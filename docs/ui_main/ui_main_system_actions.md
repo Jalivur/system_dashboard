@@ -56,16 +56,28 @@ from utils.logger import get_logger
 
 ### `exit_application(root, update_loop = None) -> None`
 
-Muestra el dialogo de opciones de salida (salir / apagar sistema).
+Muestra un diálogo de opciones de salida para la aplicación.
 
 Args:
-    root:        ventana Tk raiz del dashboard
-    update_loop: instancia de UpdateLoop (se detiene antes de destroy)
+    root: Ventana Tk raíz del dashboard.
+    update_loop: Instancia de UpdateLoop a detener antes de cerrar la ventana.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción relevante.
 
 ### `restart_application(root, update_loop = None) -> None`
 
-Muestra confirmacion y reinicia el proceso del dashboard via os.execv.
+Reinicia el proceso del dashboard después de mostrar una ventana de confirmación.
 
 Args:
-    root:        ventana Tk raiz del dashboard
-    update_loop: instancia de UpdateLoop (se detiene antes de destroy)
+    root:        Ventana Tk raiz del dashboard.
+    update_loop: Instancia de UpdateLoop a detener antes de reiniciar.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción específica.

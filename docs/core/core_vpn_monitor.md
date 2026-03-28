@@ -47,14 +47,23 @@ from utils.logger import get_logger
 
 ## Clase `VpnMonitor`
 
-Servicio background profesional que monitoriza el estado de la VPN.
+Servicio background que monitoriza el estado de la VPN.
+
+Args:
+    interface (str): Nombre de interfaz VPN (default "tun0").
 
 Características:
-* Sondeo cada 10s de estado de interfaz tun0/wg0 via 'ip addr' o fallback 'ifconfig'.
-* Extracción automática de IP IPv4 asignada si interfaz UP.
-* Thread daemon con lock para acceso thread-safe.
-* API pública: get_status(), is_connected(), get_offline_count() para UI badge.
-* force_poll() para comprobación inmediata.
+* Configura lock para acceso thread-safe.
+* Estado inicial: desconectado.
+
+Atributos:
+* _interface: Nombre de interfaz VPN.
+* _lock: Lock para acceso thread-safe.
+* _running: Estado de ejecución.
+* _stop_evt: Evento de parada.
+* _thread: Hilo de ejecución.
+* _connected: Estado de conexión.
+* _vpn_ip: Dirección IP asignada.
 
 ### Atributos privados
 
@@ -72,46 +81,97 @@ Características:
 
 #### `start(self) -> None`
 
-Inicia el sondeo background (thread daemon).
+Inicia el sondeo de VPN en segundo plano.
 
-Idempotente, log con intervalo e interfaz.
+Args: 
+    None
+
+Returns: 
+    None
+
+Raises: 
+    None
 
 #### `stop(self) -> None`
 
-Detiene el servicio limpiamente.
+Detiene el servicio de monitoreo de VPN de manera limpia.
 
-Join timeout 5s, resetea caché. Log de detención.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `is_running(self) -> bool`
 
-Verifica si el servicio está corriendo.
+Indica si el servicio de monitoreo de VPN está actualmente en ejecución.
+
+Args:
+    None
+
+Returns:
+    bool: True si el servicio está corriendo, False en caso contrario.
+
+Raises:
+    None
 
 #### `get_status(self) -> dict`
 
-Devuelve el estado actual de la VPN desde caché (thread-safe).
+Obtiene el estado actual de la VPN desde caché de manera segura para hilos.
+
+Args:
+    None
 
 Returns:
-    dict: {"connected": bool, "ip": str, "interface": str}
+    dict: Diccionario con el estado de la VPN. 
+          {"connected": bool, "ip": str, "interface": str}
+
+Raises:
+    None
 
 #### `is_connected(self) -> bool`
 
-Estado rápido de conexión VPN (thread-safe).
+Indica si la conexión VPN está actualmente activa.
+
+Args:
+    None
 
 Returns:
-    bool: True si interfaz tiene IP IPv4 asignada.
+    bool: True si la interfaz VPN tiene una IP IPv4 asignada.
+
+Raises:
+    None
 
 #### `get_offline_count(self) -> int`
 
-Para badge UI: 1 si desconectada, 0 si conectada (thread-safe).
+Obtiene el estado de conexión de la VPN para mostrar en la interfaz de usuario.
+
+Args:
+    Ninguno
 
 Returns:
-    int: 1 (offline) o 0 (online).
+    int: 1 si la VPN está desconectada, 0 si está conectada.
+
+Raises:
+    Ninguno
 
 #### `force_poll(self) -> None`
 
-Fuerza comprobación inmediata en thread separado.
+Fuerza una comprobación inmediata del estado de la VPN en un hilo separado.
 
-Útil tras eventos connect/disconnect manual.
+Útil después de eventos de conexión o desconexión manual.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 <details>
 <summary>Métodos privados</summary>
@@ -121,32 +181,66 @@ Fuerza comprobación inmediata en thread separado.
 Inicializa el monitor VPN.
 
 Args:
-    interface (str): Nombre de interfaz VPN (default "tun0").
+    interface (str): Nombre de interfaz VPN (por defecto "tun0").
 
-Configura lock, estado inicial desconectado, event stop.
+Configura el bloqueo, el estado inicial desconectado y el evento de parada.
 
 #### `_loop(self) -> None`
 
-Bucle principal del thread de sondeo (privado).
+Ejecuta el bucle principal del thread de sondeo.
 
-Llama _poll() + wait(CHECK_INTERVAL), maneja exceptions.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
+Nota: 
+    Llama a _poll() y wait(CHECK_INTERVAL) en un ciclo, manejando excepciones.
+    Se detiene cuando self._running es False o self._stop_evt está seteado.
 
 #### `_poll(self) -> None`
 
-Actualiza estado de VPN (privado).
+Actualiza el estado de la conexión VPN.
 
-Llama _check_interface(), actualiza caché protegida por lock.
+Actualiza la caché protegida por bloqueo, llamando previamente a `_check_interface()`.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_check_interface(self, iface: str)`
 
-Comprueba si la interfaz está activa y obtiene su IP.
-Devuelve (connected: bool, ip: str).
+Comprueba si una interfaz de red está activa y obtiene su dirección IP.
+
+Args:
+    iface (str): Nombre de la interfaz de red a comprobar.
+
+Returns:
+    tuple: Un tupla con dos valores, el primero indica si la interfaz está conectada (bool) y el segundo la dirección IP de la interfaz (str).
+
+Raises:
+    Exception: Si ocurre un error durante la comprobación de la interfaz, se registra el error y se devuelve False junto con una cadena vacía.
 
 #### `_check_interface_ifconfig(self, iface: str)`
 
-Fallback usando ifconfig si 'ip' no está disponible (privado).
+Verifica el estado de una interfaz de red y su dirección IP mediante ifconfig.
+
+Args:
+    iface (str): Nombre de la interfaz de red a verificar.
 
 Returns:
-    tuple[bool, str]: (connected, ip)
+    tuple[bool, str]: Tupla con un booleano que indica si la interfaz está conectada y la dirección IP asignada.
+
+Raises:
+    Exception: Si ocurre un error durante la ejecución de ifconfig.
 
 </details>

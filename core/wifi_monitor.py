@@ -26,10 +26,13 @@ WIFI_SIGNAL_WARN = -75
 def _run(cmd: list) -> str:
     """
     Ejecuta un comando shell y retorna la salida estándar limpia.
+
     Args:
         cmd (list): Comando a ejecutar.
+
     Returns:
         str: Salida estándar del comando o cadena vacía en caso de fallo.
+
     Raises:
         Exception: Si ocurre un error durante la ejecución del comando.
     """
@@ -45,11 +48,16 @@ def _run(cmd: list) -> str:
 
 def _parse_iwconfig(raw: str) -> dict:
     """
-    Parsea la salida de iwconfig para obtener métricas WiFi.
+    Extrae información WiFi de la salida cruda de iwconfig.
+
     Args:
         raw (str): Salida cruda de iwconfig.
+
     Returns:
         dict: Diccionario con métricas WiFi como ssid, signal_dbm, link_quality, link_quality_max, bitrate y noise_dbm.
+
+    Raises:
+        None
     """
     data = {
         "ssid":              "",
@@ -86,11 +94,16 @@ def _parse_iwconfig(raw: str) -> dict:
 
 def _parse_iw_link(raw: str) -> dict:
     """
-    Parsea la información de conexión inalámbrica de una interfaz de red.
+    Extrae información de conexión inalámbrica de la salida del comando `iw dev <iface> link`.
+
     Args:
         raw (str): Salida cruda del comando `iw dev <iface> link`.
+
     Returns:
         dict: Diccionario con los campos "ssid", "signal_dbm" y "bitrate".
+
+    Raises:
+        None
     """
     data = {"ssid": "", "signal_dbm": None, "bitrate": ""}
 
@@ -112,10 +125,10 @@ def _parse_iw_link(raw: str) -> dict:
 class WiFiMonitor:
     """
     Monitor de WiFi que proporciona información en tiempo real y históricos de tráfico.
+
     Args:
         interface (str, optional): Interfaz de red inalámbrica a monitorear.
-    Returns:
-        None
+
     Raises:
         Exception: Si no se puede inicializar el monitor.
     """
@@ -123,8 +136,10 @@ class WiFiMonitor:
     def __init__(self, interface: Optional[str] = None):
         """
         Inicializa el monitor de WiFi con una interfaz específica.
+
         Args:
             interface (str, optional): Interfaz de red inalámbrica, como wlan0 o wlan1.
+
         """
         # Prioridad: argumento explícito → local_settings → constante por defecto
         self._iface    = interface or self._load_saved_interface() or _IFACE_DEFAULT
@@ -160,10 +175,18 @@ class WiFiMonitor:
     # ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     def start(self):
-        """Inicia el monitoreo de WiFi en segundo plano.
-        Args: None
-        Returns: None
-        Raises: None"""
+        """
+        Inicia el monitoreo de WiFi en segundo plano.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if self._running:
             return
         self._running = True
@@ -175,13 +198,18 @@ class WiFiMonitor:
         logger.info("[WiFiMonitor] Servicio iniciado — interfaz: %s", self._iface)
 
     def stop(self):
-        """Detiene el servicio de monitoreo de WiFi.
+        """
+        Detiene el servicio de monitoreo de WiFi.
+
         Args:
             None
+
         Returns:
             None
+
         Raises:
-            None"""
+            None
+        """
         self._running = False
         self._stop_evt.set()
         if self._thread and self._thread.is_alive():
@@ -191,32 +219,48 @@ class WiFiMonitor:
         logger.info("[WiFiMonitor] Servicio detenido")
 
     def is_running(self) -> bool:
-        """Indica si el monitor de WiFi está en ejecución. 
-        Args: 
+        """
+        Indica si el monitor de WiFi está en ejecución.
+
+        Args:
             None
-        Returns: 
+
+        Returns:
             bool: True si el monitor está en ejecución, False de lo contrario.
-        Raises: 
-            None"""
+
+        Raises:
+            None
+        """
         return self._running
 
     def get_signal_history(self) -> list:
-        """Obtiene el histórico de señal de WiFi en dBm de los últimos puntos registrados.
-        Args: 
+        """
+        Obtiene el histórico de señal de WiFi en dBm de los últimos puntos registrados.
+
+        Args:
             No requiere parámetros.
-        Returns: 
-            list: Lista de valores de señal de WiFi en dBm."""
+
+        Returns:
+            list: Lista de valores de señal de WiFi en dBm.
+        """
         with self._lock:
             return list(self._signal_hist)
 
     # ── Cambio de interfaz en caliente ────────────────────────────────────────
 
     def set_interface(self, iface: str) -> None:
-        """Cambia la interfaz de red en tiempo de ejecución. 
+        """
+        Cambia la interfaz de red en tiempo de ejecución.
+
         Args:
             iface (str): Nombre de la interfaz de red a utilizar.
+
         Returns:
-            None"""
+            None
+
+        Raises:
+            None
+        """
         with self._lock:
             self._iface    = iface
             self._prev_rx  = None
@@ -244,12 +288,17 @@ class WiFiMonitor:
 
     @staticmethod
     def get_available_interfaces() -> list:
-        """Obtiene la lista de interfaces de red inalámbrica disponibles.
+        """
+        Obtiene la lista de interfaces de red inalámbrica disponibles.
+
         Args: None
+
         Returns:
             list[str]: Lista ordenada de interfaces inalámbricas disponibles.
+
         Raises:
-            Exception: Si ocurre un error al leer la lista de interfaces."""
+            Exception: Si ocurre un error al leer la lista de interfaces.
+        """
         interfaces = []
         try:
             with open("/proc/net/dev", "r") as f:
@@ -267,10 +316,18 @@ class WiFiMonitor:
 
     @staticmethod
     def _load_saved_interface() -> Optional[str]:
-        """Carga la interfaz guardada desde la configuración local.
-        Args: None
-        Returns: La interfaz guardada o None si no existe.
-        Raises: Excepciones generales al cargar la configuración."""
+        """
+        Carga la interfaz de red WiFi guardada desde la configuración local.
+
+        Args:
+            None
+
+        Returns:
+            La interfaz de red WiFi guardada o None si no existe.
+
+        Raises:
+            Exception: Si ocurre un error al cargar la configuración.
+        """
         try:
             from config.local_settings_io import get_param
             return get_param("wifi_interface", None)
@@ -281,10 +338,10 @@ class WiFiMonitor:
     def _persist_interface(iface: str) -> None:
         """
         Persiste la interfaz de red WiFi en la configuración local.
+
         Args:
             iface (str): Nombre de la interfaz de red WiFi a persistir.
-        Returns:
-            None
+
         Raises:
             Exception: Si ocurre un error al persistir la interfaz.
         """
@@ -297,13 +354,18 @@ class WiFiMonitor:
     # ── Loop interno ──────────────────────────────────────────────────────────
 
     def _loop(self):
-        """Ejecuta el bucle de polling del monitor de WiFi.
+        """
+        Ejecuta el bucle de polling del monitor de WiFi.
+
         Args:
             None
+
         Returns:
             None
+
         Raises:
-            None"""
+            None
+        """
         self._poll()
         while not self._stop_evt.wait(_POLL_INTERVAL):
             self._poll()
@@ -311,10 +373,13 @@ class WiFiMonitor:
     def _poll(self):
         """
         Realiza un ciclo de polling para actualizar la información de la interfaz de red inalámbrica.
+
         Args:
             None
+
         Returns:
             None
+
         Raises:
             None
         """
@@ -371,10 +436,13 @@ class WiFiMonitor:
     def _read_proc_net_dev(self, iface: str) -> tuple:
         """
         Lee bytes RX/TX desde /proc/net/dev para una interfaz de red específica.
+
         Args:
             iface (str): Nombre de la interfaz de red.
+
         Returns:
             tuple[int, int]: Tupla con bytes recibidos y transmitidos.
+
         Raises:
             Exception: Si ocurre un error al leer el archivo /proc/net/dev.
         """
@@ -389,14 +457,19 @@ class WiFiMonitor:
         return 0, 0
 
     def _calc_speed(self, rx: int, tx: int) -> tuple:
-        """Calcula la velocidad de transferencia de datos en Mbps.
+        """
+        Calcula la velocidad de transferencia de datos en Mbps.
+
         Args:
             rx (int): Número de bytes recibidos.
             tx (int): Número de bytes transmitidos.
+
         Returns:
             tuple[float, float]: Velocidad de recepción y transmisión en Mbps.
+
         Raises:
-            No se lanzan excepciones."""
+            None
+        """
         rx_mbps = 0.0
         tx_mbps = 0.0
 
@@ -413,13 +486,18 @@ class WiFiMonitor:
     # ── Acceso a datos ────────────────────────────────────────────────────────
 
     def get_stats(self) -> dict:
-        """Obtiene un snapshot completo de las estadísticas de WiFi de manera thread-safe y no bloqueante. 
-        Args: 
+        """
+        Obtiene un snapshot completo de las estadísticas de WiFi de manera thread-safe y no bloqueante.
+
+        Args:
             No aplica.
-        Returns: 
+
+        Returns:
             dict: Información de WiFi, incluyendo velocidades y registros históricos, junto con un timestamp.
-        Raises: 
-            No aplica."""
+
+        Raises:
+            No aplica.
+        """
         acquired = self._lock.acquire(blocking=False)
         if not acquired:
             return {
@@ -448,7 +526,10 @@ class WiFiMonitor:
     def interface(self) -> str:
         """
         Obtiene la interfaz de red actual.
-        Args: Ninguno.
+
+        Args:
+            Ninguno.
+
         Returns:
             str: La interfaz de red actual, por ejemplo "wlan0".
         """
@@ -458,11 +539,16 @@ class WiFiMonitor:
     def signal_color(dbm: Optional[int], colors: dict) -> str:
         """
         Determina el color semáforo según el nivel de señal de WiFi en dBm.
+
         Args:
-            dbm (int|None): Nivel señal.
-            colors (dict): {'success', 'warning', 'danger', 'text_dim'}
+            dbm (int|None): Nivel de señal de WiFi en dBm.
+            colors (dict): Diccionario con claves de color ('success', 'warning', 'danger', 'text_dim').
+
         Returns:
-            str: Clave color.
+            str: Clave del color correspondiente al nivel de señal.
+
+        Raises:
+            Ninguna excepción relevante.
         """
         if dbm is None:
             return colors['text_dim']
@@ -475,11 +561,16 @@ class WiFiMonitor:
     @staticmethod
     def signal_quality_pct(dbm: Optional[int]) -> int:
         """
-        Convierte dBm a porcentaje de calidad de señal.
+        Convierte un nivel de señal en dBm a porcentaje de calidad de señal de WiFi.
+
         Args:
             dbm (Optional[int]): Nivel de señal en decibelios con referencia a un miliwatt.
+
         Returns:
             int: Calidad de señal como porcentaje (0-100).
+
+        Raises:
+            Ninguna excepción explícita, devuelve 0 si dbm es None.
         """
         if dbm is None:
             return 0

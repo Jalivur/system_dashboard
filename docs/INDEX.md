@@ -1,6 +1,6 @@
 # Dashboard RPi — Documentación de código
 
-> Generado automáticamente el 2026-03-28 08:38
+> Generado automáticamente el 2026-03-28 12:27
 
 > Script: `generate_docs.py` · Parseo estático via `ast` — sin ejecución del código
 

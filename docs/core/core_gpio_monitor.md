@@ -85,29 +85,48 @@ from utils.logger import get_logger
 
 ### `_load_config() -> dict[int, dict]`
 
-Carga la configuración de pines desde local_settings_io.
-Si no existe la clave devuelve _DEFAULT_CONFIG.
-Las claves se almacenan como strings — se convierten a int.
+Carga la configuración de pines desde local_settings_io y devuelve un diccionario con pines como claves enteras y configuraciones como valores.
+
+Args: 
+    Ninguno
+
+Returns:
+    dict[int, dict]: Diccionario con pines como claves enteras y configuraciones como valores.
+
+Raises:
+    Ninguna excepción específica, aunque se registran warnings en caso de errores.
 
 ### `_save_config(pins_cfg: dict[int, dict]) -> None`
 
-Persiste la configuración en local_settings.py via update_params.
-Merge seguro — no machaca otras claves del fichero.
+Persiste la configuración de pines en local_settings.py de manera segura.
+
+Args:
+    pins_cfg: Diccionario con configuración de pines, donde cada clave es un pin y cada valor es otro diccionario con la configuración.
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error al guardar la configuración.
 
 </details>
 
 ## Clase `GPIOMonitor`
 
-Gestiona pines GPIO con soporte INPUT, OUTPUT y PWM.
+Gestiona el estado y configuración de pines GPIO.
 
-Estado por pin:
-  {
-    "mode":  str        — INPUT | OUTPUT | PWM
-    "label": str        — etiqueta descriptiva
-    "value": bool|None  — estado leído/escrito; None si LIBRE
-    "duty":  float      — PWM duty cycle 0.0–1.0; 0.0 en otros modos
-    "error": str|None   — mensaje de error o None
-  }
+La clase proporciona información sobre el estado de cada pin, incluyendo su modo (INPUT, OUTPUT o PWM), 
+etiqueta descriptiva, valor actual y ciclo de trabajo en caso de PWM.
+
+Args:
+    config (dict, optional): Configuración de pines. Por defecto, carga configuración desde local_settings.
+    op_mode (str): Modo de operación, OP_LIBRE o OP_CONTROLANDO.
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -124,191 +143,326 @@ Estado por pin:
 
 #### `start(self)`
 
-Inicia thread daemon de polling GPIO (1s intervalo).
+Inicia el hilo daemon de monitoreo de GPIO con un intervalo de polling de 1 segundo.
 
-Setup devices si OP_CONTROLANDO.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `stop(self)`
 
-Detiene thread, libera dispositivos gpiozero, cierra factory LGPIO.
+Detiene el monitor de GPIO, liberando recursos y deteniendo el hilo de ejecución.
 
-Espera 5s join max, _running=False.
+Args: None
+
+Returns: None
+
+Raises: None
 
 #### `is_running(self) -> bool`
 
-Retorna estado del monitor (thread activo).
+Indica si el monitor de GPIO está actualmente en ejecución.
+
+Args:
+    Ninguno
 
 Returns:
-    bool: True si corriendo.
+    bool: True si el monitor está corriendo, False en caso contrario.
+
+Raises:
+    Ninguno
 
 #### `get_op_mode(self) -> str`
 
-Retorna modo de operación actual.
+Retorna el modo de operación actual del monitor GPIO.
+
+Args:
+    Ninguno
 
 Returns:
-    str: OP_CONTROLANDO o OP_LIBRE.
+    str: El modo de operación actual, OP_CONTROLANDO o OP_LIBRE.
+
+Raises:
+    Ninguno
 
 #### `set_op_mode(self, mode: str) -> None`
 
-Cambia modo operación. LIBRE libera dispositivos, CONTROLANDO los reclama.
+Establece el modo de operación del monitor GPIO.
 
 Args:
-    mode (str): OP_CONTROLANDO o OP_LIBRE.
+    mode (str): Modo de operación, puede ser OP_CONTROLANDO o OP_LIBRE.
+
+Raises:
+    None
+
+Returns:
+    None
 
 #### `get_state(self) -> dict[int, dict]`
 
-Snapshot thread-safe del estado de todos los pines GPIO configurados.
+Obtiene un snapshot thread-safe del estado actual de todos los pines GPIO configurados.
 
 Returns:
-    dict[int, dict]: Estado por BCM pin.
+    dict[int, dict]: Un diccionario donde cada clave es un número de pin BCM y cada valor es otro diccionario con los detalles del estado del pin.
+
+Raises:
+    None
 
 #### `is_gpio_available(self) -> bool`
 
 Indica si gpiozero está disponible e importado.
 
 Returns:
-    bool: True si Pi5+lgpio OK.
+    bool: True si gpiozero está disponible.
+
+Raises:
+    None
 
 #### `get_pins(self) -> list[int]`
 
-Lista de todos los pines BCM configurados (excluye reservados).
+Obtiene una lista de todos los pines BCM configurados, excluyendo los reservados.
+
+Args:
+    Ninguno
 
 Returns:
-    list[int]: Pines BCM ordenados.
+    list[int]: Una lista de pines BCM ordenados.
+
+Raises:
+    Ninguno
 
 #### `reserved_pins() -> set[int]`
 
-Pines BCM reservados por fase1.py (I2C/PWM/UART).
+Devuelve el conjunto de pines BCM reservados para uso de I2C, PWM y UART.
 
 Returns:
-    set[int]: {2,3,12,13,14,15,18,19}
+    set[int]: Conjunto de pines BCM reservados.
 
 #### `set_output(self, pin: int, high: bool) -> bool`
 
-Establece salida OUTPUT HIGH/LOW en pin BCM.
+Establece el estado de salida de un pin GPIO en modo OUTPUT.
 
 Args:
-    pin (int): BCM pin en modo OUTPUT.
-    high (bool): True=ON/HIGH, False=OFF/LOW.
+    pin (int): Número del pin GPIO en modo BCM.
+    high (bool): Estado del pin, True para HIGH y False para LOW.
 
 Returns:
-    bool: True si cambiado correctamente.
+    bool: True si el estado del pin se cambió correctamente.
+
+Raises:
+    Exception: Si ocurre un error al cambiar el estado del pin.
 
 #### `set_pwm(self, pin: int, duty: float) -> bool`
 
-Establece duty cycle PWM (0.0-1.0) en pin BCM PWMLED.
+Establece el ciclo de trabajo PWM en un pin específico.
 
 Args:
-    pin (int): BCM pin en modo PWM.
-    duty (float): 0.0=off, 1.0=full, clamped.
+    pin (int): Número de pin en modo BCM PWM.
+    duty (float): Ciclo de trabajo PWM, entre 0.0 (apagado) y 1.0 (completo).
 
 Returns:
-    bool: True si seteado correctamente.
+    bool: True si el ciclo de trabajo PWM se estableció correctamente.
+
+Raises:
+    Exception: Si ocurre un error al establecer el valor PWM.
 
 #### `set_label(self, pin: int, label: str) -> bool`
 
-Cambia etiqueta descriptiva del pin (persiste).
+Establece una etiqueta descriptiva para un pin GPIO específico y persiste el cambio.
 
 Args:
-    pin (int): BCM pin.
-    label (str): Nueva etiqueta.
+    pin (int): Número de pin BCM.
+    label (str): Nueva etiqueta para el pin.
 
 Returns:
-    bool: True si actualizado.
+    bool: True si la etiqueta se actualizó correctamente.
+
+Raises:
+    None
 
 #### `set_mode(self, pin: int, mode: str) -> bool`
 
-Cambia modo del pin (INPUT/OUTPUT/PWM), persiste, recrea device si controlando.
+Establece el modo de un pin GPIO específico.
 
 Args:
-    pin (int): BCM pin.
-    mode (str): MODE_INPUT/OUTPUT/PWM.
+    pin (int): Número del pin GPIO en formato BCM.
+    mode (str): Modo del pin, puede ser INPUT, OUTPUT o PWM.
 
 Returns:
-    bool: True si cambiado.
+    bool: True si el modo del pin se ha cambiado correctamente.
+
+Raises:
+    None
 
 #### `add_pin(self, pin: int, mode: str = MODE_INPUT, label: str = '') -> bool`
 
-Añade nuevo pin BCM a configuración y state (persiste).
+Añade un nuevo pin BCM a la configuración y estado persistente.
 
 Args:
-    pin (int): BCM pin no reservado.
-    mode (str): Inicial MODE_INPUT/OUTPUT/PWM.
-    label (str): Etiqueta o "GPIO N".
+    pin (int): Número de pin BCM no reservado.
+    mode (str): Modo inicial del pin (MODE_INPUT, MODE_OUTPUT o MODE_PWM).
+    label (str): Etiqueta para el pin, por defecto "GPIO N".
 
 Returns:
-    bool: True si añadido (no existía).
+    bool: True si el pin fue añadido correctamente (no existía previamente).
+
+Raises:
+    None
 
 #### `remove_pin(self, pin: int) -> bool`
 
-Elimina pin de configuración, cierra device, persiste.
+Elimina un pin de la configuración del monitor GPIO.
 
 Args:
-    pin (int): BCM pin a remover.
+    pin (int): Número del pin BCM a remover.
 
 Returns:
-    bool: True si eliminado (existía).
+    bool: True si el pin fue eliminado correctamente.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self, config: dict | None = None, op_mode: str = OP_LIBRE)`
 
-Inicializa monitor GPIO.
+Inicializa el monitor de GPIO con la configuración proporcionada.
 
 Args:
-    config (dict, optional): Config pines. Defaults _load_config().
-    op_mode (str): OP_LIBRE o OP_CONTROLANDO.
+    config (dict, optional): Configuración de pines. Por defecto, carga la configuración desde local_settings.
+    op_mode (str): Modo de operación, puede ser OP_LIBRE o OP_CONTROLANDO.
 
-Configura locks, state, carga pins desde local_settings.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_init_state(self)`
 
-Inicializa dict _state thread-safe con modos/labels desde _pins_cfg.
+Inicializa el estado de los pines GPIO de manera thread-safe.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_run(self)`
 
-Bucle principal thread daemon.
+Ejecuta el bucle principal del thread daemon.
 
-Setup devices si controlando, poll inputs 1s, maneja stop_evt.
+Setup dispositivos si se está controlando, sondea entradas cada segundo y maneja el evento de parada.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_import_gpiozero(self) -> bool`
 
-Importa gpiozero module, set _gz y _gpio_available.
-Error: set state error todos pins.
+Intenta importar el módulo gpiozero y configura el estado de disponibilidad de GPIO.
+
+Args:
+    Ninguno
 
 Returns:
-    bool: True si disponible.
+    bool: True si gpiozero se importa correctamente, False en caso contrario.
+
+Raises:
+    Ninguna excepción explícita, pero se registra un warning si gpiozero no está disponible.
 
 #### `_setup_devices(self)`
 
-Crea/abre gpiozero devices (Button/LED/PWMLED) para todos pines en state.
-Recrear LGPIOFactory si cerrado.
+Configura los dispositivos gpiozero (Button/LED/PWMLED) para todos los pines en el estado actual.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Excepciones durante la recreación de LGPIOFactory.
 
 #### `_open_device(self, pin: int, mode: str, duty: float = 0.0)`
 
-Crea gpiozero device según mode:
-INPUT: Button(pull_up=None)
-OUTPUT: LED(off)
-PWM: PWMLED(value=duty clamped 0-1)
+Abre un dispositivo GPIO según el modo especificado y lo registra para su uso posterior.
 
-Catch exceptions → state error.
+Args:
+    pin (int): El número de pin GPIO a abrir.
+    mode (str): El modo de funcionamiento del pin (INPUT, OUTPUT o PWM).
+    duty (float, opcional): El valor de duty cycle para modo PWM (por defecto 0.0).
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error al abrir el dispositivo, se registra en el estado de error.
 
 #### `_close_device(self, pin: int)`
 
-Cierra gpiozero device (call dev.close()), remove de _devices.
-Silencioso exceptions.
+Cierra el dispositivo GPIO asociado a un pin específico.
+
+Args:
+    pin (int): El número de pin GPIO a cerrar.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_release_devices(self)`
 
-Cleanup total: close devices + LGPIOFactory.close() + None states.
+Cierra todos los dispositivos gpiozero y el factory lgpio.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Excepción genérica si falla el cierre del factory lgpio.
 
 #### `_poll_inputs(self)`
 
-Lee is_active Button INPUT pins → state['value'] thread-safe snapshot.
+Actualiza de forma segura el estado de los pines de entrada de la GPIO.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Excepciones relacionadas con la lectura de los dispositivos GPIO.
 
 #### `_persist(self) -> None`
 
-Persiste _pins_cfg snapshot en local_settings thread-safe.
+Persiste una captura de la configuración actual de los pines en local_settings de manera segura para hilos concurrentes.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

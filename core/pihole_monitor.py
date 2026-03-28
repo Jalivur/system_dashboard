@@ -22,9 +22,14 @@ def _load_env():
     """
     Carga las variables de entorno desde el archivo .env del proyecto.
 
-    Busca el archivo .env en el directorio padre del módulo actual.
-    Intenta usar python-dotenv si está disponible; si no, realiza
-    el parsing manual del archivo línea por línea.
+    Args: 
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
     """
     env_path = Path(__file__).resolve().parent.parent / ".env"
     if not env_path.exists():
@@ -67,17 +72,31 @@ _EMPTY_STATS: Dict = {
 
 class PiholeMonitor:
     """
-    Monitor de Pi-hole v6 con sondeo en background.
-    Autenticación por sesión (sid) con renovación automática antes de expirar.
+    Inicializa el monitor de Pi-hole con sus configuraciones y locks.
+
+    Configura las estadísticas iniciales, los locks para thread-safety,
+    y verifica si PIHOLE_HOST está configurado en las variables de entorno.
+    Si no está configurado, el monitor permanece desactivado.
+
+    Args: Ninguno
+
+    Returns: Ninguno
+
+    Raises: Ninguno
     """
 
     def __init__(self):
         """
         Inicializa el monitor de Pi-hole con sus configuraciones y locks.
 
-        Configura las estadísticas iniciales, los locks para thread-safety,
-        y verifica si PIHOLE_HOST está configurado en las variables de entorno.
-        Si no está configurado, el monitor permanece desactivado.
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         self._stats: Dict       = dict(_EMPTY_STATS)
         self._sid: Optional[str] = None
@@ -103,7 +122,14 @@ class PiholeMonitor:
         """
         Inicia el monitor de Pi-hole en un thread daemon.
 
-        No hace nada si ya está corriendo o si PIHOLE_HOST no está configurado.
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self._running or not PIHOLE_HOST:
             return
@@ -118,8 +144,14 @@ class PiholeMonitor:
         """
         Detiene el monitor de Pi-hole de forma ordenada.
 
-        Señaliza la parada al thread de sondeo, espera a que termine,
-        cierra la sesión en Pi-hole y limpia las estadísticas en caché.
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._running = False
         self._stop_evt.set()
@@ -133,18 +165,27 @@ class PiholeMonitor:
     
     def is_running(self) -> bool:
         """
-        Estado del monitor de Pi-hole.
+        Indica si el monitor de Pi-hole está en ejecución.
+
+        Args:
+            Ninguno
 
         Returns:
-            bool: True si el thread de sondeo está activo.
+            bool: True si el monitor está activo, False en caso contrario.
         """
         return self._running
     
     def fetch_now(self) -> None:
         """
-        Fuerza sondeo inmediato de Pi-hole en thread separado (non-blocking).
+        Fuerza un sondeo inmediato de Pi-hole en un hilo separado sin bloquear la llamada.
 
-        No bloquea el caller.
+        Args: Ninguno
+
+        Returns: None
+
+        Raises: Ninguna excepción
+
+        Nota: Si el monitor no está en ejecución, esta llamada no tiene efecto.
         """
         if not self._running:
             return
@@ -152,7 +193,16 @@ class PiholeMonitor:
 
     def _poll_loop(self) -> None:
         """
-        Bucle principal del thread daemon de sondeo periódico.
+        Ejecuta el bucle principal del hilo daemon de sondeo periódico.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         while self._running:
             try:
@@ -166,7 +216,18 @@ class PiholeMonitor:
     # ── Autenticación ─────────────────────────────────────────────────────────
 
     def _authenticate(self) -> bool:
-        """Obtiene un sid de sesión. Devuelve True si tiene éxito."""
+        """
+        Establece una sesión autenticada con el servidor Pi-hole obteniendo un sid.
+
+        Args: 
+            Ninguno
+
+        Returns:
+            bool: True si la autenticación es exitosa, False en caso contrario.
+
+        Raises:
+            Ninguna excepción específica, pero registra errores en el logger.
+        """
         if not PIHOLE_PASSWORD:
             # Sin contraseña — Pi-hole puede permitir acceso anónimo
             logger.debug("[PiholeMonitor] Sin contraseña configurada — intentando sin auth")
@@ -197,10 +258,16 @@ class PiholeMonitor:
 
     def _sid_valid(self) -> bool:
         """
-        Verifica si el token de sesión (sid) sigue siendo válido.
+        Verifica si el token de sesión sigue siendo válido.
+
+        Args: 
+            Ninguno
 
         Returns:
-            bool: True si el sid existe y no ha expirado (con margen de 60s).
+            bool: True si el sid existe y no ha expirado con margen de 60 segundos.
+
+        Raises:
+            Ninguno
         """
         with self._sid_lock:
             if not self._sid or self._sid_obtained is None:
@@ -208,7 +275,15 @@ class PiholeMonitor:
             return (time.time() - self._sid_obtained) < (SESSION_VALIDITY - 60)
 
     def _get_sid(self) -> Optional[str]:
-        """Devuelve el sid válido, autenticando si es necesario."""
+        """
+        Obtiene un sid válido, realizando autenticación si es necesario.
+
+        Args: Ninguno
+
+        Returns: El sid válido o None si no se pudo obtener.
+
+        Raises: Ninguna excepción específica
+        """
         if not self._sid_valid():
             if not self._authenticate():
                 return None
@@ -217,10 +292,16 @@ class PiholeMonitor:
 
     def _logout(self) -> None:
         """
-        Cierra la sesión en Pi-hole al parar el monitor.
+        Cierra la sesión en Pi-hole invalidando el token de sesión actual.
 
-        Envía una petición DELETE a la API de autenticación para
-        invalidar el token de sesión actual (sid).
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         with self._sid_lock:
             sid = self._sid
@@ -241,7 +322,18 @@ class PiholeMonitor:
     # ── Fetch ─────────────────────────────────────────────────────────────────
 
     def _fetch(self) -> None:
-        """Llama a la API v6 de Pi-hole y actualiza la caché."""
+        """
+        Llama a la API v6 de Pi-hole y actualiza la caché de estadísticas.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Excepciones relacionadas con urllib.request y json.loads si la solicitud o el parseo falla.
+        """
         # Si no estamos corriendo, no hacemos nada (evita fetch innecesarios al parar)
         if not self._running:
             return
@@ -303,13 +395,16 @@ class PiholeMonitor:
         """
         Devuelve las estadísticas de Pi-hole almacenadas en caché.
 
-        No realiza ninguna petición HTTP, solo devuelve los datos
-        del último sondeo realizado por el thread de fondo.
+        Args:
+            None
 
         Returns:
             Dict: Diccionario con estadísticas de consultas, bloqueos,
                   dominios bloqueados, clientes únicos y estado de conexión.
                   Devuelve estadísticas vacías si el monitor está parado.
+
+        Raises:
+            None
         """
         # ── devolver vacío si parado ──
         if not self._running:
@@ -321,8 +416,14 @@ class PiholeMonitor:
         """
         Indica si Pi-hole está alcanzable en la red.
 
+        Args:
+            None
+
         Returns:
-            bool: True si la última conexión con Pi-hole fue exitosa.
+            bool: True si Pi-hole está alcanzable.
+
+        Raises:
+            None
         """
         with self._stats_lock:
             return self._stats.get("reachable", False)
@@ -331,14 +432,31 @@ class PiholeMonitor:
         """
         Verifica si el bloqueo de Pi-hole está activado.
 
+        Args:
+            Ninguno
+
         Returns:
             bool: True si el estado de Pi-hole es 'enabled'.
+
+        Raises:
+            Ninguna excepción relevante.
         """
         with self._stats_lock:
             return self._stats.get("status") == "enabled"
 
     def get_offline_count(self) -> int:
-        """Para badge: 1 si Pi-hole no responde, 0 si ok."""
+        """
+        Obtiene el número de instancias de Pi-hole que se encuentran fuera de línea.
+
+        Args:
+            Ninguno
+
+        Returns:
+            int: 1 si Pi-hole no responde, 0 si está en línea.
+
+        Raises:
+            Ninguno
+        """
         with self._stats_lock:
             if not self._stats.get("reachable", False) and PIHOLE_HOST:
                 return 1

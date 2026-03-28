@@ -14,28 +14,36 @@ _FMT = "%Y-%m-%d %H:%M:%S"
 
 
 def _fmt(dt: datetime) -> str:
-    """Convierte datetime a string sin microsegundos, formato que usa la BD.
+    """
+    Convierte un objeto datetime a una cadena de caracteres sin microsegundos.
     Args:
         dt (datetime): Fecha y hora a convertir.
     Returns:
-        str: Representación en cadena de la fecha y hora."""
+        str: Representación en cadena de la fecha y hora en el formato utilizado por la base de datos.
+    """
     return dt.strftime(_FMT)
 
 
 class DataAnalyzer:
-    """Analiza datos históricos de la base de datos.
+    """
+    Analiza datos históricos de la base de datos.
+
     Args:
         db_path (str): Ruta a la BD de métricas.
+
     Returns:
         None
+
     Raises:
-        Exception: Si ocurre un error al conectar con la base de datos."""
+        Exception: Si ocurre un error al conectar con la base de datos.
+    """
 
     def __init__(self, db_path: str = f"{DATA_DIR}/history.db"):
         """
         Inicializa el analizador de datos con una ruta a la base de datos.
+
         Args:
-            db_path (str): Ruta a la BD de métricas (default DATA_DIR/history.db).
+            db_path (str): Ruta a la BD de métricas (por defecto, DATA_DIR/history.db).
         """
         self._db_path = db_path
 
@@ -45,14 +53,19 @@ class DataAnalyzer:
     # ─────────────────────────────────────────────
 
     def get_data_range(self, hours: int = 24) -> List[Dict]:
-        """Obtiene datos de las últimas X horas.
+        """
+        Obtiene datos de las últimas X horas.
+
         Args:
             hours (int): Número de horas a considerar, por defecto 24.
+
         Returns:
             List[Dict]: Lista de diccionarios con los datos obtenidos.
+
         Raises:
             sqlite3.OperationalError: Error en la operación con la base de datos.
-            Exception: Error inesperado."""
+            Exception: Error inesperado.
+        """
         try:
             with sqlite3.connect(self._db_path) as conn:
                 conn.row_factory = sqlite3.Row
@@ -78,9 +91,12 @@ class DataAnalyzer:
             return []
 
     def get_stats(self, hours: int = 24) -> Dict:
-        """Obtiene estadísticas de las últimas horas especificadas.
+        """
+        Obtiene estadísticas de las últimas horas especificadas.
+
         Args:
             hours (int): Número de horas a considerar, por defecto 24.
+
         Returns:
             Dict: Diccionario con las estadísticas calculadas.
         """
@@ -89,14 +105,19 @@ class DataAnalyzer:
         return self._get_stats_between(start, now)
 
     def get_graph_data(self, metric: str, hours: int = 24) -> Tuple[List, List]:
-        """Obtiene datos para gráficas en un rango de tiempo determinado.
+        """
+        Obtiene datos para gráficas en un rango de tiempo determinado.
+
         Args:
             metric (str): Métrica a extraer de los datos.
             hours (int): Número de horas a considerar (por defecto 24).
+
         Returns:
             Tuple[List, List]: Datos para la gráfica.
+
         Raises:
-            Exception: Si ocurre un error durante la extracción de datos."""
+            Exception: Si ocurre un error durante la extracción de datos.
+        """
         try:
             data = self.get_data_range(hours)
             return self._extract_metric(data, metric)
@@ -105,14 +126,19 @@ class DataAnalyzer:
             return [], []
 
     def export_to_csv(self, output_path: str, hours: int = 24):
-        """Exporta datos a un archivo CSV para un rango de horas especificado.
+        """
+        Exporta datos a un archivo CSV para un rango de horas especificado.
+
         Args:
             output_path (str): Ruta del archivo de salida CSV.
             hours (int): Número de horas de datos a exportar (por defecto 24).
+
         Returns:
             None
+
         Raises:
-            FileNotFoundError: Si la ruta de salida no es válida."""
+            FileNotFoundError: Si la ruta de salida no es válida.
+        """
         data = self.get_data_range(hours)
         self._write_csv(output_path, data)
 
@@ -121,15 +147,20 @@ class DataAnalyzer:
     # ─────────────────────────────────────────────
 
     def get_data_range_between(self, start: datetime, end: datetime) -> List[Dict]:
-        """Obtiene datos entre dos fechas exactas. 
+        """
+        Obtiene datos de métricas entre dos fechas exactas.
+
         Args:
             start (datetime): Fecha de inicio.
             end (datetime): Fecha de fin.
+
         Returns:
             List[Dict]: Lista de diccionarios con los datos obtenidos.
+
         Raises:
             sqlite3.OperationalError: Error de operación en la base de datos.
-            Exception: Error inesperado."""
+            Exception: Error inesperado.
+        """
         try:
             with sqlite3.connect(self._db_path) as conn:
                 conn.row_factory = sqlite3.Row
@@ -154,24 +185,36 @@ class DataAnalyzer:
             return []
 
     def get_stats_between(self, start: datetime, end: datetime) -> Dict:
-        """Obtiene estadísticas entre dos fechas exactas. 
+        """
+        Obtiene estadísticas de los datos analizados dentro de un rango de fechas específico.
+
         Args:
-            start (datetime): Fecha de inicio.
-            end (datetime): Fecha de fin.
+            start (datetime): Fecha de inicio del rango.
+            end (datetime): Fecha de fin del rango.
+
         Returns:
-            Dict: Diccionario con las estadísticas."""
+            Dict: Diccionario que contiene las estadísticas calculadas.
+
+        Raises:
+            ValueError: Si la fecha de inicio es posterior a la fecha de fin.
+        """
         return self._get_stats_between(start, end)
 
     def get_graph_data_between(self, metric: str, start: datetime, end: datetime) -> Tuple[List, List]:
-        """Obtiene datos para gráficas entre dos fechas exactas. 
+        """
+        Obtiene datos para gráficas de una métrica específica entre dos fechas exactas.
+
         Args:
             metric (str): Métrica a obtener.
             start (datetime): Fecha de inicio.
             end (datetime): Fecha de fin.
+
         Returns:
             Tuple[List, List]: Datos para la gráfica.
+
         Raises:
-            Exception: Si ocurre un error al obtener los datos."""
+            Exception: Si ocurre un error al obtener los datos.
+        """
         try:
             data = self.get_data_range_between(start, end)
             return self._extract_metric(data, metric)
@@ -180,15 +223,20 @@ class DataAnalyzer:
             return [], []
 
     def export_to_csv_between(self, output_path: str, start: datetime, end: datetime):
-        """Exporta datos a CSV entre dos fechas exactas. 
+        """
+        Exporta datos a un archivo CSV dentro de un rango de fechas específico.
+
         Args:
             output_path (str): Ruta de salida del archivo CSV.
             start (datetime): Fecha de inicio del rango de datos.
             end (datetime): Fecha de fin del rango de datos.
+
         Returns:
             None
+
         Raises:
-            FileNotFoundError: Si la ruta de salida no es válida."""
+            FileNotFoundError: Si la ruta de salida no es válida.
+        """
         data = self.get_data_range_between(start, end)
         self._write_csv(output_path, data)
 
@@ -197,13 +245,18 @@ class DataAnalyzer:
     # ─────────────────────────────────────────────
 
     def detect_anomalies(self, hours: int = 24) -> List[Dict]:
-        """Detecta anomalías en los datos de los últimos horas especificadas.
+        """
+        Detecta anomalías en los datos de los últimos horas especificadas.
+
         Args:
             hours (int): Número de horas a considerar para la detección de anomalías (por defecto 24).
+
         Returns:
             List[Dict]: Lista de diccionarios que describen las anomalías detectadas.
+
         Raises:
-            No se lanzan excepciones explícitas."""
+            None
+        """
         anomalies = []
         stats = self.get_stats(hours)
 
@@ -232,14 +285,19 @@ class DataAnalyzer:
     # ─────────────────────────────────────────────
 
     def _get_stats_between(self, start: datetime, end: datetime) -> Dict:
-        """Obtiene estadísticas entre dos fechas específicas.
+        """
+        Obtiene estadísticas de métricas entre dos fechas específicas.
+
         Args:
             start (datetime): Fecha de inicio del rango.
             end (datetime): Fecha de fin del rango.
+
         Returns:
             Dict: Diccionario con estadísticas del rango de fechas.
+
         Raises:
-            sqlite3.Error: Si ocurre un error en la conexión a la base de datos."""
+            sqlite3.Error: Si ocurre un error en la conexión a la base de datos.
+        """
         try:
             with sqlite3.connect(self._db_path) as conn:
                 cursor = conn.cursor()
@@ -310,14 +368,19 @@ class DataAnalyzer:
             return {}
 
     def _extract_metric(self, data: List[Dict], metric: str) -> Tuple[List, List]:
-        """Extrae timestamps y valores de una métrica.
+        """
+        Extrae timestamps y valores de una métrica de una lista de datos.
+
         Args:
             data (List[Dict]): Lista de diccionarios con datos.
             metric (str): Nombre de la métrica a extraer.
+
         Returns:
             Tuple[List, List]: Tupla con listas de timestamps y valores.
+
         Raises:
-            ValueError: Si el formato de timestamp es inválido."""
+            ValueError: Si el formato de timestamp es inválido.
+        """
         timestamps, values = [], []
         for entry in data:
             try:
@@ -330,14 +393,19 @@ class DataAnalyzer:
         return timestamps, values
 
     def _write_csv(self, output_path: str, data: List[Dict]):
-        """Escribe una lista de registros a un archivo CSV.
+        """
+        Escribe una lista de registros a un archivo CSV.
+
         Args:
             output_path (str): Ruta del archivo de salida.
             data (List[Dict]): Lista de registros a escribir.
+
         Returns:
             None
+
         Raises:
-            OSError: Si ocurre un error al escribir el archivo."""
+            OSError: Si ocurre un error al escribir el archivo.
+        """
         try:
             if not data:
                 logger.warning("[DataAnalyzer] _write_csv: sin datos para exportar")
@@ -353,13 +421,18 @@ class DataAnalyzer:
             logger.error("[DataAnalyzer] _write_csv: error inesperado: %s", e)
             
     def _format_uptime(self, seconds: float) -> str:
-        """Convierte segundos brutos a un formato de tiempo legible.
+        """
+        Convierte tiempo en segundos a un formato legible D:HH:MM.
+
         Args:
             seconds (float): Tiempo en segundos.
+
         Returns:
             str: Tiempo formateado como D:HH:MM.
+
         Raises:
-            No se lanzan excepciones explícitas."""
+            None
+        """
         if seconds is None: 
             return "0:00:00"
         
