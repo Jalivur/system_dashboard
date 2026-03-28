@@ -2,9 +2,27 @@
 
 > **Ruta**: `ui/windows/vpn_window.py`
 
+> **Cobertura de documentación**: 🟢 100% (8/8)
+
 Ventana de gestión de conexiones VPN.
 Muestra el estado en tiempo real y permite conectar/desconectar
 usando los scripts del usuario.
+
+---
+
+## Tabla de contenidos
+
+**Clase [`VpnWindow`](#clase-vpnwindow)**
+  - [`destroy()`](#destroyself)
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `ui.styles`
+- `ui.widgets.dialogs`
+- `utils.logger`
 
 ## Imports
 
@@ -29,6 +47,13 @@ from ui.widgets.dialogs import custom_msgbox
 
 Ventana de gestión de VPN.
 
+Args:
+    parent: Ventana padre CTkToplevel de la aplicación principal.
+    vpn_monitor: Instancia del monitor de VPN que proporciona el estado en tiempo real.
+
+Raises:
+    Exception: Si hay errores en la configuración inicial de la UI.
+
 ### Atributos privados
 
 | Atributo | Valor inicial |
@@ -42,8 +67,14 @@ Ventana de gestión de VPN.
 
 Destruye la ventana de VPN de forma controlada.
 
-Registra el cierre en el logger antes de llamar al método padre,
-asegurando trazabilidad de eventos de UI.
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
 
 <details>
 <summary>Métodos privados</summary>
@@ -52,8 +83,7 @@ asegurando trazabilidad de eventos de UI.
 
 Inicializa la ventana principal de gestión de conexiones VPN.
 
-Configura la ventana toplevel con dimensiones y posición específicas para DSI,
-inicializa widgets y comienza el bucle de actualización automática del estado.
+Configura la ventana toplevel con dimensiones y posición específicas.
 
 Args:
     parent: Ventana padre CTkToplevel de la aplicación principal.
@@ -64,40 +94,71 @@ Raises:
 
 #### `_create_ui(self)`
 
-Construye toda la interfaz gráfica de usuario de la ventana VPN.
+Construye la interfaz gráfica de usuario de la ventana VPN.
 
-Crea frames jerárquicos, tarjeta de estado con indicador visual,
-botones de acción futuristas, sección de información de interfaz/IP,
-y nota sobre scripts requeridos. Configura scroll si es necesario.
+Crea frames jerárquicos y componentes visuales.
 
-Utiliza colores y fuentes del sistema de temas global.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update(self)`
 
-Actualiza el estado visual de la ventana cada UPDATE_MS milisegundos.
+Actualiza el estado visual de la ventana según el estado del monitor de VPN.
 
-Obtiene datos del vpn_monitor (conectado, IP, interfaz), actualiza
-colores/indicadores/textos en consecuencia. Maneja errores y detiene
-si monitor no está corriendo o ventana destruida. Programa llamada recursiva.
+Args: 
+    Ninguno (usa atributos de instancia internamente).
 
-Args:
-    Ninguno (usa self._vpn_monitor y self._widgets internamente).
+Returns: 
+    Ninguno.
+
+Raises: 
+    Ninguno.
 
 #### `_connect(self)`
 
-Ejecuta conectar_vpn.sh con terminal en vivo.
+Inicia la conexión VPN ejecutando el script conectar_vpn.sh en una terminal en vivo.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_disconnect(self)`
 
-Ejecuta desconectar_vpn.sh con terminal en vivo.
+Desconecta la VPN ejecutando el script de desconexión en una terminal en vivo.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_action_done(self)`
 
 Callback ejecutado al finalizar operaciones de conexión/desconexión.
 
-Fuerza sondeo inmediato del monitor VPN y retrasa actualización UI
-para permitir estabilización del estado post-script.
-
 Garantiza sincronización UI-monitor tras ejecución de scripts externos.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

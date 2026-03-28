@@ -2,6 +2,8 @@
 
 > **Ruta**: `core/service_registry.py`
 
+> **Cobertura de documentación**: 🟢 100% (11/11)
+
 Registro centralizado de servicios del Dashboard.
 
 Gestiona el ciclo de vida de todos los servicios según configuración JSON.
@@ -16,6 +18,26 @@ Uso en main.py:
     registry.apply_config()              # para los que estén en False en services.json
     registry.set_service_enabled(k, v)   # marca habilitado/deshabilitado y persiste
     registry.save_config()               # persiste _config al JSON (sin leer estado live)
+
+---
+
+## Tabla de contenidos
+
+**Clase [`ServiceRegistry`](#clase-serviceregistry)**
+  - [`save_config()`](#save_configself)
+  - [`set_service_enabled()`](#set_service_enabledself-key-str-enabled-bool-none)
+  - [`register()`](#registerself-key-str-instance-none)
+  - [`apply_config()`](#apply_configself-none)
+  - [`get()`](#getself-key-str)
+  - [`get_all()`](#get_allself-dict)
+  - [`service_enabled()`](#service_enabledself-key-str-bool)
+  - [`ui_enabled()`](#ui_enabledself-key-str-bool)
+
+---
+
+## Dependencias internas
+
+- `utils.logger`
 
 ## Imports
 
@@ -35,6 +57,15 @@ from utils.logger import get_logger
 
 Registro centralizado de servicios del dashboard.
 
+Args:
+    config_path: Ruta opcional al archivo services.json
+
+Returns:
+    None
+
+Raises:
+    None
+
 ### Atributos privados
 
 | Atributo | Valor inicial |
@@ -46,37 +77,103 @@ Registro centralizado de servicios del dashboard.
 
 #### `save_config(self)`
 
-Persiste la configuración actual (_config) al JSON.
-No lee el estado live de los servicios — guarda lo que se haya
-establecido explícitamente via set_service_enabled().
+Persiste la configuración actual al archivo JSON.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error al guardar la configuración.
+
+Nota: No lee el estado live de los servicios, guarda lo que se haya establecido 
+      explícitamente.
 
 #### `set_service_enabled(self, key: str, enabled: bool) -> None`
 
-Marca un servicio como habilitado/deshabilitado en la config y persiste.
+Establece si un servicio está habilitado o deshabilitado en la configuración.
+
+Args:
+    key (str): La clave del servicio a actualizar.
+    enabled (bool): El nuevo estado de habilitación del servicio.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `register(self, key: str, instance) -> None`
 
-Registra un servicio. Solo lo almacena, no lo para ni arranca.
+Registra un servicio en el registro de servicios.
+
+Args:
+    key (str): La clave única para identificar el servicio.
+    instance: La instancia del servicio a registrar.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `apply_config(self) -> None`
 
-Para todos los servicios configurados como False en services.json.
+Aplica la configuración de servicios, deteniendo aquellos que estén configurados como deshabilitados en services.json.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Exception: Si ocurre un error al detener un servicio.
 
 #### `get(self, key: str)`
 
-Devuelve la instancia de un servicio por clave.
+Recuperar la instancia de un servicio registrada por su clave.
+
+Args:
+    key (str): Clave del servicio a recuperar.
+
+Returns:
+    La instancia del servicio asociada a la clave, o None si no existe.
 
 #### `get_all(self) -> dict`
 
-Devuelve todos los servicios registrados.
+Devuelve un diccionario con todos los servicios registrados.
+
+Args:
+    Ninguno
+
+Returns:
+    dict: Un diccionario con todos los servicios registrados.
+
+Raises:
+    Ninguno
 
 #### `service_enabled(self, key: str) -> bool`
 
-True si el servicio está configurado para arrancar.
+Determina si un servicio específico está configurado para arrancar.
+
+Args:
+    key (str): Clave del servicio a verificar.
+
+Returns:
+    bool: True si el servicio está configurado para arrancar, False en caso contrario.
 
 #### `ui_enabled(self, key: str) -> bool`
 
-True si el botón de UI está habilitado en la configuración.
+Determina si un elemento de la interfaz de usuario está habilitado según la configuración.
+
+Args:
+    key (str): La clave de configuración para verificar.
+
+Returns:
+    bool: True si el elemento de la interfaz de usuario está habilitado, False en caso contrario.
 
 <details>
 <summary>Métodos privados</summary>
@@ -86,10 +183,16 @@ True si el botón de UI está habilitado en la configuración.
 Inicializa el registro de servicios.
 
 Args:
-    config_path: Ruta opcional al archivo services.json
+    config_path (str): Ruta opcional al archivo de configuración services.json.
 
 #### `_load_config(self)`
 
-Carga services.json. Si no existe lo crea con valores por defecto.
+Carga la configuración desde services.json y la inicializa con valores por defecto si no existe.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 </details>

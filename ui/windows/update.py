@@ -15,14 +15,33 @@ logger = get_logger(__name__)
 
 
 class UpdatesWindow(ctk.CTkToplevel):
-    """Ventana de control de actualizaciones del sistema"""
+    """
+    Ventana emergente para gestionar y visualizar actualizaciones del sistema.
+
+    Args:
+        parent: Widget padre que crea esta ventana.
+        update_monitor: Monitor de actualizaciones para obtener el estado.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ningún valor de retorno.
+    """
 
     def __init__(self, parent, update_monitor):
-        """Inicializa la ventana de actualizaciones del sistema.
+        """
+        Inicializa la ventana de actualizaciones del sistema.
 
         Args:
             parent: Widget padre (CTkToplevel).
             update_monitor: Instancia del monitor de actualizaciones para consultar estado.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
 
         super().__init__(parent)
@@ -42,7 +61,18 @@ class UpdatesWindow(ctk.CTkToplevel):
 
 
     def _create_ui(self):
-        """Crea la interfaz de usuario principal de la ventana."""
+        """
+        Crea la interfaz de usuario principal de la ventana de actualizaciones.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
 
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -56,7 +86,18 @@ class UpdatesWindow(ctk.CTkToplevel):
         self._build_content(self._content)
 
     def _build_content(self, parent):
-        """Construye el contenido normal de la ventana."""
+        """
+        Construye el contenido normal de la ventana de actualizaciones.
+
+        Args:
+            parent: El elemento padre donde se construirá el contenido.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         # Icono
         self._status_icon = ctk.CTkLabel(parent, text=Icons.UPDATE_SCRIPT, font=(FONT_FAMILY, 60))
         self._status_icon.pack(pady=(10, 5))
@@ -102,9 +143,19 @@ class UpdatesWindow(ctk.CTkToplevel):
     # ── Loop de actualización con banner ──────────────────────────────────────
 
     def _update(self):
-        """Actualiza periódicamente el estado de la ventana según el monitor de actualizaciones.
+        """
+        Actualiza periódicamente el estado de la ventana según el monitor de actualizaciones.
 
-        Muestra banner si el monitor no está corriendo, o reconstruye contenido si está activo.
+        Muestra un banner si el monitor no está corriendo o reconstruye el contenido si está activo.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
 
         if not self.winfo_exists():
@@ -128,7 +179,18 @@ class UpdatesWindow(ctk.CTkToplevel):
     # ── Lógica de actualizaciones ─────────────────────────────────────────────
 
     def _refresh_status(self, force=False):
-        """Consulta el estado de actualizaciones"""
+        """
+        Actualiza el estado de la ventana de actualizaciones consultando el estado de actualizaciones.
+
+        Args:
+            force (bool): Fuerza la comprobación de actualizaciones aunque no haya cambios.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if not self._monitor.is_running():
             return
         if force:
@@ -157,7 +219,15 @@ class UpdatesWindow(ctk.CTkToplevel):
         self._update_btn.configure(state="normal" if res['pending'] > 0 else "disabled")
 
     def _poll_until_ready(self):
-        """Reintenta _refresh_status cada 2s mientras el resultado sea Unknown"""
+        """
+        Reintenta refrescar el estado de actualización cada 2 segundos mientras el resultado sea desconocido.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguna excepción específica
+        """
         if not self._polling:
             return
         try:
@@ -172,7 +242,15 @@ class UpdatesWindow(ctk.CTkToplevel):
             self.after(2000, self._poll_until_ready)
 
     def _execute_update_script(self):
-        """Lanza el script de terminal y refresca al terminar"""
+        """
+        Ejecuta el script de actualización en la terminal y refresca la interfaz al finalizar.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
+        """
         logger.info("[UpdatesWidnow] Ejecutando update.sh")
         script_path = str(SCRIPTS_DIR / "update.sh")
 

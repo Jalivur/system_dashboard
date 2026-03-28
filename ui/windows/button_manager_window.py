@@ -52,14 +52,32 @@ _BTN_LABELS = {
 
 
 class ButtonManagerWindow(ctk.CTkToplevel):
-    """Ventana para gestionar la visibilidad de botones del menú principal."""
+    """
+    Ventana emergente para gestionar la visibilidad de botones del menú principal.
+
+    Args:
+        parent:         Ventana padre (root) de la aplicación.
+        registry:       Registro de servicios para leer y guardar configuración de la interfaz de usuario.
+        window_manager: Gestor de ventanas activo en la ventana principal.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ningún valor de retorno.
+    """
 
     def __init__(self, parent, registry, window_manager):
         """
+        Inicializa la ventana de gestión de botones.
+
         Args:
-            parent:         ventana padre (root)
-            registry:       ServiceRegistry (para leer/guardar config ui)
-            window_manager: WindowManager activo en MainWindow
+            parent:         Ventana padre (root) que contiene esta ventana.
+            registry:       Registro de servicios para leer y guardar configuración de la interfaz de usuario.
+            window_manager: Gestor de ventanas activo en la ventana principal.
+
+        Raises:
+            Ninguna excepción específica.
         """
         super().__init__(parent)
         self._registry       = registry
@@ -82,11 +100,16 @@ class ButtonManagerWindow(ctk.CTkToplevel):
 
     def _create_ui(self):
         """
-        Crea la interfaz completa de la ventana:
-        - Frame principal con header de ventana
-        - Contenedor desplazable con canvas y scrollbar
-        - Lista de filas con etiquetas y switches para cada botón del menú
-        - Panel inferior con botones de acción (Guardar predeterminado, Activar/Desactivar todos)
+        Crea la interfaz completa de la ventana del gestor de botones.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -147,7 +170,21 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         ).pack(side="left", padx=5)
 
     def _create_row(self, parent, key: str, label: str, enabled: bool):
-        """Crea una fila con el nombre del botón y su switch ON/OFF."""
+        """
+        Crea una fila con el nombre del botón y su switch ON/OFF.
+
+        Args:
+            parent: El elemento padre donde se creará la fila.
+            key (str): La clave única para el botón.
+            label (str): El texto que se mostrará como nombre del botón.
+            enabled (bool): El estado inicial del switch.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         row = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=6)
         row.pack(fill="x", padx=10, pady=3)
 
@@ -179,7 +216,17 @@ class ButtonManagerWindow(ctk.CTkToplevel):
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     def _on_toggle(self, key: str):
-        """Aplica el cambio inmediatamente en la UI del menú principal."""
+        """
+        Aplica el cambio de visibilidad inmediatamente en la UI del menú principal.
+
+        Args:
+            key (str): La clave del elemento que se va a mostrar u ocultar.
+
+        Raises:
+            None
+        Returns:
+            None
+        """
         enabled = bool(self._switches[key].get())
         if enabled:
             self._window_manager.show(key)
@@ -188,19 +235,52 @@ class ButtonManagerWindow(ctk.CTkToplevel):
         logger.debug("[ButtonManagerWindow] %s → %s", key, "visible" if enabled else "oculto")
 
     def _enable_all(self):
-        """Activa todos los switches y aplica los cambios."""
+        """
+        Activa todos los switches y aplica los cambios.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         for key, switch in self._switches.items():
             switch.select()
             self._window_manager.show(key)
 
     def _disable_all(self):
-        """Desactiva todos los switches y aplica los cambios."""
+        """
+        Desactiva todos los switches y oculta los elementos asociados en la ventana.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         for key, switch in self._switches.items():
             switch.deselect()
             self._window_manager.hide(key)
 
     def _save(self):
-        """Persiste el estado actual al JSON via _registry.save_config()."""
+        """
+        Guarda el estado actual de la configuración de botones en un archivo JSON.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._registry.save_config()
         logger.info("[ButtonManagerWindow] Configuración de botones guardada")
         custom_msgbox(

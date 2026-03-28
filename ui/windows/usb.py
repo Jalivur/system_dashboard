@@ -12,13 +12,31 @@ logger = get_logger(__name__)
 
 
 class USBWindow(ctk.CTkToplevel):
-    """Ventana de monitoreo de dispositivos USB"""
+    """
+    Ventana emergente para monitorear dispositivos USB conectados.
+
+    Args:
+        parent: Widget padre CTkToplevel del dashboard.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ninguno.
+    """
     
     def __init__(self, parent):
-        """Inicializa la ventana de monitoreo de dispositivos USB.
+        """
+        Inicializa la ventana de monitoreo de dispositivos USB.
 
         Args:
             parent: Widget padre CTkToplevel del dashboard.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         super().__init__(parent)
         
@@ -37,7 +55,18 @@ class USBWindow(ctk.CTkToplevel):
 
     
     def _create_ui(self):
-        """Crea la interfaz de usuario"""
+        """
+        Crea la interfaz de usuario para la ventana de dispositivos USB.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
         
@@ -94,7 +123,18 @@ class USBWindow(ctk.CTkToplevel):
         
     
     def _refresh_devices(self):
-        """Refresca la lista de dispositivos USB"""
+        """
+        Refresca la lista de dispositivos USB conectados y actualiza la interfaz gráfica.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         for widget in self._device_widgets:
             widget.destroy()
         self._device_widgets.clear()
@@ -122,7 +162,13 @@ class USBWindow(ctk.CTkToplevel):
             self._device_widgets.append(no_devices)
     
     def _create_storage_section(self, storage_devices: list):
-        """Crea la sección de almacenamiento USB"""
+        """
+        Crea la sección de almacenamiento USB en la ventana.
+
+        Args:
+            storage_devices (list): Lista de dispositivos de almacenamiento USB.
+
+        """
         title = ctk.CTkLabel(
             self._devices_frame,
             text="ALMACENAMIENTO USB",
@@ -136,7 +182,19 @@ class USBWindow(ctk.CTkToplevel):
             self._create_storage_device_widget(device, idx)
     
     def _create_storage_device_widget(self, device: dict, index: int):
-        """Crea widget para un dispositivo de almacenamiento"""
+        """
+        Crea un widget para representar un dispositivo de almacenamiento en la interfaz gráfica.
+
+        Args:
+            device (dict): Diccionario con información del dispositivo, incluyendo 'name', 'size', 'type' y 'dev'.
+            index (int): Índice del dispositivo, no utilizado en la implementación actual.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         device_frame = ctk.CTkFrame(
             self._devices_frame,
             fg_color=COLORS['bg_dark'],
@@ -182,7 +240,19 @@ class USBWindow(ctk.CTkToplevel):
                 self._create_partition_widget(device_frame, child)
     
     def _create_partition_widget(self, parent, partition: dict):
-        """Crea widget para una partición"""
+        """
+        Crea un widget para representar una partición en la interfaz gráfica.
+
+        Args:
+            parent: El widget padre donde se creará el widget de partición.
+            partition (dict): Diccionario con información de la partición, incluyendo 'name', 'mount' y 'size'.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         name = partition.get('name', '?')
         mount = partition.get('mount')
         size = partition.get('size', '?')
@@ -205,7 +275,18 @@ class USBWindow(ctk.CTkToplevel):
         part_label.pack(anchor="w", padx=30, pady=2)
     
     def _create_other_devices_section(self, other_devices: list):
-        """Crea la sección de otros dispositivos USB"""
+        """
+        Crea la sección de otros dispositivos USB en la ventana.
+
+        Args:
+            other_devices (list): Lista de dispositivos USB adicionales para mostrar.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         title = ctk.CTkLabel(
             self._devices_frame,
             text="OTROS DISPOSITIVOS USB",
@@ -219,7 +300,19 @@ class USBWindow(ctk.CTkToplevel):
             self._create_other_device_widget(device_line, idx)
     
     def _create_other_device_widget(self, device_line: str, index: int):
-        """Crea widget para otro dispositivo USB"""
+        """
+        Crea un widget para representar un dispositivo USB adicional en la interfaz.
+
+        Args:
+            device_line (str): Línea de salida del comando lsusb que describe el dispositivo.
+            index (int): Índice del dispositivo en la lista.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         device_info = self._parse_lsusb_line(device_line)
         
         device_frame = ctk.CTkFrame(
@@ -261,7 +354,18 @@ class USBWindow(ctk.CTkToplevel):
         ).pack(side="left", padx=5, fill="x", expand=True)
     
     def _parse_lsusb_line(self, line: str) -> dict:
-        """Parsea una línea de lsusb"""
+        """
+        Extrae información de un dispositivo USB a partir de una línea de salida de lsusb.
+
+        Args:
+            line (str): Línea de salida de lsusb.
+
+        Returns:
+            dict: Diccionario con claves 'bus' y 'description' que contienen la información del dispositivo.
+
+        Raises:
+            None
+        """
         parts = line.split()
         
         try:
@@ -285,7 +389,18 @@ class USBWindow(ctk.CTkToplevel):
         return {'bus': bus, 'description': description}
     
     def _eject_device(self, device: dict):
-        """Expulsa un dispositivo USB"""
+        """
+        Expulsa un dispositivo USB de manera segura.
+
+        Args:
+            device (dict): Información del dispositivo USB a expulsar.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         device_name = device.get('name', 'dispositivo')
         
         logger.info("[USBWindow] Intentando expulsar: '%s' (%s)", device_name, device.get('dev', '?'))

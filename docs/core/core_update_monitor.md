@@ -2,9 +2,27 @@
 
 > **Ruta**: `core/update_monitor.py`
 
+> **Cobertura de documentación**: 🟢 100% (6/6)
+
 Monitor de actualizaciones del sistema.
 Verifica paquetes pendientes via 'apt list --upgradable' con caché de 12h y lock thread-safe.
 Ejecuta 'sudo apt update' solo cuando necesario (force o timeout caché).
+
+---
+
+## Tabla de contenidos
+
+**Clase [`UpdateMonitor`](#clase-updatemonitor)**
+  - [`start()`](#startself-none)
+  - [`stop()`](#stopself-none)
+  - [`is_running()`](#is_runningself-bool)
+  - [`check_updates()`](#check_updatesself-force-false-dict)
+
+---
+
+## Dependencias internas
+
+- `utils.logger`
 
 ## Imports
 
@@ -24,17 +42,11 @@ from utils.logger import get_logger
 
 ## Clase `UpdateMonitor`
 
-Monitor profesional de actualizaciones APT con sistema de caché inteligente.
+Inicializa el monitor de actualizaciones.
 
-Características:
-* Caché de 12 horas (_check_interval) para evitar consultas frecuentes.
-* Thread-safe con lock para acceso concurrente.
-* Ejecución real de 'sudo apt update' solo si force=True o caché expirada.
-* Conteo preciso de paquetes upgradable ignorando headers.
-* Manejo completo de errores (timeout, apt no encontrado, parse, etc.).
-* Estados: Ready/Updated/Error/Stopped con mensajes descriptivos.
-
-Uso: monitor.check_updates(force=False) → dict{pending, status, message}
+Configura el estado de ejecución, un bloqueo para acceso concurrente, 
+una caché inicial con estado desconocido y un intervalo de comprobación 
+de 12 horas. No inicia hilos automáticos; requiere llamada explícita a start().
 
 ### Atributos privados
 
@@ -50,33 +62,55 @@ Uso: monitor.check_updates(force=False) → dict{pending, status, message}
 
 #### `start(self) -> None`
 
-Inicia el servicio (setea running=True).
+Inicia el servicio de monitoreo de actualizaciones.
 
-Logging de inicio. Idempotente.
+Args: 
+    None
+
+Returns: 
+    None
+
+Raises: 
+    None
 
 #### `stop(self) -> None`
 
-Detiene el servicio.
+Detiene el servicio de monitoreo de actualizaciones.
 
-Setea running=False, resetea caché a 'Servicio parado'. Logging.
+Args: 
+    None
+
+Returns: 
+    None
+
+Raises: 
+    None
 
 #### `is_running(self) -> bool`
 
-Verifica si el servicio está corriendo.
+Indica si el servicio de actualización está actualmente en ejecución.
+
+Args:
+    Ninguno
+
+Returns:
+    bool: True si el servicio está corriendo, False en caso contrario.
+
+Raises:
+    Ninguno
 
 #### `check_updates(self, force = False) -> Dict`
 
-Verifica actualizaciones pendientes con sistema de caché.
+Verifica actualizaciones pendientes del sistema con un mecanismo de caché.
 
 Args:
-    force (bool): Si True, ignora caché e intervalos — ejecuta apt update inmediatamente.
+    force (bool): Si True, ignora la caché y los intervalos de actualización, ejecutando 'apt update' inmediatamente.
 
 Returns:
-    Dict: {
-        "pending": int (número de paquetes upgradable),
-        "status": str ("Ready", "Updated", "Error", "Stopped"),
-        "message": str (descriptivo)
-    }
+    Dict: Un diccionario con el número de paquetes actualizables, el estado de la actualización y un mensaje descriptivo.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
@@ -85,7 +119,8 @@ Returns:
 
 Inicializa el monitor de actualizaciones.
 
-Configura estado corriendo, lock, caché inicial 'Unknown', timestamp actual,
-intervalo de 12h. No inicia threads automáticos — llamar start().
+Configura el estado de ejecución, bloqueo de acceso, caché inicial de resultado desconocido,
+timestamp actual y un intervalo de comprobación de 12 horas. No inicia hilos automáticos,
+requiere llamada explícita a start() para comenzar la monitorización.
 
 </details>

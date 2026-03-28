@@ -2,10 +2,27 @@
 
 > **Ruta**: `ui/windows/i2c_window.py`
 
+> **Cobertura de documentación**: 🟢 100% (12/12)
+
 ui/windows/i2c_window.py
 
 Ventana de escaneo I2C — muestra dispositivos detectados en cada bus.
 Solo lectura. Refresco manual o automático cada 30s.
+
+---
+
+## Tabla de contenidos
+
+**Clase [`I2CWindow`](#clase-i2cwindow)**
+  - [`destroy()`](#destroyself-none)
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `ui.styles`
+- `utils.logger`
 
 ## Imports
 
@@ -27,7 +44,17 @@ from utils.logger import get_logger
 
 ## Clase `I2CWindow(ctk.CTkToplevel)`
 
-Ventana de escaneo I2C — solo lectura.
+Ventana emergente para visualizar información de escaneo I2C.
+
+Args:
+    parent: Ventana padre (CTkToplevel).
+    i2c_monitor: Instancia del monitor I2C para obtener estadísticas.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ninguno.
 
 ### Atributos privados
 
@@ -43,8 +70,14 @@ Ventana de escaneo I2C — solo lectura.
 
 Destruye la ventana limpiando el temporizador de actualización.
 
-Cancela el after_id si existe y llama al destroy del padre.
-Registra el cierre en logger.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
@@ -62,48 +95,72 @@ Args:
 
 #### `_create_ui(self)`
 
-Crea todos los elementos de la interfaz de usuario.
+Crea todos los elementos de la interfaz de usuario de la ventana I2C.
 
-Incluye header, barra de acciones (botón de escaneo, labels de estado),
-y área scrollable con canvas para mostrar los resultados por bus I2C.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update(self) -> None`
 
-Actualiza la interfaz periódicamente (cada 30s).
+Actualiza la interfaz de la ventana I2C periódicamente.
 
-Verifica si la ventana existe y si el monitor I2C está activo.
-Renderiza estadísticas o muestra banner de servicio detenido. Programa la
-siguiente actualización.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_render(self, stats: dict) -> None`
 
 Renderiza las estadísticas I2C en la interfaz.
 
-Limpia el área, maneja errores o datos vacíos, muestra total de dispositivos
-y renderiza cards por bus con sus dispositivos.
+Limpia el área de renderizado, maneja errores o datos vacíos, muestra el total de dispositivos 
+y renderiza tarjetas por bus con sus dispositivos.
 
 Args:
     stats (dict): Diccionario con 'buses', 'total', 'error'.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_render_bus(self, bus_info: dict) -> None`
 
 Renderiza la card de un bus I2C específico.
 
-Crea la card con cabecera (label y count), línea divisoria, lista de dispositivos
+Crea la card con cabecera (label y count), línea divisoria, lista de dispositivos 
 o mensaje vacío, y spacer inferior.
 
 Args:
     bus_info (dict): Info del bus con 'label', 'count', 'devices'.
 
+Returns:
+    None
+
+Raises:
+    Ninguna excepción específica.
+
 #### `_render_device(self, parent, dev: dict) -> None`
 
-Renderiza una fila individual de dispositivo I2C.
-
-Crea badge con dirección hex, label con nombre y label con decimal.
+Renderiza una fila individual de dispositivo I2C con información proporcionada.
 
 Args:
     parent: Frame contenedor de la fila.
     dev (dict): Info del dispositivo con 'addr_hex', 'name', 'addr'.
+
+Returns:
+    None
 
 #### `_show_placeholder(self, text: str, color: str = None) -> None`
 
@@ -113,19 +170,40 @@ Muestra un mensaje placeholder centrado en el área principal.
 
 Args:
     text (str): Texto a mostrar.
-    color (str, opcional): Color del texto. Defaults to COLORS['text_dim'].
+    color (str, opcional): Color del texto. Defaults to None.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción.
 
 #### `_on_scan(self) -> None`
 
-Inicia un escaneo manual I2C en thread separado.
+Inicia un escaneo manual I2C en un hilo separado.
 
-Deshabilita botón, muestra status 'Escaneando...',
-llama a monitor.scan_now() y agenda _on_scan_done.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_scan_done(self) -> None`
 
 Callback ejecutado tras completar el escaneo manual.
 
 Re-habilita el botón, limpia status y refresca la visualización.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

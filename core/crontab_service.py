@@ -47,7 +47,22 @@ QUICK_SCHEDULES = [
 # ── Funciones de negocio ──────────────────────────────────────────────────────
 
 def describe_cron(minute: str, hour: str, day: str, month: str, weekday: str) -> str:
-    """Convierte una expresión cron a texto legible en español."""
+    """
+    Convierte una expresión cron a texto legible en español.
+
+    Args:
+        minute (str): Minuto de la expresión cron.
+        hour (str): Hora de la expresión cron.
+        day (str): Día del mes de la expresión cron.
+        month (str): Mes de la expresión cron.
+        weekday (str): Día de la semana de la expresión cron.
+
+    Returns:
+        str: Descripción legible de la expresión cron.
+
+    Raises:
+        Ninguna excepción relevante.
+    """
     if minute.startswith("@"):
         return CRON_DESCRIPTIONS.get(minute, minute)
     expr = f"{minute} {hour} {day} {month} {weekday}"
@@ -67,10 +82,13 @@ def read_crontab(user: str) -> list[str]:
     Lee las líneas del crontab del usuario indicado.
 
     Args:
-        user: nombre de usuario ("root" usa sudo, cualquier otro usa crontab -l)
+        user: nombre de usuario. Utiliza "root" para leer el crontab de root mediante sudo.
 
     Returns:
-        Lista de líneas raw del crontab, o [] si no hay crontab o hay error.
+        Lista de líneas raw del crontab. Si no hay crontab o hay error, devuelve una lista vacía.
+
+    Raises:
+        Exception: si ocurre un error al leer el crontab.
     """
     try:
         if user == "root":
@@ -96,14 +114,17 @@ def read_crontab(user: str) -> list[str]:
 
 def write_crontab(user: str, lines: list[str]) -> tuple[bool, str]:
     """
-    Escribe las líneas dadas como el nuevo crontab del usuario.
+    Escribe las líneas dadas como el nuevo crontab del usuario especificado.
 
     Args:
-        user:  nombre de usuario
-        lines: lista de líneas a escribir (sin \\n final en cada una)
+        user: nombre de usuario cuyo crontab se actualizará
+        lines: lista de líneas a escribir en el crontab
 
     Returns:
-        (True, mensaje_ok) o (False, mensaje_error)
+        Tupla con un booleano indicando éxito y un mensaje descriptivo
+
+    Raises:
+        Excepción en caso de error al escribir el crontab
     """
     content = "\n".join(lines) + "\n"
     try:
@@ -130,9 +151,14 @@ def parse_line(line: str) -> dict | None:
     """
     Parsea una línea de crontab a un diccionario.
 
+    Args:
+        line (str): La línea de crontab a parsear.
+
     Returns:
-        dict con claves: special, minute, hour, day, month, weekday, command, raw
-        None si la línea es comentario, vacía o malformada.
+        dict | None: Un diccionario con la información de la línea de crontab o None si la línea es inválida.
+
+    Raises:
+        No se lanzan excepciones explícitas, pero puede retornar None si la línea es vacía, comentario o malformada.
     """
     stripped = line.strip()
     if not stripped or stripped.startswith("#"):
@@ -171,10 +197,16 @@ def parse_line(line: str) -> dict | None:
 
 def parse_crontab(lines: list[str]) -> list[dict]:
     """
-    Parsea una lista de líneas raw y devuelve solo las entradas válidas.
+    Parsea una lista de líneas crontab y devuelve las entradas válidas.
+
+    Args:
+        lines: Lista de líneas crontab en formato raw.
 
     Returns:
-        Lista de dicts (una por entrada válida, sin comentarios ni vacíos).
+        Lista de dicts, cada uno representando una entrada crontab válida.
+
+    Raises:
+        None
     """
     return [entry for line in lines if (entry := parse_line(line)) is not None]
 
@@ -184,7 +216,16 @@ def build_line(minute: str, hour: str, day: str, month: str,
     """
     Construye una línea de crontab a partir de sus campos.
 
-    Si minute empieza por '@' se genera una entrada especial (@reboot, etc.).
+    Args:
+        minute (str): Minuto de la línea de crontab.
+        hour (str): Hora de la línea de crontab.
+        day (str): Día del mes de la línea de crontab.
+        month (str): Mes de la línea de crontab.
+        weekday (str): Día de la semana de la línea de crontab.
+        command (str): Comando a ejecutar.
+
+    Returns:
+        str: La línea de crontab construida.
     """
     if minute.startswith("@"):
         return f"{minute} {command}"

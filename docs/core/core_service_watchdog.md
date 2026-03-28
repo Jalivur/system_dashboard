@@ -2,6 +2,8 @@
 
 > **Ruta**: `core/service_watchdog.py`
 
+> **Cobertura de documentación**: 🟢 100% (15/15)
+
 Service Watchdog v4.2 — Auto-restart servicios críticos del sistema (FIXED: maneja inactive).
 
 Monitoriza servicios críticos definidos en local_settings.py.
@@ -12,6 +14,29 @@ Uso:
   wd = ServiceWatchdog(service_monitor)
   wd.start()
   registry.register('service_watchdog', wd)
+
+---
+
+## Tabla de contenidos
+
+**Clase [`ServiceWatchdog`](#clase-servicewatchdog)**
+  - [`start()`](#startself)
+  - [`stop()`](#stopself)
+  - [`is_running()`](#is_runningself-bool)
+  - [`set_critical_services()`](#set_critical_servicesself-services-liststr)
+  - [`set_threshold()`](#set_thresholdself-thresh-int)
+  - [`set_interval()`](#set_intervalself-interval-int)
+  - [`add_critical_service()`](#add_critical_serviceself-name-str-bool)
+  - [`get_stats()`](#get_statsself-dict)
+
+---
+
+## Dependencias internas
+
+- `config.local_settings_io`
+- `config.settings`
+- `core.service_monitor`
+- `utils.logger`
 
 ## Imports
 
@@ -37,28 +62,18 @@ from core.service_monitor import ServiceMonitor
 
 ## Clase `ServiceWatchdog`
 
-Watchdog profesional para monitoreo y auto-reinicio de servicios críticos systemd.
+Inicializa el watchdog para monitoreo y auto-reinicio de servicios críticos.
 
-Características principales:
-* Verificación periódica del estado 'active' cada INTERVAL segundos (predeterminado: 60s).
-* Reinicio automático al superar THRESHOLD fallos consecutivos (predeterminado: 3).
-* Persistencia de contadores de reinicios diarios en data/service_watchdog_state.json.
-* Configuración dinámica mediante parámetros en local_settings.py:
-  - watchdog_critical_services: Lista de servicios críticos.
-  - watchdog_threshold: Umbral de fallos.
-  - watchdog_interval: Intervalo de polling.
-* Logging detallado con niveles INFO/WARNING y estadísticas exportables para UI/dashboard.
-* Ejecución en thread daemon no bloqueante con métodos start/stop limpios (join con timeout 5s).
-* Manejo robusto de errores: servicios no encontrados, JSON corrupto, etc.
-* Reset automático de contadores al cambiar de día.
+Args:
+    service_monitor (ServiceMonitor): Instancia para operaciones de servicio.
 
-Uso recomendado:
-    wd = ServiceWatchdog(service_monitor)
-    wd.start()
-    # Opcional: registry.register('service_watchdog', wd)
+Características:
+    * Verificación periódica del estado 'active' cada INTERVAL segundos.
+    * Reinicio automático al superar THRESHOLD fallos consecutivos.
+    * Persistencia de contadores de reinicios diarios.
 
-Dependencias: ServiceMonitor para operaciones de servicio, utils.logger, config.local_settings_io.
-Compatible con systemd servicios.
+Raises:
+    Exception: Si la inicialización falla.
 
 ### Atributos privados
 
@@ -74,43 +89,80 @@ Compatible con systemd servicios.
 
 #### `start(self)`
 
-Inicia el hilo de monitoreo del watchdog en background (daemon).
+Inicia el hilo de monitoreo del watchdog en background.
 
-Pollea cada self._interval segs los servicios críticos.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `stop(self)`
 
 Detiene el watchdog limpiamente y persiste estado.
 
-Espera hasta 5s al thread, guarda restarts del día.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `is_running(self) -> bool`
 
 Verifica si el watchdog está activo.
 
+Args:
+    None
+
 Returns:
-    bool: True si el thread está corriendo.
+    bool: True si el servicio está corriendo.
+
+Raises:
+    None
 
 #### `set_critical_services(self, services: List[str])`
 
-Actualiza la lista de servicios críticos a monitorear.
+Establece la lista de servicios críticos que serán monitoreados por el watchdog.
 
 Args:
-    services (List[str]): Nuevos nombres de servicios críticos.
+    services (List[str]): Lista de nombres de servicios críticos.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `set_threshold(self, thresh: int)`
 
-Cambia el umbral de fallos consecutivos para auto-restart.
+Establece el umbral de fallos consecutivos para auto-restart.
 
 Args:
-    thresh (int): Número de fallos seguidos (default 3).
+    thresh (int): Número de fallos seguidos.
+
+Raises:
+    None
+Returns:
+    None
 
 #### `set_interval(self, interval: int)`
 
-Cambia el intervalo de polling en segundos.
+Establece el intervalo de tiempo en segundos entre chequeos del servicio.
 
 Args:
-    interval (int): Segundos entre chequeos (default 60).
+    interval (int): Intervalo en segundos entre chequeos.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ninguno
 
 #### `add_critical_service(self, name: str) -> bool`
 
@@ -120,48 +172,93 @@ Args:
     name (str): Nombre del servicio systemd.
 
 Returns:
-    bool: True si añadido, False si ya estaba.
+    bool: True si el servicio fue añadido, False si ya estaba registrado.
 
 #### `get_stats(self) -> Dict`
 
 Obtiene estadísticas del watchdog para UI.
 
 Returns:
-    Dict: Counters restarts, servicios, estado, etc.
+    Dict: Diccionario con contadores de servicios críticos, 
+          número de reinicios hoy, lista de servicios, 
+          umbral de reinicio, intervalo, estado de ejecución, 
+          conteo de reinicios y fallos consecutivos.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self, service_monitor: ServiceMonitor)`
 
-Inicializa el ServiceWatchdog.
+Inicializa el ServiceWatchdog con la instancia de ServiceMonitor proporcionada.
 
 Args:
-    service_monitor (ServiceMonitor): Instancia para restart servicios.
+    service_monitor (ServiceMonitor): Instancia para reiniciar servicios.
 
-Inicializa counters de restarts/fallos, carga estado persistido.
+Inicializa contadores de reinicios y fallos, carga estado persistido y configura parámetros.
 
 #### `_watch_loop(self)`
 
-Bucle principal privado del watchdog (thread daemon).
-Espera self._interval y chequea servicios.
+Bucle principal privado del watchdog que monitorea servicios a intervalos regulares.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_check_services(self)`
 
-Chequea estado de servicios críticos, incrementa counters fallos.
-Si >= threshold, trigger auto_restart().
+Verifica el estado de los servicios críticos y actualiza los contadores de fallos.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_auto_restart(self, name: str)`
 
-Reinicia servicio crítico via service_monitor y actualiza counters.
+Reinicia automáticamente un servicio crítico mediante el service_monitor y actualiza los contadores de reinicios.
+
+Args:
+    name (str): Nombre del servicio a reiniciar.
+
+Raises:
+    None
+
+Returns:
+    None
 
 #### `_persist_state(self)`
 
-Guarda counters restarts en data/service_watchdog_state.json (diario).
+Guarda el estado actual del watchdog en un archivo persistente.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_load_state(self)`
 
-Carga counters del día desde JSON persistido.
-Reset automático si nuevo día.
+Carga los contadores del día desde el archivo JSON persistido y resetea automáticamente si es un nuevo día.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 </details>

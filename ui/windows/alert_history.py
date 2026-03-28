@@ -32,10 +32,34 @@ KEY_LABELS = {
 
 
 class AlertHistoryWindow(ctk.CTkToplevel):
-    """Ventana de historial de alertas."""
+    """
+    Representa una ventana emergente que muestra el historial de alertas.
+
+    Args:
+        parent: La ventana padre que crea esta instancia.
+        alert_service: El servicio de alertas que proporciona los datos históricos.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ninguno.
+    """
 
     def __init__(self, parent, alert_service):
-        """Inicializa la ventana de historial de alertas."""
+        """
+        Inicializa la ventana de historial de alertas.
+
+        Args:
+            parent: La ventana padre.
+            alert_service: El servicio de alertas.
+
+        Raises:
+            Ninguna excepción específica.
+
+        Returns:
+            Ninguno
+        """
         super().__init__(parent)
         self._alert_service = alert_service
 
@@ -54,7 +78,18 @@ class AlertHistoryWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea todos los elementos de la interfaz de usuario."""
+        """
+        Crea todos los elementos de la interfaz de usuario de la ventana de historial de alertas.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -105,7 +140,18 @@ class AlertHistoryWindow(ctk.CTkToplevel):
     # ── Carga ─────────────────────────────────────────────────────────────────
 
     def _load(self):
-        """Lee el historial y redibuja la lista."""
+        """
+        Carga el historial de alertas y actualiza la lista de alertas en la ventana.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         for w in self._list_frame.winfo_children():
             w.destroy()
 
@@ -129,7 +175,18 @@ class AlertHistoryWindow(ctk.CTkToplevel):
         self._count_label.configure(text=f"{total} alerta{'s' if total != 1 else ''}")
 
     def _create_entry_card(self, entry: dict):
-        """Crea una tarjeta para una entrada del historial."""
+        """
+        Crea una tarjeta para una entrada del historial de alertas.
+
+        Args:
+            entry (dict): Diccionario con información de la entrada del historial.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         level  = entry.get("level", "warn")
         key    = entry.get("key", "")
         color  = LEVEL_COLORS.get(level, COLORS['text'])
@@ -182,7 +239,18 @@ class AlertHistoryWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _confirm_clear(self):
-        """Muestra diálogo de confirmación para borrar el historial."""
+        """
+        Muestra un diálogo de confirmación para borrar todo el historial de alertas.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         confirm_dialog(
             parent=self,
             text="¿Borrar todo el historial de alertas?\n\nEsta acción no se puede deshacer.",
@@ -191,6 +259,17 @@ class AlertHistoryWindow(ctk.CTkToplevel):
         )
 
     def _clear(self):
-        """Borra el historial de alertas y recarga la vista."""
+        """
+        Borra el historial de alertas y recarga la vista.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._alert_service.clear_history()
         self._load()

@@ -2,7 +2,11 @@
 
 > **Ruta**: `core/__init__.py`
 
+> **Cobertura de documentación**: N/A (0/0)
+
 Paquete core con lógica de negocio
+
+---
 
 ## Imports
 

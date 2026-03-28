@@ -17,18 +17,32 @@ AUTO_REFRESH_S = 60
 
 
 class NetworkLocalWindow(ctk.CTkToplevel):
-    """Panel de dispositivos en la red local."""
+    """
+    Ventana emergente que muestra dispositivos detectados en la red local.
+
+    Args:
+        parent: Ventana principal padre de esta ventana.
+        network_scanner: Instancia del escáner de red externa para obtener dispositivos.
+
+    Raises:
+        None
+
+    Returns:
+        None
+    """
 
     def __init__(self, parent, network_scanner):  # ── MODIFICADO: recibe scanner ──
-        """Inicializa y configura la ventana emergente del panel de red local.
+        """
+        Inicializa y configura la ventana emergente del panel de red local.
 
-            Esta ventana muestra dispositivos detectados en la red mediante arp-scan,
-            mostrando IP, MAC, fabricante y hostname. Configura geometría, UI y escaneo inicial.
+        Esta ventana muestra dispositivos detectados en la red mediante arp-scan,
+        mostrando IP, MAC, fabricante y hostname.
 
-            Args:
-                parent: Ventana principal (CTkToplevel) padre de esta ventana.
-                network_scanner: Instancia del escáner de red externa para obtener dispositivos.
-            """
+        Args:
+            parent: Ventana principal (CTkToplevel) padre de esta ventana.
+            network_scanner: Instancia del escáner de red externa para obtener dispositivos.
+
+        """
         super().__init__(parent)
         self._scanner     = network_scanner  # ── MODIFICADO: usa el scanner externo ──
         self._auto_job    = None
@@ -50,12 +64,21 @@ class NetworkLocalWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Construye toda la interfaz de usuario de la ventana.
+        """
+        Construye toda la interfaz de usuario de la ventana.
 
-        Crea:
-            - Header con título y controles de ventana
-            - Canvas scrollable para lista de dispositivos
-            - Frame inferior con contador y botón de escaneo manual
+        Crea los componentes visuales principales, incluyendo el encabezado con título y 
+        controles de ventana, un área scrollable para la lista de dispositivos y un 
+        frame inferior con funcionalidades adicionales.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -108,7 +131,18 @@ class NetworkLocalWindow(ctk.CTkToplevel):
     # ── Escaneo ───────────────────────────────────────────────────────────────
 
     def _start_scan(self):
-        """Lanza el escaneo y activa el polling de resultado."""
+        """
+        Inicia el proceso de escaneo de la red y activa la verificación periódica de resultados.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         # ── guard: servicio detenido ──────────────────────────────────────────
         if not self._scanner.is_running():
             StyleManager.show_service_stopped_banner(self._device_frame, "Escáner de Red")
@@ -127,7 +161,18 @@ class NetworkLocalWindow(ctk.CTkToplevel):
         self._poll_result()
 
     def _poll_result(self):
-        """Comprueba cada 500ms si el escaneo terminó."""
+        """
+        Verifica periódicamente el estado del escaneo y actualiza la interfaz gráfica accordingly.
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            None
+        """
         # Si el servicio se paró durante el escaneo, mostrar banner
         if not self._scanner.is_running():
             self._start_scan()  # redirige al banner
@@ -144,7 +189,18 @@ class NetworkLocalWindow(ctk.CTkToplevel):
             self._auto_job = self.after(AUTO_REFRESH_S * 1000, self._start_scan)
 
     def _render(self):
-        """Redibuja la lista con los dispositivos encontrados."""
+        """
+        Redibuja la lista con los dispositivos encontrados en la red local.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         status  = self._scanner.get_status()
         devices = self._scanner.get_devices()
 
@@ -188,7 +244,18 @@ class NetworkLocalWindow(ctk.CTkToplevel):
         self._scan_btn.configure(state="normal", text="⟳  Escanear")
 
     def _create_device_row(self, device: dict):
-        """Fila de un dispositivo: IP | hostname | MAC | fabricante."""
+        """
+        Crea una fila que representa un dispositivo en la interfaz gráfica.
+
+        Args:
+            device (dict): Diccionario que contiene la información del dispositivo, incluyendo 'ip', 'hostname' y 'MAC' (aunque este último no se utiliza en este método).
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         row = ctk.CTkFrame(
             self._device_frame,
             fg_color=COLORS['bg_dark'],
@@ -241,12 +308,17 @@ class NetworkLocalWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
-        """Gestiona el cierre ordenado de la ventana.
+        """
+        Gestiona el cierre ordenado de la ventana.
 
-        Cancela:
-            - Tareas de refresco automático (_auto_job)
-            - Polling de resultados de escaneo (_poll_job)
-        Registra cierre en logs y destruye la ventana.
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         if self._auto_job:
             self.after_cancel(self._auto_job)

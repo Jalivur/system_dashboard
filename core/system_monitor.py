@@ -18,19 +18,22 @@ logger = get_logger(__name__)
 
 class SystemMonitor:
     """
-    Monitor centralizado de recursos del sistema.
+    Inicializa el monitor del sistema.
 
-    Las métricas se actualizan en un thread de background cada UPDATE_MS ms.
-    La UI siempre lee del caché (get_current_stats / get_cached_stats),
-    nunca bloquea el hilo principal de Tkinter.
+    Crea las utilidades del sistema, inicializa los historiales de métricas,
+    configura el caché y el bloqueo de acceso. Inicia automáticamente el thread
+    de actualización en segundo plano.
     """
 
     def __init__(self):
         """
         Inicializa el monitor del sistema.
 
-        Crea SystemUtils, deques históricos maxlen=HISTORY, cache inicial,
-        configura lock y parámetros de polling. Inicia automáticamente el thread.
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         self._system_utils = SystemUtils()
 
@@ -53,9 +56,16 @@ class SystemMonitor:
 
     def start(self) -> None:
         """
-        Inicia el thread de sondeo background (daemon=True).
+        Inicia el hilo de sondeo en segundo plano para monitorear el sistema.
 
-        Idempotente. Log de inicio con intervalo.
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         if self._running:
             return
@@ -68,9 +78,16 @@ class SystemMonitor:
 
     def stop(self) -> None:
         """
-        Detiene el monitor limpiamente.
+        Detiene el monitor del sistema de manera limpia.
 
-        Join thread timeout 3s, resetea cache. Log de detención.
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         self._running = False
         self._stop_evt.set()
@@ -85,16 +102,25 @@ class SystemMonitor:
     
     def is_running(self) -> bool:
         """
-        Indica si el monitor está activo.
+        Indica si el monitor del sistema está actualmente en ejecución.
 
         Returns:
-            bool: True si el thread de polling está corriendo.
+            bool: True si el monitor está activo, False en caso contrario.
         """
         return self._running
 
     def _poll_loop(self) -> None:
         """
-        Bucle principal del thread de sondeo background (daemon=True).
+        Ejecuta el bucle principal del hilo de sondeo en segundo plano.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._do_poll()
         while self._running:
@@ -105,8 +131,16 @@ class SystemMonitor:
 
     def _do_poll(self) -> None:
         """
-        Captura rápida de métricas CPU/RAM/TEMP/UPTIME y actualiza caché.
-        Maneja exceptions silenciosamente.
+        Captura rápida de métricas del sistema y actualiza la caché.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno, las excepciones se manejan silenciosamente.
         """
         try:
             cpu  = psutil.cpu_percent()
@@ -140,10 +174,17 @@ class SystemMonitor:
 
     def get_current_stats(self) -> Dict:
         """
-        Obtiene métricas actuales del cache (thread-safe).
+        Obtiene las estadísticas actuales del sistema.
+
+        Args:
+            Ninguno
 
         Returns:
-            Dict: {'cpu': float, 'ram': float, 'ram_used': int, 'temp': float, 'uptime_str': str}
+            Dict: Un diccionario con las estadísticas actuales del sistema, 
+                  incluyendo 'cpu', 'ram', 'ram_used', 'temp' y 'uptime_str'.
+
+        Raises:
+            Ninguno
         """
         if not self._running:
             return {
@@ -156,10 +197,16 @@ class SystemMonitor:
 
     def update_history(self, stats: Dict) -> None:
         """
-        Actualiza deques históricos para gráficos (últimos HISTORY puntos).
+        Actualiza los registros históricos de estadísticas del sistema para su representación gráfica.
 
         Args:
-            stats (Dict): Métricas actuales CPU/RAM/TEMP.
+            stats (Dict): Diccionario con las métricas actuales de CPU, RAM y temperatura.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._cpu_hist.append(stats['cpu'])
         self._ram_hist.append(stats['ram'])
@@ -167,10 +214,16 @@ class SystemMonitor:
 
     def get_history(self) -> Dict:
         """
-        Retorna listas históricas para UI/gráficos.
+        Retorna un diccionario con listas históricas de uso de recursos del sistema.
+
+        Args:
+            Ninguno
 
         Returns:
-            Dict: {'cpu': [...], 'ram': [...], 'temp': [...]}
+            Dict: Un diccionario con claves 'cpu', 'ram', 'temp' y valores correspondientes a listas de históricos.
+
+        Raises:
+            Ninguno
         """
         return {
             'cpu':  list(self._cpu_hist),
@@ -181,15 +234,18 @@ class SystemMonitor:
     @staticmethod
     def level_color(value: float, warn: float, crit: float) -> str:
         """
-        Determina color semáforo por umbrales (primary/warning/danger).
+        Determina el color semáforo según umbrales de warning y crítico.
 
         Args:
-            value (float): Valor métrica (CPU%, RAM%, TEMP).
-            warn (float): Umbral warning.
+            value (float): Valor de la métrica (CPU%, RAM%, TEMP).
+            warn (float): Umbral de warning.
             crit (float): Umbral crítico.
 
         Returns:
-            str: Clase color de config.COLORS.
+            str: Clase de color correspondiente.
+
+        Raises:
+            None
         """
         if value >= crit:
             return COLORS['danger']

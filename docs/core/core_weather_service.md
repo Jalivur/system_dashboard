@@ -2,6 +2,8 @@
 
 > **Ruta**: `core/weather_service.py`
 
+> **Cobertura de documentación**: 🟢 100% (22/22)
+
 Servicio de datos meteorológicos via Open-Meteo (gratuito, sin clave API).
 
 Flujo:
@@ -19,6 +21,31 @@ Favoritos:
 Arquitectura:
   - core/ — cero imports tkinter/ctk
   - get_stats() acquire(blocking=False) — nunca bloquea
+
+---
+
+## Tabla de contenidos
+
+**Clase [`WeatherService`](#clase-weatherservice)**
+  - [`start()`](#startself-none)
+  - [`stop()`](#stopself-none)
+  - [`is_running()`](#is_runningself-bool)
+  - [`set_city()`](#set_cityself-city-str-dict)
+  - [`get_stats()`](#get_statsself-dict)
+  - [`get_city()`](#get_cityself-str)
+  - [`fetch_now()`](#fetch_nowself-none)
+  - [`get_favorites()`](#get_favoritesself-liststr)
+  - [`get_max_favorites()`](#get_max_favoritesself-int)
+  - [`add_favorite()`](#add_favoriteself-city-str-dict)
+  - [`remove_favorite()`](#remove_favoriteself-city-str-none)
+  - [`set_max_favorites()`](#set_max_favoritesself-n-int-none)
+
+---
+
+## Dependencias internas
+
+- `config.local_settings_io`
+- `utils.logger`
 
 ## Imports
 
@@ -50,16 +77,35 @@ from utils.logger import get_logger
 
 ### `_wmo_label(code: int) -> tuple`
 
-Devuelve (descripción, emoji) para un código WMO.
+Devuelve la descripción y emoji asociados a un código WMO.
+
+Args:
+    code (int): El código WMO.
+
+Returns:
+    tuple: Un tupla conteniendo la descripción y el emoji del código WMO. 
+           Si el código no se encuentra, devuelve ("Desconocido", "❓").
+
+Raises:
+    None
 
 </details>
 
 ## Clase `WeatherService`
 
-Servicio meteorológico thread-safe con cache y actualización periódica profesional.
+Servicio meteorológico thread-safe con cache y actualización periódica.
 
 Soporta ciudad activa, favoritos persistidos, previsión horaria/diaria 14 días,
 calidad del aire, WMO codes con emojis españoles.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 ### Atributos privados
 
@@ -80,76 +126,148 @@ calidad del aire, WMO codes con emojis españoles.
 
 #### `start(self) -> None`
 
-Arranca el thread daemon de actualización periódica.
+Inicia el servicio de actualización periódica del clima en un hilo daemon.
 
-Idempotente, log de inicio.
+Args: Ninguno
+
+Returns: None
+
+Raises: Ninguna excepción
+
+Nota: Operación idempotente. Si el servicio ya está iniciado, no se realiza ninguna acción adicional.
 
 #### `stop(self) -> None`
 
-Detiene el thread daemon.
+Detiene el servicio de meteorología.
 
-Join timeout 3s, resetea stats. Log.
+Args: 
+    None
+
+Returns: 
+    None
+
+Raises: 
+    None
 
 #### `is_running(self) -> bool`
 
-Estado del servicio.
+Indica si el servicio meteorológico se está ejecutando actualmente.
+
+Args:
+    Ninguno
 
 Returns:
-    bool: True si thread activo.
+    bool: True si el servicio se está ejecutando, False en caso contrario.
+
+Raises:
+    Ninguno
 
 #### `set_city(self, city: str) -> dict`
 
-Cambia la ciudad activa: hace geocoding y dispara fetch inmediato.
+Establece la ciudad activa realizando geocoding y disparando una actualización inmediata de los datos meteorológicos.
 
-Persiste lat/lon. 
+Args:
+    city (str): Nombre de la ciudad.
 
 Returns:
     dict: {"ok": bool, "city": str|None, "lat": float|None, "lon": float|None, "error": str|None}
 
+Raises:
+    None
+
 #### `get_stats(self) -> dict`
 
-Devuelve la caché actual de forma no bloqueante.
+Obtiene las estadísticas actuales de clima de forma no bloqueante.
 
 Returns:
-    dict: Métricas actuales + forecast hourly/daily + AQI.
+    dict: Un diccionario con las métricas actuales, pronóstico horario y diario, y el índice de calidad del aire.
+
+Raises:
+    None
 
 #### `get_city(self) -> str`
 
-Ciudad activa actual.
+Obtiene la ciudad activa actual.
 
 Returns:
-    str: Nombre ciudad o vacío.
+    str: Nombre de la ciudad o cadena vacía.
 
 #### `fetch_now(self) -> None`
 
-Fuerza fetch inmediato en thread background.
+Fuerza la actualización inmediata de la información meteorológica en un hilo en segundo plano.
 
-No bloquea caller.
+No bloquea la ejecución del llamador.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `get_favorites(self) -> List[str]`
 
-Devuelve copia de la lista de ciudades favoritas.
+Devuelve una copia de la lista de ciudades favoritas.
+
+Args:
+    Ninguno
+
+Returns:
+    List[str]: Una lista de ciudades favoritas.
+
+Raises:
+    Ninguno
 
 #### `get_max_favorites(self) -> int`
 
 Devuelve el límite máximo de favoritos.
 
-#### `add_favorite(self, city: str) -> dict`
-
-Añade la ciudad a favoritos si no existe ya y no se supera el máximo.
-
-Persiste. 
+Args:
+    None
 
 Returns:
-    dict: {"ok": bool, "error": str|None}
+    int: Límite máximo de favoritos.
+
+Raises:
+    None
+
+#### `add_favorite(self, city: str) -> dict`
+
+Añade una ciudad a la lista de favoritos si no existe ya y no se ha alcanzado el máximo permitido.
+
+Args:
+    city (str): Nombre de la ciudad a añadir.
+
+Returns:
+    dict: {"ok": bool, "error": str|None} Indica si la operación fue exitosa y un mensaje de error si procede.
+
+Raises:
+    None
 
 #### `remove_favorite(self, city: str) -> None`
 
-Elimina una ciudad de favoritos y persiste.
+Elimina una ciudad de la lista de favoritos y persiste el cambio.
+
+Args:
+    city (str): La ciudad a eliminar de favoritos.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `set_max_favorites(self, n: int) -> None`
 
-Cambia el límite máximo de favoritos, trunca lista si necesario, persiste.
+Establece el límite máximo de favoritos permitidos.
+
+Args:
+    n (int): Nuevo límite máximo de favoritos.
+
+Returns:
+    None
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
@@ -158,35 +276,90 @@ Cambia el límite máximo de favoritos, trunca lista si necesario, persiste.
 
 Inicializa el servicio meteorológico.
 
-Configura lock, event, estado inicial, carga datos persistidos de local_settings.
+Configura los mecanismos de sincronización, estado inicial y carga datos persistidos.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_loop(self) -> None`
 
-Thread principal: fetch al arrancar y cada INTERVAL_MINUTES.
+Inicia y mantiene el ciclo de actualización del servicio meteorológico.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_geocode(self, city: str) -> dict`
 
-Busca coordenadas para una ciudad via Open-Meteo Geocoding API (privado).
+Busca coordenadas geográficas para una ciudad mediante la API de geocodificación de Open-Meteo.
+
+Args:
+    city (str): Nombre de la ciudad a buscar.
 
 Returns:
-    dict: {"ok": bool, "city": str, "lat": float, "lon": float, "country": str}
+    dict: Diccionario con claves "ok", "city", "lat", "lon", "country" y valores correspondientes.
+
+Raises:
+    Excepciones relacionadas con urllib.request.urlopen si la solicitud falla.
 
 #### `_fetch_weather(self) -> None`
 
-Consulta Open-Meteo forecast + air quality y actualiza caché (privado).
+Consulta Open-Meteo forecast y air quality, actualizando caché de manera thread-safe.
 
-Incluye current, hourly 12h, daily 14d, AQI. WMO emojis. Thread-safe.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_persist_location(self, city: str, lat: float, lon: float) -> None`
 
-Persiste ciudad activa y coordenadas en local_settings.py (privado).
+Persiste la ciudad activa y sus coordenadas en la configuración local.
+
+Args:
+    city (str): Nombre de la ciudad.
+    lat (float): Latitud de la ciudad.
+    lon (float): Longitud de la ciudad.
+
+Raises:
+    Exception: Si ocurre un error al actualizar los parámetros.
 
 #### `_persist_favorites(self, favorites: List[str], max_fav: int) -> None`
 
-Persiste lista favoritos y máximo en local_settings.py (privado).
+Persiste la lista de favoritos y el máximo número de favoritos en la configuración local.
+
+Args:
+    favorites (List[str]): La lista de favoritos a persistir.
+    max_fav (int): El máximo número de favoritos permitido.
+
+Raises:
+    Exception: Si ocurre un error al persistir la configuración.
 
 #### `_load_persisted_location(self) -> None`
 
-Carga persistidos desde local_settings: ciudad, coords, favoritos (privado).
+Carga la ubicación persistida desde la configuración local.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Excepción genérica en caso de error durante la carga de datos.
 
 </details>

@@ -2,11 +2,29 @@
 
 > **Ruta**: `ui/windows/update.py`
 
+> **Cobertura de documentación**: 🟢 100% (9/9)
+
 Módulo para la ventana de control y gestión de actualizaciones del sistema en el dashboard.
 
 Contiene:
 - Clase UpdatesWindow: Interfaz gráfica para monitorear y ejecutar actualizaciones.
 - Integración con monitor de actualizaciones y scripts del sistema.
+
+---
+
+## Tabla de contenidos
+
+**Clase [`UpdatesWindow`](#clase-updateswindow)**
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `ui.styles`
+- `ui.widgets.dialogs`
+- `utils`
+- `utils.logger`
 
 ## Imports
 
@@ -27,7 +45,17 @@ from utils.logger import get_logger
 
 ## Clase `UpdatesWindow(ctk.CTkToplevel)`
 
-Ventana de control de actualizaciones del sistema
+Ventana emergente para gestionar y visualizar actualizaciones del sistema.
+
+Args:
+    parent: Widget padre que crea esta ventana.
+    update_monitor: Monitor de actualizaciones para obtener el estado.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ningún valor de retorno.
 
 ### Atributos públicos
 
@@ -54,30 +82,84 @@ Args:
     parent: Widget padre (CTkToplevel).
     update_monitor: Instancia del monitor de actualizaciones para consultar estado.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario principal de la ventana.
+Crea la interfaz de usuario principal de la ventana de actualizaciones.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_build_content(self, parent)`
 
-Construye el contenido normal de la ventana.
+Construye el contenido normal de la ventana de actualizaciones.
+
+Args:
+    parent: El elemento padre donde se construirá el contenido.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_update(self)`
 
 Actualiza periódicamente el estado de la ventana según el monitor de actualizaciones.
 
-Muestra banner si el monitor no está corriendo, o reconstruye contenido si está activo.
+Muestra un banner si el monitor no está corriendo o reconstruye el contenido si está activo.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_refresh_status(self, force = False)`
 
-Consulta el estado de actualizaciones
+Actualiza el estado de la ventana de actualizaciones consultando el estado de actualizaciones.
+
+Args:
+    force (bool): Fuerza la comprobación de actualizaciones aunque no haya cambios.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_poll_until_ready(self)`
 
-Reintenta _refresh_status cada 2s mientras el resultado sea Unknown
+Reintenta refrescar el estado de actualización cada 2 segundos mientras el resultado sea desconocido.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguna excepción específica
 
 #### `_execute_update_script(self)`
 
-Lanza el script de terminal y refresca al terminar
+Ejecuta el script de actualización en la terminal y refresca la interfaz al finalizar.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 </details>

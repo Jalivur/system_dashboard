@@ -45,10 +45,16 @@ _STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "display_state.j
 
 def _find_backlight() -> Optional[Path]:
     """
-    Busca primera ruta válida en _BACKLIGHT_CANDIDATES.
-    
+    Busca la primera ruta válida de ajuste de brillo en la lista de candidatos.
+
+    Args:
+        Ninguno.
+
     Returns:
-        Path o None.
+        La ruta del ajuste de brillo si se encuentra, None en caso contrario.
+
+    Raises:
+        Ninguno.
     """
     for p in _BACKLIGHT_CANDIDATES:
         if (p / "brightness").exists():
@@ -57,7 +63,18 @@ def _find_backlight() -> Optional[Path]:
 
 
 def _detect_method() -> str:
-    """Detecta el método disponible para controlar el brillo."""
+    """
+    Detecta el método disponible para controlar el brillo.
+
+    Args:
+        None
+
+    Returns:
+        El método disponible como cadena ('sysfs', 'wlr-randr', 'xrandr' o 'none').
+
+    Raises:
+        None
+    """
     if _find_backlight():
         return 'sysfs'
     try:
@@ -79,14 +96,24 @@ def _detect_method() -> str:
 
 class DisplayService:
     """
-    Servicio de control de brillo.
-    No tiene thread permanente — el dim/off usa threading.Timer igual que
-    otros servicios ligeros del proyecto.
+    Servicio de control de visualización que gestiona el brillo de la pantalla.
+
+    Args: None
+
+    Returns: None
+
+    Raises: None
     """
 
     def __init__(self):
         """
-        Detecta método (sysfs/wlr-randr/xrandr), carga estado persistido brillo.
+        Inicializa el servicio de visualización detectando el método de ajuste de brillo disponible.
+
+        Args: None
+
+        Returns: None
+
+        Raises: None
         """
         self._method    = _detect_method()
         self._backlight = _find_backlight() if self._method == 'sysfs' else None
@@ -110,41 +137,101 @@ class DisplayService:
 
     def start(self) -> None:
         """
-        Activa servicio (set _running=True).
+        Activa el servicio de visualización.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._running = True
         logger.info("[DisplayService] Iniciado")
 
     def stop(self) -> None:
         """
-        Detiene servicio, cancela dim timers.
+        Detiene el servicio de visualización y cancela los temporizadores de atenuación.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._running = False
         self._cancel_dim_timer()
         logger.info("[DisplayService] Detenido")
     
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Indica si el servicio de pantalla está actualmente en ejecución.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si el servicio está corriendo, False de lo contrario.
+
+        Raises:
+            None
+        """
         return self._running
 
     # ── API pública ───────────────────────────────────────────────────────────
 
     def is_available(self) -> bool:
-        """True si hay algún método de control de brillo disponible."""
+        """
+        Indica si hay algún método de control de brillo disponible.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si hay algún método disponible, False de lo contrario.
+
+        Raises:
+            None
+        """
         return self._method != 'none'
 
     def get_method(self) -> str:
-        """Devuelve el método activo: 'sysfs', 'wlr-randr', 'xrandr' o 'none'."""
+        """
+        Devuelve el método activo de visualización.
+
+        Returns:
+            El método activo como cadena, puede ser 'sysfs', 'wlr-randr', 'xrandr' o 'none'.
+        """
         return self._method
 
     def get_brightness(self) -> int:
-        """Devuelve el brillo actual en porcentaje (0-100)."""
+        """Devuelve el brillo actual en porcentaje.
+
+        Args:
+            None
+
+        Returns:
+            int: El brillo actual como un entero entre 0 y 100.
+
+        Raises:
+            None
+        """
         return self._brightness
 
     def set_brightness(self, pct: int) -> bool:
         """
-        Establece el brillo. pct en rango 0-100.
-        Devuelve True si tuvo éxito.
+        Establece el brillo de la pantalla en un porcentaje específico.
+        Args:
+            pct (int): Porcentaje de brillo entre 0 y 100.
+        Returns:
+            bool: True si la operación fue exitosa, False en caso contrario.
+        Raises:
+            None
         """
         if not self._running:
             logger.warning("[DisplayService] set_brightness() ignorado — servicio parado")
@@ -169,11 +256,33 @@ class DisplayService:
         return ok
 
     def screen_off(self) -> bool:
-        """Apaga la pantalla (brillo = 0)."""
+        """
+        Apaga la pantalla estableciendo el brillo en su nivel mínimo.
+
+        Args:
+            No requiere parámetros adicionales.
+
+        Returns:
+            bool: Indicador de éxito en la operación.
+
+        Raises:
+            No se lanzan excepciones explícitas.
+        """
         return self.set_brightness(BRIGHTNESS_OFF)
 
     def screen_on(self) -> bool:
-        """Enciende la pantalla al último nivel guardado."""
+        """
+        Enciende la pantalla al último nivel de brillo guardado.
+
+        Args:
+            None
+
+        Returns:
+            bool: Indicador de si se ha podido encender la pantalla.
+
+        Raises:
+            None
+        """
         target = self._brightness if self._brightness >= BRIGHTNESS_MIN else BRIGHTNESS_MAX
         return self.set_brightness(target)
 
@@ -181,7 +290,16 @@ class DisplayService:
 
     def _set_sysfs(self, pct: int) -> bool:
         """
-        Backend sysfs: convierte PCT a valor 0-max_brightness.
+        Establece el brillo del sistema mediante sysfs.
+
+        Args:
+            pct (int): Porcentaje de brillo.
+
+        Returns:
+            bool: True si se estableció correctamente, False en caso de error.
+
+        Raises:
+            PermissionError: Si no se tienen permisos para acceder a sysfs.
         """
         try:
             max_b = int((self._backlight / "max_brightness").read_text().strip())
@@ -204,7 +322,16 @@ class DisplayService:
 
     def _set_wlr(self, pct: int) -> bool:
         """
-        Backend wlr-randr --output DSI-2 --brightness (PCT→float 0.0-1.0).
+        Establece el brillo de la pantalla utilizando wlr-randr.
+
+        Args:
+            pct (int): Porcentaje de brillo.
+
+        Returns:
+            bool: True si se estableció correctamente, False en caso de error.
+
+        Raises:
+            Exception: Si ocurre un error al ejecutar el comando wlr-randr.
         """
         try:
             value = round(pct / 100, 2)
@@ -223,7 +350,16 @@ class DisplayService:
 
     def _set_xrandr(self, pct: int) -> bool:
         """
-        Backend xrandr --output DSI-2 --brightness (PCT→float 0.0-1.0).
+        Configura el brillo de la pantalla utilizando xrandr.
+
+        Args:
+            pct (int): Porcentaje de brillo.
+
+        Returns:
+            bool: True si la operación es exitosa, False en caso contrario.
+
+        Raises:
+            Exception: Si ocurre un error durante la ejecución del comando xrandr.
         """
         try:
             value = round(pct / 100, 2)
@@ -244,8 +380,16 @@ class DisplayService:
 
     def notify_activity(self):
         """
-        Llamar desde la UI en cada interacción del usuario.
-        Cancela el timer, restaura brillo si estaba en dim, reinicia el timer.
+        Notifica una interacción del usuario para actualizar el estado de la pantalla.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if not self._running:
             return
@@ -258,7 +402,16 @@ class DisplayService:
 
     def enable_dim_on_idle(self):
         """
-        Activa modo dim/off por inactividad. Llamar al iniciar UI.
+        Activa el modo de reducción de brillo por inactividad.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if not self._running:
             return
@@ -268,13 +421,25 @@ class DisplayService:
 
     def disable_dim_on_idle(self):
         """
-        Desactiva ahorro por inactividad (cancela timers).
+        Desactiva el ahorro de energía por inactividad cancelando los temporizadores correspondientes.
+        Args: 
+        Returns: 
+        Raises: 
         """
         self._cancel_dim_timer()
 
     def _start_dim_timer(self):
         """
-        Inicia/reinicia Timer para dim por inactividad (DIM_TIMEOUT_S).
+        Inicia o reinicia el temporizador para disminuir la intensidad por inactividad.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._cancel_dim_timer()
         t = threading.Timer(DIM_TIMEOUT_S, self._on_dim)
@@ -284,7 +449,16 @@ class DisplayService:
 
     def _cancel_dim_timer(self):
         """
-        Cancela timer activo si existe.
+        Cancela el temporizador activo de reducción de brillo si existe.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self._dim_timer and self._dim_timer.is_alive():
             self._dim_timer.cancel()
@@ -292,7 +466,13 @@ class DisplayService:
 
     def _on_dim(self):
         """
-        Callback timer: dim 20%, schedule _on_off (OFF_TIMEOUT_S).
+        Disminuye la intensidad de la pantalla al 20% y programa el apagado después de un período de inactividad.
+
+        Args: None
+
+        Returns: None
+
+        Raises: None
         """
         if not self._dimmed and self._running:
             logger.debug("[DisplayService] Dim por inactividad")
@@ -307,7 +487,16 @@ class DisplayService:
 
     def _on_off(self):
         """
-        Callback timer: screen_off() total blackout.
+        Apaga la pantalla cuando se produce un evento de inactividad.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self._running:
             logger.debug("[DisplayService] Apagado por inactividad")
@@ -317,7 +506,16 @@ class DisplayService:
 
     def _save_state(self):
         """
-        Persiste brillo actual data/display_state.json.
+        Persiste el estado actual en un archivo de configuración.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Exception: Si ocurre un error al guardar el estado.
         """
         try:
             _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -327,7 +525,16 @@ class DisplayService:
 
     def _load_state(self):
         """
-        Carga brillo persistido, restaura si válido (>0).
+        Carga y restaura el estado de brillo persistido si es válido.
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            Exception si no se puede cargar el estado.
         """
         try:
             if _STATE_FILE.exists():

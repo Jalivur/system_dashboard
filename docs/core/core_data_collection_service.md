@@ -2,7 +2,27 @@
 
 > **Ruta**: `core/data_collection_service.py`
 
+> **Cobertura de documentación**: 🟢 100% (9/9)
+
 Servicio de recolección automática de datos
+
+---
+
+## Tabla de contenidos
+
+**Clase [`DataCollectionService`](#clase-datacollectionservice)**
+  - [`start()`](#startself)
+  - [`stop()`](#stopself)
+  - [`is_running()`](#is_runningself-bool)
+  - [`force_collection()`](#force_collectionself)
+
+---
+
+## Dependencias internas
+
+- `core`
+- `utils.file_manager`
+- `utils.logger`
 
 ## Imports
 
@@ -23,7 +43,21 @@ from utils.logger import get_logger
 
 ## Clase `DataCollectionService`
 
-Servicio que recolecta métricas cada X minutos
+Servicio que recolecta métricas de forma periódica.
+
+Args:
+    system_monitor: Fuente de métricas del sistema.
+    fan_controller: Controlador de ventiladores.
+    network_monitor: Monitor de red.
+    disk_monitor: Monitor de disco.
+    update_monitor: Monitor de actualizaciones.
+    interval_minutes (int): Minutos entre recolecciones (por defecto, 5).
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -45,41 +79,111 @@ Servicio que recolecta métricas cada X minutos
 
 #### `start(self)`
 
-Inicia el servicio de recolección
+Inicia el servicio de recolección de datos en segundo plano.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `stop(self)`
 
-Detiene el servicio limpiamente.
+Detiene el servicio de recolección de datos de manera segura.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `is_running(self) -> bool`
 
-Verifica si el servicio está corriendo
+Indica si el servicio de recolección de datos está en ejecución.
+
+Args:
+    None
+
+Returns:
+    bool: True si el servicio está corriendo, False de lo contrario.
+
+Raises:
+    None
 
 #### `force_collection(self)`
 
-Fuerza una recolección inmediata
+Fuerza una recolección inmediata de datos.
+
+Args:
+    Ninguno.
+
+Returns:
+    Ninguno.
+
+Raises:
+    Ninguna excepción explícita.
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__new__(cls, *args, **kwargs)`
 
-Implementa patrón singleton thread-safe.
+Crea una instancia única de la clase utilizando el patrón singleton thread-safe.
+
+Args:
+    *args: Argumentos posicionales ignorados.
+    **kwargs: Argumentos clave-valor ignorados.
+
+Returns:
+    La instancia única de la clase.
+
+Raises:
+    None
 
 #### `__init__(self, system_monitor, fan_controller, network_monitor, disk_monitor, update_monitor, interval_minutes: int = 5)`
 
-Inicializa singleton DataCollectionService.
+Inicializa el servicio de recolección de datos con fuentes métricas y un intervalo de actualización.
 
 Args:
-    system_monitor, fan_controller, network_monitor, disk_monitor, update_monitor: Fuentes métricas.
-    interval_minutes (int): Minutos entre recolecciones (default 5).
+    system_monitor: Fuente de monitorización del sistema.
+    fan_controller: Controlador de ventiladores.
+    network_monitor: Fuente de monitorización de la red.
+    disk_monitor: Fuente de monitorización del disco.
+    update_monitor: Fuente de monitorización de actualizaciones.
+    interval_minutes (int): Intervalo en minutos entre recolecciones de datos (por defecto, 5).
+
+Raises: 
+    None
+Returns: 
+    None
 
 #### `_collection_loop(self)`
 
-Bucle principal de recolección
+Ejecuta el bucle principal de recolección de datos en intervalos definidos.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    Exception: Si ocurre un error durante la recolección de datos.
 
 #### `_collect_and_save(self)`
 
-Recolecta métricas y las guarda
+Recolecta y guarda métricas del sistema, red, disco y ventilador.
+
+Args: None
+
+Returns: None
+
+Raises: None
 
 </details>

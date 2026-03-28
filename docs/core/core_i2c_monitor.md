@@ -2,6 +2,8 @@
 
 > **Ruta**: `core/i2c_monitor.py`
 
+> **Cobertura de documentación**: 🟢 100% (9/9)
+
 core/i2c_monitor.py
 
 Escaner I2C de solo lectura usando smbus2.
@@ -12,6 +14,23 @@ Arquitectura:
   - get_stats() devuelve cache — nunca bloquea la UI
   - SOLO LECTURA: usa read_byte() para detectar ACK, nunca escribe
   - smbus2 es opcional — si no está instalado devuelve error descriptivo
+
+---
+
+## Tabla de contenidos
+
+**Clase [`I2CMonitor`](#clase-i2cmonitor)**
+  - [`start()`](#startself-none)
+  - [`stop()`](#stopself-none)
+  - [`is_running()`](#is_runningself-bool)
+  - [`get_stats()`](#get_statsself-dict)
+  - [`scan_now()`](#scan_nowself-none)
+
+---
+
+## Dependencias internas
+
+- `utils.logger`
 
 ## Imports
 
@@ -31,8 +50,17 @@ import smbus2
 
 ## Clase `I2CMonitor`
 
-Escanea buses I2C periódicamente y cachea los resultados.
-Solo lectura — nunca escribe en el bus.
+Monitoriza el bus I2C mediante escaneo periódico y almacena en caché los resultados.
+No realiza escrituras en el bus, solo lectura.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 ### Atributos privados
 
@@ -48,46 +76,106 @@ Solo lectura — nunca escribe en el bus.
 
 #### `start(self) -> None`
 
-Inicia thread daemon de escaneo periódico cada INTERVAL_SECONDS.
+Inicia el hilo daemon de escaneo periódico de monitoreo I2C.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `stop(self) -> None`
 
-Detiene thread, limpia cache _stats.
+Detiene el monitor de I2C y limpia la caché de estadísticas.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `is_running(self) -> bool`
 
-Estado del monitor (thread activo).
+Indica si el monitor de I2C está actualmente en ejecución.
 
 Returns:
-    bool: True si escaneando.
+    bool: True si el monitor está escaneando, False en caso contrario.
 
 #### `get_stats(self) -> dict`
 
-Retorna stats thread-safe del último escaneo.
+Retorna estadísticas thread-safe del último escaneo.
+
+Args:
+    Ninguno
 
 Returns:
-    dict: {'error':str, 'buses':list[dict], 'total':int}
+    dict: Diccionario con estadísticas, incluyendo 'error', 'buses' y 'total'.
+
+Raises:
+    Ninguno
 
 #### `scan_now(self) -> None`
 
-Fuerza escaneo inmediato en thread daemon separado.
-Útil desde UI para refresh manual.
+Fuerza un escaneo inmediato del bus I2C en un hilo daemon separado.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self)`
 
-Inicializa monitor I2C con locks y estado vacío.
+Inicializa el monitor I2C con mecanismos de bloqueo y estado vacío.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_loop(self) -> None`
 
-Bucle thread daemon: escaneo inicial + INTERVAL_SECONDS loop.
-Sale limpiamente en stop().
+Ejecuta un bucle en un hilo daemon que realiza un escaneo inicial y luego 
+se repite a intervalos regulares hasta ser detenido.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_scan(self) -> None`
 
-Escaneo interno: importa smbus2, detecta buses /dev/i2c-*, read_byte() en rango 0x03-0x77, cachea thread-safe.
-Maneja errores graceful (no instalado, buses vacíos).
+Realiza un escaneo interno de buses I2C disponibles y cachea los resultados de manera thread-safe.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
+
+Nota: En caso de error, se actualiza el estado con un mensaje de error y una lista vacía de buses.
 
 </details>

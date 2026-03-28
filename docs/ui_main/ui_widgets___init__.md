@@ -2,7 +2,11 @@
 
 > **Ruta**: `ui/widgets/__init__.py`
 
+> **Cobertura de documentación**: N/A (0/0)
+
 Paquete de widgets personalizados
+
+---
 
 ## Imports
 

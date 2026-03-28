@@ -2,7 +2,27 @@
 
 > **Ruta**: `core/data_logger.py`
 
+> **Cobertura de documentación**: 🟢 100% (9/9)
+
 Sistema de logging de datos históricos
+
+---
+
+## Tabla de contenidos
+
+**Clase [`DataLogger`](#clase-datalogger)**
+  - [`log_metrics()`](#log_metricsself-metrics-dict)
+  - [`log_event()`](#log_eventself-event_type-str-severity-str-message-str-data-dict-none)
+  - [`get_metrics_count()`](#get_metrics_countself-int)
+  - [`get_db_size_mb()`](#get_db_size_mbself-float)
+  - [`clean_old_data()`](#clean_old_dataself-days-int-30)
+  - [`check_and_rotate_db()`](#check_and_rotate_dbself-max_mb-float-50)
+
+---
+
+## Dependencias internas
+
+- `utils`
 
 ## Imports
 
@@ -17,7 +37,16 @@ from utils import DashboardLogger
 
 ## Clase `DataLogger`
 
-Registra datos del sistema en base de datos SQLite
+Clase para registrar datos del sistema en una base de datos SQLite.
+
+Args:
+    db_path (str): Ruta de la base de datos (por defecto "data/history.db").
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -30,67 +59,109 @@ Registra datos del sistema en base de datos SQLite
 
 #### `log_metrics(self, metrics: Dict)`
 
-Guarda un conjunto de métricas.
-La timestamp se genera con datetime.now() para usar la hora local del sistema,
-evitando el desfase UTC que produce DEFAULT CURRENT_TIMESTAMP de SQLite.
+Guarda un conjunto de métricas en la base de datos.
+
+Args:
+    metrics (Dict): Diccionario con las métricas a guardar.
+
+Returns:
+    None
+
+Raises:
+    sqlite3.Error: Si ocurre un error al conectar o ejecutar la consulta en la base de datos.
 
 #### `log_event(self, event_type: str, severity: str, message: str, data: Dict = None)`
 
-Registra evento (alerta/log) en tabla events.
+Registra un evento en la tabla de eventos.
 
 Args:
-    event_type (str): e.g. 'service_restart'
-    severity (str): 'info', 'warning', 'error'
-    message (str): Descripción
-    data (Dict, optional): Datos extra JSON.
+    event_type (str): Tipo de evento, por ejemplo 'service_restart'.
+    severity (str): Nivel de gravedad, puede ser 'info', 'warning' o 'error'.
+    message (str): Descripción del evento.
+    data (Dict, optional): Datos adicionales en formato JSON.
 
-Timestamp local automática.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `get_metrics_count(self) -> int`
 
-Cuenta total registros en tabla metrics.
+Obtiene el número total de registros en la tabla de métricas.
+
+Args:
+    No aplica.
 
 Returns:
     int: Número de entradas históricas.
 
+Raises:
+    No aplica.
+
 #### `get_db_size_mb(self) -> float`
 
-Retorna tamaño archivo history.db en MB.
+Retorna el tamaño del archivo de base de datos en megabytes.
+
+Args:
+    No aplica.
 
 Returns:
-    float: Tamaño MB o 0 si no existe.
+    float: Tamaño en megabytes o 0 si el archivo no existe.
 
 #### `clean_old_data(self, days: int = 30)`
 
-Borra métricas/events > days antiguos + VACUUM optimizar.
+Elimina datos antiguos y optimiza la base de datos.
 
 Args:
-    days (int): Retener últimos N días (default 30).
+    days (int): Número de días para retener los datos (por defecto 30).
+
+Returns:
+    None
+
+Raises:
+    sqlite3.Error: Si ocurre un error en la conexión a la base de datos.
 
 #### `check_and_rotate_db(self, max_mb: float = 5.0)`
 
-Chequea tamaño DB > max_mb y auto-limpia si necesario.
+Verifica si el tamaño de la base de datos supera el límite establecido y la limpia automáticamente si es necesario.
 
 Args:
-    max_mb (float): Límite tamaño MB (default 5).
+    max_mb (float): Límite de tamaño en megabytes (por defecto 5.0).
+
+Returns:
+    None
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self, db_path: str = 'data/history.db')`
 
-Inicializa DataLogger con BD SQLite.
+Inicializa el registrador de datos con una base de datos SQLite.
 
 Args:
-    db_path (str): Ruta BD (default data/history.db).
+    db_path (str): Ruta de la base de datos (por defecto 'data/history.db').
 
-Crea tablas, chequea rotación automática.
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_init_database(self)`
 
-Crea tablas metrics/events si no existen + índice timestamp.
+Inicializa la base de datos creando las tablas necesarias si no existen.
 
-Tabla metrics: Histórico sistema cada UPDATE_MS.
-Tabla events: Alertas/log eventos.
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

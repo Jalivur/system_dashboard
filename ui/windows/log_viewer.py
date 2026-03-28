@@ -41,18 +41,33 @@ LOG_PATTERN = re.compile(
 
 
 class LogViewerWindow(ctk.CTkToplevel):
-    """Ventana principal para visualización y filtrado de logs del dashboard.
-    
-    Proporciona interfaz gráfica con filtros avanzados por nivel de log, módulo,
-    texto de búsqueda e intervalo de tiempo. Soporta recarga automática, resaltado
-    por colores según severidad y exportación de resultados filtrados a archivo .log.
+    """
+    Ventana principal para visualización y filtrado de logs del dashboard.
+
+    Args:
+        parent: Ventana padre de la aplicación.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ninguno.
     """
 
     def __init__(self, parent):
-        """Inicializa la ventana del visor de logs.
-        
-        Configura geometría, variables de estado/filtros, UI y carga inicial de logs.
-        Registra la apertura en el logger.
+        """
+        Inicializa la ventana del visor de logs.
+
+        Configura la geometría, variables de estado y filtros, UI, y carga inicial de logs.
+
+        Args:
+            parent: La ventana padre.
+
+        Raises:
+            Ninguna excepción específica.
+
+        Returns:
+            Ninguno
         """
         super().__init__(parent)
         self.title("Visor de Logs")
@@ -85,40 +100,48 @@ class LogViewerWindow(ctk.CTkToplevel):
     # ── Placeholder helpers ──────────────────────────────────────────────────
 
     def _entry_focus_in(self, entry, var, placeholder):
-        """Maneja el evento de entrada de foco en campo de texto.
-        
-        Limpia el placeholder si está presente y ajusta el color del texto.
-        
-        Args:
-            entry: Widget CTkEntry.
-            var: Variable StringVar asociada.
-            placeholder: Texto placeholder a limpiar.
+        """
+        Limpia el texto placeholder de un campo de texto cuando recibe el foco.
+
+            Args:
+                entry: Widget CTkEntry que recibió el foco.
+                var: Variable StringVar asociada al campo de texto.
+                placeholder: Texto placeholder a limpiar.
+
+            Returns:
+                None
         """
         if var.get() == placeholder:
             var.set("")
             entry.configure(text_color=COLORS['text'])
 
     def _entry_focus_out(self, entry, var, placeholder):
-        """Maneja el evento de salida de foco en campo de texto.
-        
-        Restaura placeholder si el campo está vacío y ajusta color del texto.
-        
+        """
+        Restaura el texto placeholder en un campo de texto cuando pierde el foco.
+
         Args:
-            entry: Widget CTkEntry.
-            var: Variable StringVar asociada.
-            placeholder: Texto placeholder a restaurar.
+            entry: Widget CTkEntry que ha perdido el foco.
+            var: Variable StringVar asociada al campo de texto.
+            placeholder: Texto placeholder a restaurar cuando el campo está vacío.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if var.get().strip() == "":
             var.set(placeholder)
             entry.configure(text_color=COLORS['text_dim'])
 
     def _entry_value(self, var, placeholder):
-        """Obtiene el valor real del campo de entrada, ignorando placeholder.
-        
+        """
+        Obtiene el valor real del campo de entrada, ignorando placeholder.
+
         Args:
             var: Variable StringVar del campo.
             placeholder: Texto placeholder de referencia.
-        
+
         Returns:
             str: Valor limpio o cadena vacía si solo tenía placeholder.
         """
@@ -126,14 +149,15 @@ class LogViewerWindow(ctk.CTkToplevel):
         return "" if v == placeholder else v
 
     def _make_entry(self, parent, var, placeholder, width):
-        """Crea un CTkEntry con manejo automático de placeholders y bindings.
-        
+        """
+        Crea un CTkEntry con manejo automático de placeholders y bindings.
+
         Args:
             parent: Contenedor padre.
             var: Variable StringVar.
             placeholder: Texto placeholder inicial.
             width: Ancho del entry en píxeles.
-        
+
         Returns:
             CTkEntry: Instancia configurada con eventos de foco.
         """
@@ -154,10 +178,20 @@ class LogViewerWindow(ctk.CTkToplevel):
     # ── UI ───────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Construye la interfaz de usuario completa.
-        
-        Crea frame principal, header, panel de filtros, área de resultados
+        """
+        Construye la interfaz de usuario completa del visor de logs.
+
+        Crea el frame principal, header, panel de filtros, área de resultados 
         y barra inferior de controles.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -169,13 +203,12 @@ class LogViewerWindow(ctk.CTkToplevel):
         self._create_bottom_bar(main)
 
     def _create_filters(self, parent):
-        """Crea el panel de filtros avanzados.
-        
-        Incluye selección de nivel, filtro por módulo, búsqueda libre,
-        intervalos rápidos/manuales y botón 'Aplicar'.
-        
+        """
+        Crea el panel de filtros avanzados para la ventana de visualización de registros.
+
         Args:
-            parent: Frame contenedor.
+            parent: Frame contenedor donde se ubicará el panel de filtros.
+
         """
         filters = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         filters.pack(fill="x", padx=5, pady=(4, 0))
@@ -240,12 +273,16 @@ class LogViewerWindow(ctk.CTkToplevel):
         ).pack(side="left")
 
     def _create_results(self, parent):
-        """Crea el área de visualización de resultados con textbox coloreado.
-        
+        """
+        Crea el área de visualización de resultados con textbox coloreado.
+
         Configura tags de color por nivel de log y estilos de scrollbars.
-        
+
         Args:
             parent: Frame contenedor.
+
+        Raises:
+            None
         """
         result_frame = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         result_frame.pack(fill="both", expand=True, padx=5, pady=4)
@@ -279,10 +316,17 @@ class LogViewerWindow(ctk.CTkToplevel):
             pass
 
     def _create_bottom_bar(self, parent):
-        """Crea la barra inferior con controles de contador, exportar y recargar.
-        
+        """
+        Crea la barra inferior con controles de contador, exportar y recargar.
+
         Args:
             parent: Frame contenedor.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         bar = ctk.CTkFrame(parent, fg_color="transparent")
         bar.pack(fill="x", padx=5, pady=(0, 4))
@@ -307,9 +351,17 @@ class LogViewerWindow(ctk.CTkToplevel):
     # ── Carga ────────────────────────────────────────────────────────────────
 
     def _load_log(self):
-        """Inicia la carga asíncrona de logs desde archivo.
-        
-        Previene cargas concurrentes y muestra mensaje de carga en UI.
+        """
+        Inicia la carga asíncrona de logs desde archivo.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         if self._loading:
             return
@@ -318,10 +370,20 @@ class LogViewerWindow(ctk.CTkToplevel):
         threading.Thread(target=self._read_log_thread, daemon=True).start()
 
     def _read_log_thread(self):
-        """Hilo secundario para lectura y parseo de logs.
-        
-        Lee logs principales y rotados (.1), parsea líneas con regex y
-        actualiza módulos/lista de líneas en thread-safe manner.
+        """
+        Hilo secundario para lectura y parseo de logs.
+
+        Lee logs principales y rotados, parsea líneas con regex y actualiza 
+        módulos/lista de líneas en un entorno thread-safe.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Exception: Si ocurre un error al leer o parsear el log.
         """
         lines = []
         try:
@@ -348,15 +410,17 @@ class LogViewerWindow(ctk.CTkToplevel):
         self.after(0, self._apply_filters)
 
     def _parse_line(self, raw):
-        """Parsea una línea de log cruda usando regex.
-        
-        Extrae timestamp, nivel, módulo y mensaje. Valida fecha.
-        
+        """
+        Parsea una línea de log cruda usando regex, extrayendo timestamp, nivel, módulo y mensaje, y validando la fecha.
+
         Args:
-            raw: Línea de log como string.
-        
+            raw (str): Línea de log como string.
+
         Returns:
-            dict o None: Estructura parseada o None si no coincide patrón.
+            dict o None: Estructura parseada con ts, ts_str, level, module, message y raw, o None si no coincide patrón.
+
+        Raises:
+            None
         """
         m = LOG_PATTERN.match(raw)
         if not m:
@@ -372,23 +436,33 @@ class LogViewerWindow(ctk.CTkToplevel):
                 "module": module, "message": message, "raw": raw}
 
     def _update_modules(self, modules):
-        """Actualiza la lista de módulos únicos detectados en logs.
-        
+        """
+        Actualiza la lista de módulos únicos detectados en logs.
+
         Args:
             modules: Lista ordenada de nombres de módulos.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._modules = modules
 
     # ── Filtrado ─────────────────────────────────────────────────────────────
 
     def _on_quick_interval(self, value):
-        """Configura intervalos de tiempo rápidos automáticamente.
-        
-        Actualiza campos fecha/hora basados en selección (15min,1h,etc.)
-        y aplica filtros inmediatamente.
-        
+        """
+        Configura intervalos de tiempo rápidos automáticamente.
+
+        Actualiza campos fecha/hora basados en selección y aplica filtros inmediatamente.
+
         Args:
-            value: Opción seleccionada (ej: '1h').
+            value (str): Opción seleccionada (ej: '15min', '1h', '6h', '24h', 'Todo').
+
+        Raises:
+            Ninguna excepción específica.
         """
         now = datetime.now()
         deltas = {"15min": timedelta(minutes=15), "1h": timedelta(hours=1),
@@ -406,10 +480,17 @@ class LogViewerWindow(ctk.CTkToplevel):
         self._apply_filters()
 
     def _apply_filters(self):
-        """Aplica todos los filtros activos y actualiza la visualización.
-        
-        Filtra por nivel, módulo, búsqueda y rango temporal. Actualiza
-        contador de entradas y renderiza resultados coloreados.
+        """
+        Aplica todos los filtros activos y actualiza la visualización.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         level  = self._level_var.get()
         module = self._entry_value(self._module_var, _PH_MODULE).lower()
@@ -434,15 +515,16 @@ class LogViewerWindow(ctk.CTkToplevel):
         self._count_label.configure(text=f"{len(result)} entradas")
 
     def _parse_datetime(self, date_str, time_str, is_end):
-        """Convierte strings de fecha/hora a objeto datetime.
-        
+        """
+        Convierte strings de fecha/hora a objeto datetime.
+
         Aplica defaults (00:00 inicio, 23:59 fin) si faltan hora.
-        
+
         Args:
-            date_str: Fecha en formato YYYY-MM-DD.
-            time_str: Hora en formato HH:MM.
-            is_end: True para usar 23:59 si falta hora.
-        
+            date_str (str): Fecha en formato YYYY-MM-DD.
+            time_str (str): Hora en formato HH:MM.
+            is_end (bool): True para usar 23:59 si falta hora.
+
         Returns:
             datetime o None: Objeto parseado o None si inválido.
         """
@@ -458,13 +540,20 @@ class LogViewerWindow(ctk.CTkToplevel):
     # ── Renderizado ──────────────────────────────────────────────────────────
 
     def _set_text(self, loading_msg, lines):
-        """Renderiza logs filtrados o mensaje de carga en textbox.
-        
+        """
+        Renderiza logs filtrados o mensaje de carga en textbox.
+
         Aplica tags de color por nivel y posiciona scroll al final.
-        
+
         Args:
-            loading_msg: Mensaje de carga (str) o None.
-            lines: Lista de dicts parseados de logs.
+            loading_msg (str o None): Mensaje de carga o None.
+            lines (lista de dicts): Lista de dicts parseados de logs.
+
+        Returns:
+            None
+
+        Raises:
+            Ninguna excepción.
         """
         self._textbox.configure(state="normal")
         self._textbox._textbox.delete("1.0", "end")
@@ -485,10 +574,17 @@ class LogViewerWindow(ctk.CTkToplevel):
     # ── Exportar ─────────────────────────────────────────────────────────────
 
     def _export(self):
-        """Exporta logs filtrados a archivo .log con timestamp único.
-        
-        Aplica filtros actuales, genera ruta en EXPORTS_LOG_DIR y ejecuta
-        limpieza automática de exports antiguos via CleanupService.
+        """
+        Exporta logs filtrados a archivo .log con timestamp único.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         level  = self._level_var.get()
         module = self._entry_value(self._module_var, _PH_MODULE).lower()

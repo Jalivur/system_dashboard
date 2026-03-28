@@ -16,11 +16,31 @@ logger = get_logger(__name__)
 
 
 class NetworkMonitor:
-    """Monitor de red con gestión de estadísticas y speedtest"""
+    """
+    Inicia y gestiona el monitor de red para recopilar estadísticas y realizar pruebas de velocidad.
+
+    Args: 
+        Ninguno
+
+    Returns: 
+        Ninguno
+
+    Raises: 
+        Ninguno
+    """
 
     def __init__(self):
         """
-        Inicializa historiales, caches speedtest, dynamic scale.
+        Inicializa el monitor de red con historiales y configuraciones por defecto.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._system_utils = SystemUtils()
         self._running      = True
@@ -44,14 +64,32 @@ class NetworkMonitor:
 
     def start(self) -> None:
         """
-        Activa monitor de red.
+        Inicia el monitor de red.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         self._running = True
         logger.info("[NetworkMonitor] Iniciado")
 
     def stop(self) -> None:
         """
-        Limpia historiales y speedtest cache.
+        Detiene el monitor de red y limpia los historiales y caché de speedtest.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._running = False
         self._download_hist.clear()
@@ -61,10 +99,10 @@ class NetworkMonitor:
         
     def is_running(self) -> bool:
         """
-        Estado del monitor.
+        Indica si el monitor de red está actualmente activo.
 
         Returns:
-            bool: True si activo.
+            bool: True si el monitor está activo, False en caso contrario.
         """
         return self._running
 
@@ -72,13 +110,16 @@ class NetworkMonitor:
 
     def get_current_stats(self, interface: Optional[str] = None) -> Dict:
         """
-        Obtiene estadísticas actuales de red.
+        Obtiene estadísticas actuales de red de una interfaz específica o mediante auto-detección.
 
         Args:
-            interface: Interfaz específica o None para auto-detección
+            interface (str, opcional): Nombre de la interfaz de red o None para auto-detección. Por defecto es None.
 
         Returns:
-            Diccionario con estadísticas de red
+            dict: Diccionario con estadísticas de red, incluyendo la interfaz, velocidad de descarga y velocidad de subida.
+
+        Raises:
+            None
         """
         if not self._running:
             return {'interface': '', 'download_mb': 0.0, 'upload_mb': 0.0}
@@ -94,24 +135,33 @@ class NetworkMonitor:
 
     def update_history(self, stats: Dict) -> None:
         """
-        Append velocidades a deques HISTORY para gráficos.
+        Actualiza el historial de velocidades de descarga y subida con los estadísticos proporcionados.
 
         Args:
-            stats (Dict): {'download_mb':float, 'upload_mb':float}
+            stats (Dict): Diccionario con claves 'download_mb' y 'upload_mb' que contienen las velocidades de descarga y subida en megabytes.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._download_hist.append(stats['download_mb'])
         self._upload_hist.append(stats['upload_mb'])
 
     def adaptive_scale(self, current_max: float, recent_data: list) -> float:
         """
-        Ajusta escala gráfica auto (zoom basado peaks recientes/idle).
+        Ajusta la escala gráfica de manera adaptativa según los picos recientes de datos.
 
         Args:
-            current_max (float): Máximo actual escala.
-            recent_data (list): Datos velocidades MB/s últimos HISTORY.
+            current_max (float): El máximo actual de la escala.
+            recent_data (list): Lista de datos de velocidades en MB/s de los últimos registros.
 
         Returns:
-            float: Nueva escala NET_MIN_SCALE..NET_MAX_SCALE.
+            float: La nueva escala ajustada dentro del rango NET_MIN_SCALE a NET_MAX_SCALE.
+
+        Raises:
+            None
         """
         if not recent_data:
             return current_max
@@ -137,13 +187,33 @@ class NetworkMonitor:
 
     def update_dynamic_scale(self) -> None:
         """
-        Recalcula _dynamic_max desde historial DL/UL combinado.
+        Recalcula el máximo dinámico de escala en función del historial combinado de descarga y subida.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         all_data = list(self._download_hist) + list(self._upload_hist)
         self._dynamic_max = self.adaptive_scale(self._dynamic_max, all_data)
 
     def get_history(self) -> Dict:
-        """Obtiene historiales de red."""
+        """
+        Obtiene el historial de uso de red.
+
+        Args: 
+            Ninguno
+
+        Returns:
+            Dict: Diccionario con los historiales de descarga y subida, y el máximo dinámico.
+
+        Raises:
+            Ninguno
+        """
         if not self._running:
             return {'download': [], 'upload': [], 'dynamic_max': NET_MAX_MB}
         return {
@@ -153,7 +223,15 @@ class NetworkMonitor:
         }
 
     def run_speedtest(self) -> None:
-        """Ejecuta speedtest (CLI oficial Ookla) en un thread separado."""
+        """
+        Ejecuta una prueba de velocidad de red utilizando la herramienta speedtest CLI de Ookla en un hilo separado.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
+        """
         if not self._running:
             logger.warning("[NetworkMonitor] run_speedtest() ignorado — servicio parado")
             return
@@ -212,23 +290,48 @@ class NetworkMonitor:
         threading.Thread(target=_run, daemon=True, name="NetworkMonitor-Speedtest").start()
 
     def get_speedtest_result(self) -> Dict:
-        """Obtiene el resultado del speedtest."""
+        """
+        Obtiene el resultado del speedtest.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Dict: Una copia del resultado del speedtest.
+
+        Raises:
+            Ninguno
+        """
         return self._speedtest_result.copy()
     
     def reset_speedtest(self) -> None:
-        """Resetea el estado del speedtest."""
+        """
+        Restablece el estado del test de velocidad a su condición inicial.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._speedtest_result = {"status": "idle", "ping": 0, "download": 0.0, "upload": 0.0}
 
     @staticmethod
     def net_color(value: float) -> str:
         """
-        Determina el color según el tráfico de red.
+        Determina el color según el tráfico de red en función de un valor de velocidad.
 
         Args:
-            value: Velocidad en MB/s
+            value (float): Velocidad en MB/s.
 
         Returns:
-            Color en formato hex
+            str: Color en formato hexadecimal.
+
+        Raises:
+            None
         """
         if value >= NET_CRIT:
             return COLORS['danger']

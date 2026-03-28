@@ -2,7 +2,25 @@
 
 > **Ruta**: `ui/windows/process_window.py`
 
+> **Cobertura de documentación**: 🟢 100% (16/16)
+
 Ventana de monitor de procesos
+
+---
+
+## Tabla de contenidos
+
+**Clase [`ProcessWindow`](#clase-processwindow)**
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `core.process_monitor`
+- `ui.styles`
+- `ui.widgets`
+- `utils.logger`
 
 ## Imports
 
@@ -23,7 +41,17 @@ from utils.logger import get_logger
 
 ## Clase `ProcessWindow(ctk.CTkToplevel)`
 
-Ventana de monitor de procesos
+Ventana emergente para monitorizar procesos en tiempo real.
+
+Args:
+    parent: Ventana padre (CTkToplevel).
+    process_monitor (ProcessMonitor): Instancia del monitor de procesos.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ninguno.
 
 ### Atributos privados
 
@@ -46,56 +74,171 @@ Args:
     parent: Ventana padre (CTkToplevel).
     process_monitor (ProcessMonitor): Instancia del monitor de procesos para obtener datos en tiempo real.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario
+Crea la interfaz de usuario de la ventana de proceso.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_controls(self, parent)`
 
-Crea controles de búsqueda y filtros
+Crea los controles de búsqueda y filtros en la ventana.
+
+Args:
+    parent: El elemento padre donde se crearán los controles.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_column_headers(self, parent)`
 
-Crea encabezados de columnas ordenables
+Crea los encabezados de columnas ordenables para la ventana de procesos.
+
+Args:
+    parent: El elemento padre donde se crearán los encabezados.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_on_sort_change(self, column: str)`
 
-Cambia el orden de procesos
+Reordenar los procesos en la ventana según la columna especificada.
+
+Args:
+    column (str): La columna por la que ordenar los procesos.
 
 #### `_on_filter_change(self)`
 
-Cambia el filtro de procesos
+Actualiza el filtro de procesos cuando éste cambia.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_on_search_change(self)`
 
-Callback cuando cambia la búsqueda — debounce 500 ms
+Establece un retardo para actualizar la búsqueda cuando el usuario ha dejado de escribir.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_do_search(self)`
 
-Ejecuta la búsqueda
+Ejecuta la búsqueda y pausa temporalmente las actualizaciones.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_resume_updates(self)`
 
-Reanuda las actualizaciones automáticas
+Reanuda las actualizaciones automáticas de la ventana de proceso.
+
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `_render_processes(self)`
 
-Actualiza stats y renderiza la lista de procesos (lógica compartida).
+Actualiza estadísticas y renderiza la lista de procesos.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_now(self)`
 
-Actualiza inmediatamente sin programar siguiente
+Actualiza inmediatamente la ventana de procesos sin programar la siguiente actualización.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_update(self)`
 
-Bucle de actualización automática
+Actualiza automáticamente la ventana de proceso.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_process_row(self, proc: dict, row: int)`
 
-Crea una fila para un proceso
+Crea una fila para mostrar información de un proceso en la ventana.
+
+Args:
+    proc (dict): Diccionario con información del proceso.
+    row (int): Número de fila para aplicar estilo alternado.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_kill_process(self, proc: dict)`
 
-Mata un proceso con confirmación
+Mata un proceso después de confirmar con el usuario.
+
+Args:
+    proc (dict): Diccionario con información del proceso a matar, incluyendo 'pid', 'name' y 'cpu'.
+
+Raises:
+    None
+
+Returns:
+    None
 
 </details>

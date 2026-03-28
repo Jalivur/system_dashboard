@@ -2,7 +2,25 @@
 
 > **Ruta**: `ui/windows/network.py`
 
+> **Cobertura de documentación**: 🟢 100% (11/11)
+
 Ventana de monitoreo de red
+
+---
+
+## Tabla de contenidos
+
+**Clase [`NetworkWindow`](#clase-networkwindow)**
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `ui.styles`
+- `ui.widgets`
+- `utils.logger`
+- `utils.system_utils`
 
 ## Imports
 
@@ -23,7 +41,17 @@ from utils.logger import get_logger
 
 ## Clase `NetworkWindow(ctk.CTkToplevel)`
 
-Ventana de monitoreo de red
+Ventana emergente para monitorear el estado de la red.
+
+Args:
+    parent: Widget padre que crea esta ventana.
+    network_monitor: Instancia del monitor de red para obtener estadísticas.
+
+Raises:
+    Ninguna excepción específica.
+
+Returns:
+    Ningún valor de retorno.
 
 ### Atributos privados
 
@@ -46,54 +74,135 @@ Args:
     parent: Widget padre (CTkToplevel).
     network_monitor: Instancia del monitor de red para obtener estadísticas.
 
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_create_ui(self)`
 
 Crea la estructura principal de la interfaz de usuario de la ventana de red.
 
-Esta método configura:
- - Frame principal con colores del tema.
- - Header con título 'MONITOR DE RED', botón cerrar y label de status.
- - Contenedor scrollable con canvas y scrollbar vertical estilizado.
- - Frame interno vinculado para contenido dinámico.
+Args:
+    Ninguno
 
-Llama a _build_content para poblar celdas.
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_build_content(self, inner)`
 
-Construye el contenido scrollable (se puede reconstruir al reanudar).
+Construye el contenido scrollable de la ventana de red.
+
+Args:
+    inner: El contenedor interno donde se construirá el contenido.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_traffic_cell(self, parent, row, col, title, key)`
 
-Crea una celda de tráfico de red (descarga/subida) con gráfica.
+Crea una celda de tráfico de red con gráfica para mostrar datos de descarga o subida.
 
 Args:
-    parent: Frame contenedor.
-    row, col: Posición en grid.
+    parent: Frame contenedor de la celda.
+    row: Número de fila en el grid.
+    col: Número de columna en el grid.
     title: Título de la celda.
-    key: Identificador ('download' o 'upload').
+    key: Identificador de la celda ('download' o 'upload').
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_create_interfaces_cell(self, parent, row, col)`
 
 Crea la celda que muestra interfaces de red activas e IPs.
 
+Args:
+    parent: El padre de la celda.
+    row (int): La fila de la celda.
+    col (int): La columna de la celda.
+
+Returns:
+    None
+
+Raises:
+    None
+
 #### `_create_speedtest_cell(self, parent, row, col)`
 
 Crea la celda para ejecutar y mostrar resultados de speedtest.
+
+Args:
+    parent: El padre de la celda.
+    row: La fila donde se ubicará la celda.
+    col: La columna donde se ubicará la celda.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_update_interfaces(self)`
 
 Actualiza la lista de interfaces de red con sus direcciones IP.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_run_speedtest(self)`
 
 Inicia la ejecución de un test de velocidad de red.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_update_speedtest(self)`
 
 Actualiza la visualización del resultado del speedtest según su estado.
 
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
+
 #### `_update(self)`
 
-Actualiza la interfaz de usuario periódicamente con datos del monitor de red.
+Actualiza la interfaz de usuario de la ventana de red con datos del monitor de red.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

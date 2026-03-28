@@ -2,6 +2,8 @@
 
 > **Ruta**: `config/button_labels.py`
 
+> **Cobertura de documentación**: N/A (0/0)
+
 Labels de botones del menu principal.
 
 Fuente unica de verdad para los textos de botones que aparecen en:
@@ -11,6 +13,12 @@ Fuente unica de verdad para los textos de botones que aparecen en:
 
 Nunca escribir literales de icono fuera de este fichero.
 Para anadir un boton nuevo: añadir aqui primero, luego referenciar en los tres sitios.
+
+---
+
+## Dependencias internas
+
+- `config.settings`
 
 ## Imports
 

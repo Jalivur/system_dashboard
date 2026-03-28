@@ -2,6 +2,8 @@
 
 > **Ruta**: `ui/window_lifecycle.py`
 
+> **Cobertura de documentación**: 🟢 100% (7/7)
+
 Gestor del ciclo de vida de las ventanas hijas del dashboard.
 
 Encapsula el patron repetido en MainWindow:
@@ -25,6 +27,22 @@ Uso en MainWindow:
     self._wlm.open("button_manager")
     instance = self._wlm.get("button_manager")
 
+---
+
+## Tabla de contenidos
+
+**Clase [`WindowLifecycleManager`](#clase-windowlifecyclemanager)**
+  - [`register()`](#registerself-key-str-label-str-factory-badge_keys-none-none)
+  - [`open()`](#openself-key-str-none)
+  - [`get()`](#getself-key-str)
+  - [`is_open()`](#is_openself-key-str-bool)
+
+---
+
+## Dependencias internas
+
+- `utils.logger`
+
 ## Imports
 
 ```python
@@ -39,13 +57,17 @@ from utils.logger import get_logger
 
 ## Clase `WindowLifecycleManager`
 
-Gestiona el ciclo de vida (crear / levantar / cerrar) de las ventanas hijas.
+Gestiona el ciclo de vida de ventanas hijas, permitiendo su creación, activación y cierre.
 
-Cada ventana se registra con:
-  - key        : identificador interno (str)
-  - label      : constante BL.* usada para _btn_active/_btn_idle
-  - factory    : callable sin argumentos que devuelve la instancia de la ventana
-  - badge_keys : lista de claves de badge asociadas (informativo, no gestionado aqui)
+Args:
+    on_btn_active : función a llamar cuando un botón de ventana se activa
+    on_btn_idle   : función a llamar cuando un botón de ventana se inactiva
+
+Raises:
+    No se documentan excepciones en esta clase.
+
+Returns:
+    No se documenta retorno en esta clase.
 
 ### Atributos privados
 
@@ -59,38 +81,76 @@ Cada ventana se registra con:
 
 #### `register(self, key: str, label: str, factory, badge_keys = None) -> None`
 
-Registra una ventana hija.
+Registra una ventana hija con su información asociada.
 
 Args:
-    key        : identificador unico (ej. "fan_control")
-    label      : constante BL.* del boton asociado
-    factory    : callable() → instancia CTkToplevel
-    badge_keys : lista de claves de badge (opcional, solo informativo)
+    key (str): Identificador único de la ventana.
+    label (str): Etiqueta o constante asociada al botón de la ventana.
+    factory (callable): Función que crea una instancia de CTkToplevel.
+    badge_keys (list[str], opcional): Lista de claves de badge. Por defecto es None.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción específica.
 
 #### `open(self, key: str) -> None`
 
-Abre la ventana registrada bajo key.
-Si ya existe la levanta al frente; si no, la crea via factory.
+Abre la ventana registrada bajo la clave proporcionada.
+
+Args:
+    key (str): La clave de la ventana a abrir.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `get(self, key: str)`
 
-Devuelve la instancia activa de la ventana, o None si no existe.
+Recupera la instancia activa de una ventana registrada.
+
+Args:
+    key (str): La clave de registro de la ventana.
+
+Returns:
+    La instancia activa de la ventana, o None si no existe o no está activa.
 
 #### `is_open(self, key: str) -> bool`
 
-True si la ventana esta actualmente abierta.
+Indica si una ventana específica está actualmente abierta.
+
+Args:
+    key (str): Identificador de la ventana.
+
+Returns:
+    bool: True si la ventana está abierta, False en caso contrario.
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self, on_btn_active, on_btn_idle)`
 
+Inicializa el administrador del ciclo de vida de la ventana.
+
 Args:
-    on_btn_active : callable(label) — resalta el boton en el menu
-    on_btn_idle   : callable(label) — restaura el boton al estado normal
+    on_btn_active (callable): Función que se llama cuando un botón está activo, recibe una etiqueta como parámetro.
+    on_btn_idle (callable): Función que se llama cuando un botón está inactivo, recibe una etiqueta como parámetro.
 
 #### `_on_close(self, key: str, label: str) -> None`
 
-Llamado cuando la ventana es destruida — limpia instancia y boton.
+Limpia la instancia y el botón asociado cuando una ventana es cerrada.
+
+Args:
+    key (str): Clave de registro de la ventana.
+    label (str): Etiqueta de la ventana.
+
+Returns:
+    None
+
+Raises:
+    None
 
 </details>

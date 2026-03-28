@@ -13,17 +13,29 @@ logger = get_logger(__name__)
 
 
 class ServiceWindow(ctk.CTkToplevel):
-    """Ventana de monitor de servicios"""
+    """
+    Ventana emergente para monitorizar servicios del sistema.
+
+    Args:
+        parent: Widget padre que contiene la ventana.
+        service_monitor (ServiceMonitor): Instancia del monitor de servicios.
+
+    Configura la ventana y crea la interfaz de usuario para mostrar información de servicios.
+    """
 
     def __init__(self, parent, service_monitor: ServiceMonitor):
         """
         Inicializa la ventana principal del monitor de servicios systemd.
-        
+
         Args:
             parent: Widget padre (ventana principal).
             service_monitor (ServiceMonitor): Instancia del monitor de servicios para obtener datos y ejecutar acciones.
-        
-        Configura la ventana, variables de estado y lanza la creación de la interfaz.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         super().__init__(parent)
 
@@ -50,9 +62,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _create_ui(self):
         """
         Crea todos los componentes de la interfaz de usuario de la ventana.
-        
-        Incluye: header, barra de estadísticas, controles, encabezados de columnas,
-        contenedor con scroll y frame inferior con botón de refresco manual.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -122,11 +140,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _create_controls(self, parent):
         """
         Crea los controles de búsqueda y filtrado en la parte superior.
-        
+
         Args:
             parent: Frame contenedor para los controles.
-        
-        Incluye entrada de búsqueda con debounce y botones radio para filtrar por estado (todos, activos, inactivos, fallidos).
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         controls = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'])
         controls.pack(fill="x", padx=10, pady=5)
@@ -181,11 +203,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _create_column_headers(self, parent):
         """
         Crea la fila de encabezados de columnas de la tabla de servicios.
-        
+
         Args:
             parent: Frame contenedor para los headers.
-        
-        Columnas: Servicio (ordenable), Estado, Autostart, Acciones.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         headers = ctk.CTkFrame(parent, fg_color=COLORS['bg_light'])
         headers.pack(fill="x", padx=10, pady=(5, 0))
@@ -228,11 +254,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _on_sort_change(self, column: str):
         """
         Maneja el cambio de ordenación por columna.
-        
+
         Args:
             column (str): Columna por la que ordenar ('name' o 'state').
-        
-        Pausa actualizaciones automáticas temporalmente, alterna orden en el monitor y refresca la UI.
+
+        Raises:
+            None
+
+        Returns:
+            None
         """
         self._update_paused = True
         
@@ -243,9 +273,16 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _on_filter_change(self):
         """
-        Aplica el nuevo filtro de estado seleccionado (todos, activos, inactivos, fallidos).
-        
-        Pausa actualizaciones temporales y refresca la vista filtrada.
+        Aplica el nuevo filtro de estado seleccionado y refresca la vista filtrada.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._update_paused = True
         self._service_monitor.set_filter(self._filter_var.get())
@@ -255,9 +292,12 @@ class ServiceWindow(ctk.CTkToplevel):
     def _on_search_change(self):
         """
         Maneja los cambios en la entrada de búsqueda del usuario.
-        
-        Implementa debounce: cancela timers previos y programa _do_search en 500ms.
-        Pausa actualizaciones automáticas durante la búsqueda.
+
+        Args: None
+
+        Returns: None
+
+        Raises: None
         """
         self._update_paused = True
 
@@ -269,8 +309,17 @@ class ServiceWindow(ctk.CTkToplevel):
     def _do_search(self):
         """
         Ejecuta la búsqueda real tras el período de debounce.
-        
+
         Refresca la UI con resultados filtrados y reanuda actualizaciones en 3s.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._update_now()
         self.after(3000, self._resume_updates)
@@ -278,16 +327,29 @@ class ServiceWindow(ctk.CTkToplevel):
     def _resume_updates(self):
         """
         Reanuda las actualizaciones automáticas periódicas.
-        
+
         Se llama automáticamente tras pausas por sort/filter/search.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._update_paused = False
 
     def _force_update(self):
         """
-        Realiza un refresco manual inmediato de todos los datos y UI.
-        
-        Desactiva pausa de updates y llama a _update_now.
+        Forza una actualización inmediata de todos los datos y la interfaz de usuario.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         self._update_paused = False
         self._update_now()
@@ -295,7 +357,18 @@ class ServiceWindow(ctk.CTkToplevel):
     # ── Bucle de actualización ────────────────────────────────────────────────
 
     def _update(self):
-        """Bucle de actualización — winfo_exists siempre primero."""
+        """
+        Actualiza el estado de la ventana de servicio en intervalos regulares.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self.winfo_exists():
             return
 
@@ -314,8 +387,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _update_now(self):
         """
         Refresco inmediato y completo de la interfaz con datos actuales.
-        
-        Actualiza stats, aplica search/filter, crea filas de servicios (máx 30).
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         if not self.winfo_exists():
             return
@@ -349,12 +429,16 @@ class ServiceWindow(ctk.CTkToplevel):
     def _create_service_row(self, service: dict, row: int):
         """
         Crea una fila completa en la tabla para un servicio específico.
-        
+
         Args:
             service (dict): Datos del servicio {name, active, enabled}.
             row (int): Índice de fila para alternar colores de fondo.
-        
-        Incluye iconos de estado, botones de acción contextuales según estado.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         bg_color  = COLORS['bg_dark'] if row % 2 == 0 else COLORS['bg_medium']
         row_frame = ctk.CTkFrame(self._service_frame, fg_color=bg_color)
@@ -441,12 +525,16 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _start_service(self, service: dict):
         """
-        Inicia un servicio inactivo con diálogo de confirmación.
-        
+        Inicia un servicio inactivo solicitando confirmación al usuario.
+
         Args:
             service (dict): Información del servicio a iniciar.
-        
-        Llama ServiceMonitor.start_service y refresca UI si éxito.
+
+        Raises:
+            Ninguna excepción específica.
+
+        Returns:
+            Ningún valor de retorno específico.
         """
         def do_start():
             """
@@ -469,12 +557,16 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _stop_service(self, service: dict):
         """
-        Detiene un servicio activo con advertencia de confirmación.
-        
+        Detiene un servicio activo después de confirmar con el usuario.
+
         Args:
-            service (dict): Información del servicio a detener.
-        
-        Llama ServiceMonitor.stop_service y refresca UI si éxito.
+            service (dict): Información del servicio a detener, incluyendo su nombre.
+
+        Raises:
+            None
+
+        Returns:
+            None
         """
         def do_stop():
             """
@@ -497,12 +589,16 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _restart_service(self, service: dict):
         """
-        Reinicia un servicio (activo o inactivo) con confirmación.
-        
+        Reinicia un servicio con confirmación previa.
+
         Args:
             service (dict): Información del servicio a reiniciar.
-        
-        Llama ServiceMonitor.restart_service y refresca UI si éxito.
+
+        Raises:
+            None
+
+        Returns:
+            None
         """
         def do_restart():
             """
@@ -526,11 +622,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _view_logs(self, service: dict):
         """
         Abre una ventana modal con los últimos 30 logs del servicio.
-        
+
         Args:
             service (dict): Información del servicio cuyos logs mostrar.
-        
-        Crea ventana con textbox de solo lectura y botón cerrar.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         logs = self._service_monitor.get_logs(service['name'], lines=30)
 
@@ -556,11 +656,15 @@ class ServiceWindow(ctk.CTkToplevel):
     def _enable_service(self, service: dict):
         """
         Habilita el autostart del servicio al boot con confirmación detallada.
-        
+
         Args:
             service (dict): Información del servicio a habilitar.
-        
-        Llama ServiceMonitor.enable_service y refresca UI si éxito.
+
+        Raises:
+            None
+
+        Returns:
+            None
         """
         def do_enable():
             """
@@ -584,12 +688,16 @@ class ServiceWindow(ctk.CTkToplevel):
 
     def _disable_service(self, service: dict):
         """
-        Deshabilita el autostart del servicio al boot con confirmación.
-        
+        Deshabilita el autostart de un servicio al boot con confirmación previa.
+
         Args:
             service (dict): Información del servicio a deshabilitar.
-        
-        Llama ServiceMonitor.disable_service y refresca UI si éxito.
+
+        Raises:
+            None
+
+        Returns:
+            None
         """
         def do_disable():
             """

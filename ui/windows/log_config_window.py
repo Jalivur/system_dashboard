@@ -42,13 +42,14 @@ _LEVEL_COLORS = {
 
 
 def _level_name(level: int) -> str:
-    """Convierte un nivel numérico de logging en su nombre legible.
+    """
+    Convierte un nivel numérico de logging en su nombre legible.
 
     Args:
-        level (int): Nivel numérico de logging (ej: logging.DEBUG).
+        level (int): Nivel numérico de logging.
 
     Returns:
-        str: Nombre del nivel (ej: "DEBUG") o el nombre por defecto si no está mapeado.
+        str: Nombre del nivel o el nombre por defecto si no está mapeado.
     """
     return _LEVEL_NAME.get(level, logging.getLevelName(level))
 
@@ -56,16 +57,30 @@ def _level_name(level: int) -> str:
 # ── Ventana ───────────────────────────────────────────────────────────────────
 
 class LogConfigWindow(ctk.CTkToplevel):
-    """Ventana de control de niveles de logging en runtime."""
+    """
+    Ventana de control de niveles de logging en runtime.
+
+    Args:
+        parent: Ventana padre (CTkToplevel).
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
 
     def __init__(self, parent):
-        """Inicializa la ventana de configuración de logging.
+        """
+        Inicializa la ventana de configuración de logging.
 
-        Configura posición, estado de handlers/módulos desde dashboard_logger,
-        y construye la interfaz de usuario.
+        Configura posición y estado de handlers/módulos.
 
         Args:
             parent: Ventana padre (CTkToplevel).
+
+        Raises:
+            None
         """
         super().__init__(parent)
         self.title("Configuración de Logging")
@@ -95,7 +110,18 @@ class LogConfigWindow(ctk.CTkToplevel):
     # ── UI principal ──────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea la estructura principal de la UI con header y dos columnas (izq/der)."""
+        """
+        Crea la estructura principal de la UI para la configuración de logging.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -119,8 +145,18 @@ class LogConfigWindow(ctk.CTkToplevel):
     # ── Columna izquierda: handlers + acciones ────────────────────────────────
 
     def _build_left(self, parent):
-        """Construye columna izquierda: selectores handlers, checkbox consola,
-        botones acción (rotar/reset) y path del log actual."""
+        """
+        Construye la columna izquierda de la ventana de configuración de logs.
+
+        Args:
+            parent: El padre de la columna izquierda.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         hdr = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         hdr.pack(fill="x", pady=(0, 6))
 
@@ -203,14 +239,21 @@ class LogConfigWindow(ctk.CTkToplevel):
         ).pack(anchor="w", padx=4, pady=(0, 4))
 
     def _build_handler_row(self, parent, label: str, var, active: bool, command):
-        """Crea fila horizontal reusable para selector de nivel de handler.
+        """
+        Crea una fila horizontal reusable para selector de nivel de handler.
 
         Args:
             parent: Frame contenedor.
-            label: Etiqueta (ej: "Fichero:").
+            label (str): Etiqueta a mostrar (ej: "Fichero:").
             var: StringVar con nivel actual.
-            active: Si está habilitado.
-            command: Callback al cambiar.
+            active (bool): Indica si el handler está habilitado.
+            command: Callback a ejecutar al cambiar el nivel.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         row = ctk.CTkFrame(parent, fg_color="transparent")
         row.pack(fill="x", padx=10, pady=(0, 6))
@@ -236,12 +279,34 @@ class LogConfigWindow(ctk.CTkToplevel):
         ).pack(side="left")
 
     def _on_file_level_change(self, value: str):
-        """Callback: cambia nivel de logging del handler de fichero."""
+        """
+        Actualiza el nivel de logging del handler de fichero según el valor seleccionado.
+
+        Args:
+            value (str): Nuevo nivel de logging.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._dl.set_file_level(_LEVEL_MAP[value])
         logger.info("[LogConfigWindow] Nivel fichero -> %s", value)
 
     def _on_console_level_change(self, value: str = None):
-        """Callback: cambia nivel/exactitud del handler de consola."""
+        """
+        Establece el nivel de precisión del registro en la consola según el valor seleccionado.
+
+        Args:
+            value (str): El nuevo nivel de precisión. Si no se proporciona, se usa el valor actual.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if value is None:
             value = self._console_level_var.get()
         self._dl.set_console_level(_LEVEL_MAP[value], exact=self._console_exact_var.get())
@@ -250,7 +315,13 @@ class LogConfigWindow(ctk.CTkToplevel):
     # ── Columna derecha: módulos con tk.Listbox + CTkScrollbar ───────────────
 
     def _build_right(self, parent):
-        """Construye columna derecha: listbox módulos, scrollbar, selector nivel y botón aplicar."""
+        """
+        Construye la columna derecha de la ventana de configuración de logs.
+
+        Args:
+            parent: El elemento padre donde se construirá la columna derecha.
+
+        """
         hdr_row = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         hdr_row.pack(fill="x", pady=(0, 6))
 
@@ -340,7 +411,18 @@ class LogConfigWindow(ctk.CTkToplevel):
         self._reload_modules()
 
     def _reload_modules(self):
-        """Recarga la lista de módulos activos desde dashboard_logger y actualiza listbox."""
+        """
+        Recarga la lista de módulos activos desde dashboard_logger y actualiza la lista visualizada.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._listbox.delete(0, tk.END)
         explicit = self._dl.get_status()["modules"]
         self._modules = [
@@ -358,7 +440,18 @@ class LogConfigWindow(ctk.CTkToplevel):
         logger.debug("[LogConfigWindow] %d modulos cargados", len(self._modules))
 
     def _on_listbox_select(self, _event):
-        """Callback selección en listbox: actualiza selector y status del módulo."""
+        """
+        Actualiza el selector y el estado del módulo según la selección realizada en el listbox.
+
+        Args:
+            _event: Evento de selección en el listbox.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         sel = self._listbox.curselection()
         if not sel:
             return
@@ -376,7 +469,18 @@ class LogConfigWindow(ctk.CTkToplevel):
         )
 
     def _apply_module_level(self):
-        """Aplica nivel de log al módulo seleccionado y actualiza listbox/status."""
+        """
+        Aplica el nivel de log seleccionado al módulo actualmente elegido y actualiza la lista y el estado.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self._selected_mod:
             return
         value = self._module_level_var.get()
@@ -400,13 +504,35 @@ class LogConfigWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _force_rollover(self):
-        """Fuerza rotación manual del archivo de log y muestra confirmación."""
+        """
+        Fuerza la rotación manual del archivo de log y muestra una confirmación.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         self._dl.force_rollover()
         custom_msgbox(self, "Rotación completada.\nFichero anterior guardado como .log.1", "Rotación")
         logger.info("[LogConfigWindow] Rotacion manual ejecutada")
 
     def _reset_all_modules(self):
-        """Restablece todos los módulos a nivel HEREDAR y recarga listbox."""
+        """
+        Restablece todos los módulos a nivel HEREDAR y recarga listbox.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         for mod in self._dl.get_active_modules():
             self._dl.set_module_level(mod, logging.NOTSET)
         self._reload_modules()
@@ -415,7 +541,18 @@ class LogConfigWindow(ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _on_close(self):
-        """Maneja cierre de ventana: enfoca padre y destruye self."""
+        """
+        Maneja el evento de cierre de la ventana de configuración de registro.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self.master.focus_force()
         self.destroy()
 

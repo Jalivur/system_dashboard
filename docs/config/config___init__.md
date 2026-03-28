@@ -2,7 +2,11 @@
 
 > **Ruta**: `config/__init__.py`
 
+> **Cobertura de documentación**: N/A (0/0)
+
 Paquete de configuración
+
+---
 
 ## Imports
 

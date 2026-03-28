@@ -22,13 +22,22 @@ _SCRIPT_DISCONNECT = str(SCRIPTS_DIR / "desconectar_vpn.sh")
 
 
 class VpnWindow(ctk.CTkToplevel):
-    """Ventana de gestión de VPN."""
+    """
+    Ventana de gestión de VPN.
+
+    Args:
+        parent: Ventana padre CTkToplevel de la aplicación principal.
+        vpn_monitor: Instancia del monitor de VPN que proporciona el estado en tiempo real.
+
+    Raises:
+        Exception: Si hay errores en la configuración inicial de la UI.
+    """
 
     def __init__(self, parent, vpn_monitor):
-        """Inicializa la ventana principal de gestión de conexiones VPN.
+        """
+        Inicializa la ventana principal de gestión de conexiones VPN.
 
-        Configura la ventana toplevel con dimensiones y posición específicas para DSI,
-        inicializa widgets y comienza el bucle de actualización automática del estado.
+        Configura la ventana toplevel con dimensiones y posición específicas.
 
         Args:
             parent: Ventana padre CTkToplevel de la aplicación principal.
@@ -56,10 +65,17 @@ class VpnWindow(ctk.CTkToplevel):
         logger.info("[VpnWindow] Ventana abierta")
 
     def destroy(self):
-        """Destruye la ventana de VPN de forma controlada.
+        """
+        Destruye la ventana de VPN de forma controlada.
 
-        Registra el cierre en el logger antes de llamar al método padre,
-        asegurando trazabilidad de eventos de UI.
+            Args:
+                None
+
+            Returns:
+                None
+
+            Raises:
+                None
         """
 
         logger.info("[VpnWindow] Ventana cerrada")
@@ -68,13 +84,19 @@ class VpnWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Construye toda la interfaz gráfica de usuario de la ventana VPN.
+        """
+        Construye la interfaz gráfica de usuario de la ventana VPN.
 
-        Crea frames jerárquicos, tarjeta de estado con indicador visual,
-        botones de acción futuristas, sección de información de interfaz/IP,
-        y nota sobre scripts requeridos. Configura scroll si es necesario.
+        Crea frames jerárquicos y componentes visuales.
 
-        Utiliza colores y fuentes del sistema de temas global.
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
 
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
@@ -217,14 +239,17 @@ class VpnWindow(ctk.CTkToplevel):
     # ── Actualización ─────────────────────────────────────────────────────────
 
     def _update(self):
-        """Actualiza el estado visual de la ventana cada UPDATE_MS milisegundos.
+        """
+        Actualiza el estado visual de la ventana según el estado del monitor de VPN.
 
-        Obtiene datos del vpn_monitor (conectado, IP, interfaz), actualiza
-        colores/indicadores/textos en consecuencia. Maneja errores y detiene
-        si monitor no está corriendo o ventana destruida. Programa llamada recursiva.
+        Args: 
+            Ninguno (usa atributos de instancia internamente).
 
-        Args:
-            Ninguno (usa self._vpn_monitor y self._widgets internamente).
+        Returns: 
+            Ninguno.
+
+        Raises: 
+            Ninguno.
         """
 
         if not self.winfo_exists():
@@ -268,7 +293,18 @@ class VpnWindow(ctk.CTkToplevel):
     # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _connect(self):
-        """Ejecuta conectar_vpn.sh con terminal en vivo."""
+        """
+        Inicia la conexión VPN ejecutando el script conectar_vpn.sh en una terminal en vivo.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self._vpn_monitor.is_running():
             return
 
@@ -289,7 +325,18 @@ class VpnWindow(ctk.CTkToplevel):
         )
 
     def _disconnect(self):
-        """Ejecuta desconectar_vpn.sh con terminal en vivo."""
+        """
+        Desconecta la VPN ejecutando el script de desconexión en una terminal en vivo.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self._vpn_monitor.is_running():
             return
         
@@ -310,12 +357,19 @@ class VpnWindow(ctk.CTkToplevel):
         )
 
     def _on_action_done(self):
-        """Callback ejecutado al finalizar operaciones de conexión/desconexión.
-
-        Fuerza sondeo inmediato del monitor VPN y retrasa actualización UI
-        para permitir estabilización del estado post-script.
+        """
+        Callback ejecutado al finalizar operaciones de conexión/desconexión.
 
         Garantiza sincronización UI-monitor tras ejecución de scripts externos.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._vpn_monitor.force_poll()
         # Pequeño delay para que el sondeo tenga tiempo de completarse

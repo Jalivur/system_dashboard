@@ -2,6 +2,8 @@
 
 > **Ruta**: `ui/windows/services_manager_window.py`
 
+> **Cobertura de documentación**: 🟢 100% (14/14)
+
 Ventana de gestión total de servicios background del Dashboard.
 
 Permite parar y arrancar cada servicio de forma manual y completa.
@@ -15,6 +17,21 @@ que aparezcan en _DEFINITIONS.
 
 El botón "Guardar predeterminado" persiste el estado actual al services.json
 para que en el próximo arranque los servicios parados no se inicien.
+
+---
+
+## Tabla de contenidos
+
+**Clase [`ServicesManagerWindow`](#clase-servicesmanagerwindow)**
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `ui.styles`
+- `ui.widgets`
+- `utils.logger`
 
 ## Imports
 
@@ -36,7 +53,16 @@ from utils.logger import get_logger
 
 ## Clase `ServicesManagerWindow(ctk.CTkToplevel)`
 
-Manager total de servicios del dashboard.
+Ventana de gestión total de servicios del dashboard.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    None
 
 ### Atributos privados
 
@@ -54,99 +80,150 @@ Manager total de servicios del dashboard.
 Inicializa la ventana de gestión de servicios.
 
 Configura la ventana toplevel, filtra servicios disponibles del registry,
-crea la interfaz de usuario y inicia el bucle de refresco automático.
+crea la interfaz de usuario y prepara el entorno.
 
 Args:
     parent: Ventana padre (CTkToplevel).
     registry: ServiceRegistry con todos los servicios disponibles.
 
+Raises:
+    Ninguna excepción específica.
+
 #### `_create_ui(self)`
 
-Crea la interfaz de usuario completa.
+Crea la interfaz de usuario completa de la ventana de gestión de servicios.
 
-Incluye header de ventana, contenedor desplazable con filas de servicios,
-y botones globales para acciones masivas (parar/iniciar todos, guardar).
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_create_row(self, parent, key, label, emoji, warn)`
 
 Crea una fila UI para un servicio específico.
 
-Incluye indicador circular de estado, nombre con emoji, label de status,
-y botón toggle.
+Incluye indicador circular de estado, nombre con emoji y label de status.
 
 Args:
     parent: Frame contenedor.
-    key: ID del servicio (str).
-    label: Nombre legible.
-    emoji: Icono Nerd Font.
-    warn: Advertencia al parar (si aplica).
+    key: ID del servicio.
+    label: Nombre legible del servicio.
+    emoji: Icono Nerd Font asociado al servicio.
+    warn: Advertencia al parar el servicio.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `_is_running(self, key: str) -> bool`
 
 Consulta si un servicio está ejecutándose.
 
 Args:
-    key: ID del servicio.
+    key (str): ID del servicio.
 
 Returns:
-    bool: True si está corriendo según el registry.
+    bool: True si el servicio está corriendo.
+
+Raises:
+    None
 
 #### `_update_row(self, key: str)`
 
-Actualiza el estado visual de la fila de un servicio.
+Actualiza el estado visual de la fila de un servicio según su estado de ejecución.
 
-Cambia colores, textos y estado del botón según si está corriendo o busy.
+    Args:
+        key (str): ID del servicio.
 
-Args:
-    key: ID del servicio.
+    Returns:
+        None
+
+    Raises:
+        None
 
 #### `_refresh_loop(self)`
 
-Bucle infinito de refresco cada 1.5 segundos.
+Establece un bucle infinito que refresca el contenido de la ventana cada 1.5 segundos.
 
-Actualiza todas las filas consultando estados reales.
-Se auto-para si la ventana se destruye.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `_toggle(self, key: str, warn: str)`
 
 Manejador del botón toggle de un servicio.
 
-Muestra diálogo de confirmación (con warning si parar),
+Muestra diálogo de confirmación con warning si es necesario,
 luego ejecuta la acción en thread separado.
 
 Args:
-    key: ID del servicio.
-    warn: Texto de advertencia (si aplica).
+    key (str): ID del servicio.
+    warn (str): Texto de advertencia (si aplica).
+
+Raises:
+    Ninguna excepción específica.
 
 #### `_execute(self, key: str, stop: bool)`
 
-Ejecuta start o stop en thread daemon.
+Ejecuta la acción de inicio o detención de un servicio en un hilo daemon.
 
-Maneja estado busy durante operación, loguea acciones,
-captura errores y actualiza UI post-ejecución.
+Maneja el estado de ocupado durante la operación, loguea acciones, captura errores y actualiza la UI después de la ejecución.
 
 Args:
-    key: ID del servicio.
-    stop: True para parar, False para iniciar.
+    key (str): ID del servicio.
+    stop (bool): True para detener, False para iniciar.
+
+Raises:
+    Exception: Si ocurre un error durante la ejecución de la acción.
 
 #### `_stop_all(self)`
 
-Para todos los servicios corriendo tras confirmar.
+Para todos los servicios en ejecución después de confirmar con el usuario.
 
-Lista servicios activos, muestra diálogo multi-item,
-ejecuta _execute(stop=True) en todos.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_start_all(self)`
 
 Inicia todos los servicios parados tras confirmar.
 
-Lista servicios inactivos, muestra diálogo simple,
-ejecuta _execute(stop=False) en todos.
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_save_defaults(self)`
 
-Persiste el estado actual al services.json como configuración de arranque.
-Llama set_service_enabled() por cada servicio según su estado en la UI —
-no depende de que save_config() lea _running directamente.
+Persiste el estado actual de servicios como configuración de arranque en services.json.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 </details>

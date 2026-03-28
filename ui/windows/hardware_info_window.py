@@ -25,7 +25,21 @@ _UPTIME_EVERY = 60
 
 
 def _read_cpu_model() -> str:
-    """Lee el modelo de CPU desde /proc/cpuinfo."""
+    """
+    Lee el modelo de CPU desde el sistema.
+
+    Args:
+        Ninguno
+
+    Returns:
+        str: El modelo de CPU.
+
+    Raises:
+        Ninguno
+
+    Nota: Si no se puede leer el modelo de CPU desde /proc/cpuinfo, 
+          se devuelve el resultado de platform.processor() o "Desconocido".
+    """
     try:
         with open("/proc/cpuinfo", "r") as f:
             for line in f:
@@ -41,7 +55,18 @@ def _read_cpu_model() -> str:
 
 
 def _read_pi_model() -> str:
-    """Lee el modelo de Raspberry Pi desde /proc/device-tree/model."""
+    """
+    Lee el modelo de Raspberry Pi desde el archivo /proc/device-tree/model.
+
+    Args: 
+        Ninguno
+
+    Returns:
+        str: El modelo de Raspberry Pi como cadena de texto.
+
+    Raises:
+        Ninguno
+    """
     try:
         with open("/proc/device-tree/model", "r") as f:
             return f.read().strip().rstrip("\x00")
@@ -50,7 +75,18 @@ def _read_pi_model() -> str:
 
 
 def _read_os() -> str:
-    """Devuelve el nombre del SO."""
+    """
+    Obtiene el nombre del sistema operativo.
+
+    Args:
+        Ninguno
+
+    Returns:
+        str: El nombre del sistema operativo.
+
+    Raises:
+        Ninguna excepción específica, manejo genérico de excepciones.
+    """
     try:
         result = subprocess.run(
             ["lsb_release", "-ds"],
@@ -64,7 +100,18 @@ def _read_os() -> str:
 
 
 def _gather_static_info() -> dict:
-    """Recopila toda la información estática del hardware."""
+    """
+    Recopila información estática del hardware y sistema operativo.
+
+    Args:
+        Ninguno
+
+    Returns:
+        dict: Diccionario con información estática del hardware y sistema operativo.
+
+    Raises:
+        Ninguno
+    """
     vm          = psutil.virtual_memory()
     ram_gb      = vm.total / (1024 ** 3)
     cpu_count   = psutil.cpu_count(logical=False) or 1
@@ -87,14 +134,30 @@ def _gather_static_info() -> dict:
 
 
 class HardwareInfoWindow(ctk.CTkToplevel):
-    """Ventana de información del hardware — datos estáticos + uptime dinámico."""
+    """
+    Ventana emergente que muestra información estática del hardware y uptime dinámico.
+
+    Args:
+        parent: Ventana padre (CTkToplevel) que crea esta ventana.
+        system_monitor: Instancia para obtener uptime dinámico.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ningún valor de retorno.
+    """
 
     def __init__(self, parent, system_monitor):
-        """Inicializa la ventana de información del hardware.
+        """
+        Inicializa la ventana de información del hardware.
 
         Args:
             parent: Ventana padre (CTkToplevel).
             system_monitor: Instancia para obtener uptime dinámico.
+
+        Raises:
+            None
         """
         super().__init__(parent)
         self._system_monitor = system_monitor
@@ -121,13 +184,35 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         logger.info("[HardwareInfoWindow] Ventana abierta")
         
     def _load_info(self) -> None:
-        """Carga info estática en background y rellena la UI."""
+        """
+        Carga información estática en segundo plano y actualiza la interfaz de usuario.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         info = _gather_static_info()
         if self.winfo_exists():
             self.after(0, lambda: self._populate_info(info))
     
     def _populate_info(self, info: dict) -> None:
-        """Rellena la UI con los datos ya cargados (main thread)."""
+        """
+        Rellena la UI con los datos de hardware proporcionados.
+
+        Args:
+            info (dict): Diccionario con la información de hardware.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if not self.winfo_exists():
             return
         self._info = info
@@ -141,7 +226,18 @@ class HardwareInfoWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea la estructura de la interfaz de usuario principal con scroll y placeholder de carga."""
+        """
+        Crea la estructura de la interfaz de usuario principal para mostrar información del hardware.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+        """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -169,7 +265,18 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         self._inner = inner    # guarda referencia para _populate_info
         self._show_loading(inner)
     def _show_loading(self, parent) -> None:
-        """Muestra texto de carga mientras _gather_static_info trabaja."""
+        """
+        Muestra un mensaje de carga mientras se recopila información del hardware.
+
+        Args:
+            parent: El elemento padre donde se mostrará el mensaje de carga.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         ctk.CTkLabel(
             parent,
             text="Cargando información del hardware...",
@@ -178,10 +285,17 @@ class HardwareInfoWindow(ctk.CTkToplevel):
         ).pack(pady=40)
     
     def _build_content(self, inner):
-        """Construye secciones de contenido con datos reales del hardware (Sistema, CPU, RAM, Uptime).
+        """
+        Construye secciones de contenido con datos reales del hardware.
 
         Args:
             inner: Frame contenedor para los widgets de secciones.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         info = self._info
 
@@ -239,7 +353,20 @@ class HardwareInfoWindow(ctk.CTkToplevel):
     # ── Helper de sección ─────────────────────────────────────────────────────
 
     def _section(self, parent, title: str, rows: list):
-        """Crea una tarjeta de sección con filas etiqueta-valor."""
+        """
+        Crea una tarjeta de sección con filas etiqueta-valor en la ventana de información de hardware.
+
+        Args:
+            parent: El elemento padre donde se creará la tarjeta de sección.
+            title (str): El título de la sección.
+            rows (list): Una lista de tuplas (etiqueta, valor) que representan las filas de la sección.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         card = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         card.pack(fill="x", padx=10, pady=(0, 6))
 
@@ -281,7 +408,18 @@ class HardwareInfoWindow(ctk.CTkToplevel):
     # ── Uptime dinámico ───────────────────────────────────────────────────────
 
     def _tick_uptime(self):
-        """Refresca el uptime cada _UPTIME_EVERY segundos."""
+        """
+        Refresca el tiempo de actividad (uptime) de la ventana cada segundo.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self.winfo_exists():
             return
         self._uptime_tick += 1

@@ -2,9 +2,32 @@
 
 > **Ruta**: `core/system_monitor.py`
 
+> **Cobertura de documentación**: 🟢 100% (11/11)
+
 Monitor del sistema
 Monitor centralizado de métricas CPU, RAM, temperatura y uptime con histórico para UI.
 Thread background no-bloqueante, thread-safe con lock.
+
+---
+
+## Tabla de contenidos
+
+**Clase [`SystemMonitor`](#clase-systemmonitor)**
+  - [`start()`](#startself-none)
+  - [`stop()`](#stopself-none)
+  - [`is_running()`](#is_runningself-bool)
+  - [`get_current_stats()`](#get_current_statsself-dict)
+  - [`update_history()`](#update_historyself-stats-dict-none)
+  - [`get_history()`](#get_historyself-dict)
+  - [`level_color()`](#level_colorvalue-float-warn-float-crit-float-str)
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+- `utils.logger`
+- `utils.system_utils`
 
 ## Imports
 
@@ -27,11 +50,11 @@ from utils.logger import get_logger
 
 ## Clase `SystemMonitor`
 
-Monitor centralizado de recursos del sistema.
+Inicializa el monitor del sistema.
 
-Las métricas se actualizan en un thread de background cada UPDATE_MS ms.
-La UI siempre lee del caché (get_current_stats / get_cached_stats),
-nunca bloquea el hilo principal de Tkinter.
+Crea las utilidades del sistema, inicializa los historiales de métricas,
+configura el caché y el bloqueo de acceso. Inicia automáticamente el thread
+de actualización en segundo plano.
 
 ### Atributos privados
 
@@ -51,55 +74,91 @@ nunca bloquea el hilo principal de Tkinter.
 
 #### `start(self) -> None`
 
-Inicia el thread de sondeo background (daemon=True).
+Inicia el hilo de sondeo en segundo plano para monitorear el sistema.
 
-Idempotente. Log de inicio con intervalo.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `stop(self) -> None`
 
-Detiene el monitor limpiamente.
+Detiene el monitor del sistema de manera limpia.
 
-Join thread timeout 3s, resetea cache. Log de detención.
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno
 
 #### `is_running(self) -> bool`
 
-Indica si el monitor está activo.
+Indica si el monitor del sistema está actualmente en ejecución.
 
 Returns:
-    bool: True si el thread de polling está corriendo.
+    bool: True si el monitor está activo, False en caso contrario.
 
 #### `get_current_stats(self) -> Dict`
 
-Obtiene métricas actuales del cache (thread-safe).
+Obtiene las estadísticas actuales del sistema.
+
+Args:
+    Ninguno
 
 Returns:
-    Dict: {'cpu': float, 'ram': float, 'ram_used': int, 'temp': float, 'uptime_str': str}
+    Dict: Un diccionario con las estadísticas actuales del sistema, 
+          incluyendo 'cpu', 'ram', 'ram_used', 'temp' y 'uptime_str'.
+
+Raises:
+    Ninguno
 
 #### `update_history(self, stats: Dict) -> None`
 
-Actualiza deques históricos para gráficos (últimos HISTORY puntos).
+Actualiza los registros históricos de estadísticas del sistema para su representación gráfica.
 
 Args:
-    stats (Dict): Métricas actuales CPU/RAM/TEMP.
+    stats (Dict): Diccionario con las métricas actuales de CPU, RAM y temperatura.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `get_history(self) -> Dict`
 
-Retorna listas históricas para UI/gráficos.
+Retorna un diccionario con listas históricas de uso de recursos del sistema.
+
+Args:
+    Ninguno
 
 Returns:
-    Dict: {'cpu': [...], 'ram': [...], 'temp': [...]}
+    Dict: Un diccionario con claves 'cpu', 'ram', 'temp' y valores correspondientes a listas de históricos.
+
+Raises:
+    Ninguno
 
 #### `level_color(value: float, warn: float, crit: float) -> str`
 
-Determina color semáforo por umbrales (primary/warning/danger).
+Determina el color semáforo según umbrales de warning y crítico.
 
 Args:
-    value (float): Valor métrica (CPU%, RAM%, TEMP).
-    warn (float): Umbral warning.
+    value (float): Valor de la métrica (CPU%, RAM%, TEMP).
+    warn (float): Umbral de warning.
     crit (float): Umbral crítico.
 
 Returns:
-    str: Clase color de config.COLORS.
+    str: Clase de color correspondiente.
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
@@ -108,16 +167,36 @@ Returns:
 
 Inicializa el monitor del sistema.
 
-Crea SystemUtils, deques históricos maxlen=HISTORY, cache inicial,
-configura lock y parámetros de polling. Inicia automáticamente el thread.
+Args: Ninguno
+
+Returns: Ninguno
+
+Raises: Ninguno
 
 #### `_poll_loop(self) -> None`
 
-Bucle principal del thread de sondeo background (daemon=True).
+Ejecuta el bucle principal del hilo de sondeo en segundo plano.
+
+Args:
+    Ninguno
+
+Returns:
+    Ninguno
+
+Raises:
+    Ninguno
 
 #### `_do_poll(self) -> None`
 
-Captura rápida de métricas CPU/RAM/TEMP/UPTIME y actualiza caché.
-Maneja exceptions silenciosamente.
+Captura rápida de métricas del sistema y actualiza la caché.
+
+Args: 
+    Ninguno
+
+Returns: 
+    Ninguno
+
+Raises: 
+    Ninguno, las excepciones se manejan silenciosamente.
 
 </details>

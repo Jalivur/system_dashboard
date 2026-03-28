@@ -20,8 +20,16 @@ logger = get_logger(__name__)
 # ── Carga de .env ─────────────────────────────────────────────────────────────
 def _load_env():
     """
-    Carga variables de .env sin dependencias externas.
-    Si python-dotenv está disponible lo usa; si no, parsea el archivo a mano.
+    Carga variables de entorno desde un archivo .env sin utilizar dependencias externas.
+
+    Args: 
+        Ninguno
+
+    Returns: 
+        Ninguno
+
+    Raises: 
+        Ninguno
     """
     env_path = Path(__file__).resolve().parent.parent / ".env"
     if not env_path.exists():
@@ -60,19 +68,31 @@ POLL_INTERVAL_S  = 30  # segundos entre sondeos en background
 
 class HomebridgeMonitor:
     """
-    Monitor y controlador de dispositivos Homebridge.
+    Inicializa y gestiona un monitor para dispositivos Homebridge, 
+    realizando sondeos periódicos y actualizaciones de estado.
 
-    - Sondeo ligero en background cada 30s (1 petición HTTP ~1KB).
-    - La ventana lee self._accessories desde memoria sin petición extra.
-    - Los badges del menú siempre reflejan el estado real.
-    - toggle() fuerza un sondeo inmediato tras el comando.
+    Args:
+        Ninguno
+
+    Returns:
+        Ninguno
+
+    Raises:
+        Ninguno
     """
 
     def __init__(self):
         """
-        Constructor. Inicializa locks, caches, chequea .env vars.
+        Inicializa el monitor de Homebridge.
 
-        Carga HOMEBRIDGE_HOST/PORT/USER/PASS desde .env (manual fallback).
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._token: Optional[str]      = None
         self._token_lock                = threading.Lock()
@@ -102,8 +122,16 @@ class HomebridgeMonitor:
 
     def start(self) -> None:
         """
-        Arranca el sondeo en background.
-        Llamar desde main.py justo después de instanciar.
+        Inicia el sondeo de Homebridge en segundo plano.
+
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
         """
         if self._running:
             return
@@ -122,7 +150,15 @@ class HomebridgeMonitor:
     def stop(self) -> None:
         """
         Detiene el sondeo limpiamente.
-        Llamar en cleanup() de main.py.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._running = False
         self._stop_evt.set()
@@ -137,13 +173,34 @@ class HomebridgeMonitor:
         logger.info("[HomebridgeMonitor] Sondeo detenido")
     
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Indica si el servicio de monitorización de Homebridge está en ejecución.
+
+        Args:
+            Ninguno
+
+        Returns:
+            bool: True si el servicio está corriendo, False en caso contrario.
+
+        Raises:
+            Ninguno
+        """
         return self._running
 
     def _poll_loop(self) -> None:
         """
-        Bucle de background. Primera consulta inmediata al arrancar
-        para poblar los badges lo antes posible.
+        Ejecuta un bucle de sondeo en segundo plano para obtener información de los accesorios de Homebridge.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+
+        Nota: El bucle se ejecuta hasta que se detenga explícitamente.
         """
         while self._running:
             try:
@@ -159,7 +216,18 @@ class HomebridgeMonitor:
     # ── Autenticación ─────────────────────────────────────────────────────────
 
     def _authenticate(self) -> bool:
-        """Obtiene un token JWT. Devuelve True si tiene éxito."""
+        """
+        Autentica con el servidor Homebridge para obtener un token JWT.
+
+        Args: 
+            Ninguno
+
+        Returns:
+            bool: True si la autenticación es exitosa, False en caso contrario.
+
+        Raises:
+            Ninguna excepción específica, pero registra errores en el logger.
+        """
         if not HOMEBRIDGE_HOST:
             logger.error("[HomebridgeMonitor] HOMEBRIDGE_HOST no configurado en .env")
             return False
@@ -191,7 +259,18 @@ class HomebridgeMonitor:
             return False
 
     def _get_token(self) -> Optional[str]:
-        """Devuelve el token actual; si no existe intenta autenticar."""
+        """
+        Obtiene el token de autenticación actual, intentando autenticar si no existe.
+
+        Args:
+            Ninguno
+
+        Returns:
+            str: El token de autenticación actual, o None si la autenticación falla.
+
+        Raises:
+            Ninguno
+        """
         with self._token_lock:
             token = self._token
         if token:
@@ -203,7 +282,18 @@ class HomebridgeMonitor:
 
     def _request(self, method: str, path: str, body: Optional[Dict] = None) -> Optional[Dict]:
         """
-        Petición autenticada. Si el token caduca (401) lo renueva una vez.
+        Realiza una petición autenticada a la API de Homebridge, renovando el token de acceso si caduca.
+
+        Args:
+            method (str): Método HTTP de la petición (p. ej. GET, POST, PUT, DELETE).
+            path (str): Ruta de la petición.
+            body (Optional[Dict]): Datos de la petición en formato JSON.
+
+        Returns:
+            Optional[Dict]: Respuesta de la petición en formato JSON, o None si falla.
+
+        Raises:
+            Exception: Si la petición falla después de renovar el token.
         """
         for attempt in range(2):
             token = self._get_token()
@@ -242,13 +332,19 @@ class HomebridgeMonitor:
 
     def get_accessories(self) -> List[Dict]:
         """
-        Consulta Homebridge y actualiza self._accessories.
-        Ahora reconoce 5 tipos de dispositivo:
-          switch      — característica On (enchufe / interruptor)
-          thermostat  — CurrentTemperature + TargetTemperature
-          sensor      — CurrentTemperature o CurrentRelativeHumidity (solo lectura)
-          blind       — CurrentPosition (persiana / estor)
-          light       — On + Brightness (luz regulable)
+        Recupera la lista de accesorios disponibles en Homebridge.
+
+        Args: 
+            Ninguno
+
+        Returns:
+            List[Dict]: Lista de diccionarios con información de los accesorios.
+
+        Raises:
+            Ninguna excepción específica.
+
+        Nota: Si el monitor no está en ejecución o no se puede conectar a Homebridge, 
+              se devuelve una lista vacía y se actualiza el estado de alcanzabilidad.
         """
         # Si el monitor se ha detenido mientras esta función estaba en ejecución, no actualiza el estado ni el caché.
         if not self._running:
@@ -330,8 +426,16 @@ class HomebridgeMonitor:
 
     def get_accessories_cached(self) -> List[Dict]:
         """
-        Devuelve la lista en memoria sin hacer ninguna petición HTTP.
-        Usar desde la ventana para el refresco visual inmediato.
+        Devuelve la lista de accesorios en memoria sin realizar peticiones HTTP adicionales.
+
+        Args: 
+            Ninguno
+
+        Returns:
+            List[Dict]: La lista de accesorios en memoria.
+
+        Raises:
+            Ninguno
         """
         # Si el monitor se ha detenido, devuelve lista vacía para que la ventana refleje el estado real (sin conexión).
         if not self._running:
@@ -341,9 +445,17 @@ class HomebridgeMonitor:
 
     def toggle(self, unique_id: str, turn_on: bool) -> bool:
         """
-        Cambia el estado On/Off de un accesorio.
-        Tras el comando lanza un sondeo inmediato para que los badges
-        reflejen el cambio sin esperar los 30s del ciclo normal.
+        Cambia el estado On/Off de un accesorio identificado por su ID único.
+
+        Args:
+            unique_id (str): Identificador único del accesorio.
+            turn_on (bool): Nuevo estado del accesorio (True para encender, False para apagar).
+
+        Returns:
+            bool: True si el comando se envió correctamente, False en caso contrario.
+
+        Raises:
+            Ninguna excepción específica.
         """
         # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
         if not self._running:
@@ -369,24 +481,68 @@ class HomebridgeMonitor:
     # ── Métodos de badge (lectura desde memoria, sin HTTP) ────────────────────
 
     def is_reachable(self) -> bool:
-        """True si la última consulta fue exitosa."""
+        """
+        Indica si el dispositivo está alcanzable según la última consulta.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si el dispositivo está alcanzable, False en caso contrario.
+
+        Raises:
+            None
+        """
         return bool(self._reachable)
 
     def get_offline_count(self) -> int:
-        """1 si Homebridge no respondió en la última consulta. 0 en cualquier otro caso."""
+        """
+        Obtiene el número de servicios de Homebridge que se encuentran desconectados.
+
+        Args:
+            None
+
+        Returns:
+            int: 1 si Homebridge no respondió en la última consulta, 0 en caso contrario.
+
+        Raises:
+            None
+        """
         if self._reachable is None:
             return 0  # sin consultar aún — no mostrar badge al arrancar
         return 0 if self._reachable else 1
 
     def get_on_count(self) -> int:
-        """Número de enchufes encendidos. Badge naranja en el menú."""
+        """
+        Obtiene el número de enchufes encendidos.
+
+        Args:
+            None
+
+        Returns:
+            int: Número de enchufes encendidos.
+
+        Raises:
+            None
+        """
         if self._reachable is None:
             return 0
         with self._accessories_lock:
             return sum(1 for a in self._accessories if a.get("on", False))
 
     def get_fault_count(self) -> int:
-        """Número de dispositivos con StatusFault=1. Badge rojo en el menú."""
+        """
+        Obtiene el número de dispositivos con estado de falla.
+
+        Args:
+            Ninguno
+
+        Returns:
+            int: Número de dispositivos con estado de falla.
+
+        Raises:
+            Ninguno
+        """
         if self._reachable is None:
             return 0
         with self._accessories_lock:
@@ -394,14 +550,17 @@ class HomebridgeMonitor:
         
     def set_brightness(self, unique_id: str, brightness: int) -> bool:
         """
-        Establece el brillo de una luz Homebridge (0-100%).
+        Establece el brillo de una luz Homebridge.
 
         Args:
             unique_id (str): ID único del accesorio.
-            brightness (int): Brillo 0-100, clamped.
+            brightness (int): Brillo en porcentaje (0-100).
 
         Returns:
-            bool: True si comando enviado OK.
+            bool: True si el comando se envió correctamente.
+
+        Raises:
+            None
         """
         # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
         if not self._running:
@@ -420,7 +579,19 @@ class HomebridgeMonitor:
         return False
 
     def set_target_temp(self, unique_id: str, temp: float) -> bool:
-        """Establece la temperatura objetivo de un termostato."""
+        """
+        Establece la temperatura objetivo de un termostato.
+
+        Args:
+            unique_id (str): Identificador único del termostato.
+            temp (float): Temperatura objetivo en grados Celsius.
+
+        Returns:
+            bool: True si la operación fue exitosa, False en caso contrario.
+
+        Raises:
+            Ninguna excepción explícita, pero puede fallar debido a errores de red o servicio detenido.
+        """
         # Si el monitor se ha detenido, no intenta enviar comandos y devuelve False para que la ventana muestre el estado real (sin conexión).
         if not self._running:
             logger.warning("[HomebridgeMonitor] set_target_temp() ignorado — servicio parado")

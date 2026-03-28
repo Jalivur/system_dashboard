@@ -18,14 +18,31 @@ Operaciones síncronas, sin threads. Compatible Raspberry Pi OS.
 class AudioService:
 
     """
-    Servicio de control de audio via amixer/aplay.
-    No usa thread daemon — las operaciones son síncronas y puntuales.
-    Cero imports de tkinter/ctk.
+    Servicio de control de audio que interactúa con amixer y aplay para gestionar el volumen del sistema.
+
+        Args:
+            control (str): Control de audio a utilizar, por defecto es "Master".
+
+        Returns:
+            int: Volumen actual como porcentaje (0-100) o -1 en caso de error.
+
+        Raises:
+            subprocess.TimeoutExpired: Si la operación tarda más de 3 segundos.
+            subprocess.CalledProcessError: Si el comando amixer falla.
     """
 
     def __init__(self):
         """
-        Inicializa AudioService (no requiere parámetros).
+        Inicializa el servicio de audio.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
 
         
@@ -35,7 +52,18 @@ class AudioService:
     # ── API pública ───────────────────────────────────────────────────────────
 
     def get_volume(self, control: str = DEFAULT_CONTROL) -> int:
-        """Devuelve el volumen actual (0-100). -1 si error."""
+        """
+        Devuelve el volumen actual como porcentaje.
+
+        Args:
+            control (str): Control de volumen a utilizar, por defecto es DEFAULT_CONTROL.
+
+        Returns:
+            int: Volumen actual como porcentaje (0-100) o -1 en caso de error.
+
+        Raises:
+            Exception: Si ocurre un error al obtener el volumen.
+        """
         try:
             out = subprocess.check_output(
                 ["amixer", "sget", control],
@@ -53,7 +81,19 @@ class AudioService:
         return -1
 
     def set_volume(self, value: int, control: str = DEFAULT_CONTROL) -> bool:
-        """Establece volumen 0-100. Devuelve True si éxito."""
+        """
+        Establece el volumen de audio en un valor específico entre 0 y 100.
+
+        Args:
+            value (int): El valor de volumen a establecer.
+            control (str): El control de volumen a utilizar (por defecto DEFAULT_CONTROL).
+
+        Returns:
+            bool: True si el volumen se estableció correctamente, False en caso de error.
+
+        Raises:
+            Exception: Si ocurre un error al intentar establecer el volumen.
+        """
         value = max(0, min(100, value))
         try:
             subprocess.run(
@@ -66,7 +106,18 @@ class AudioService:
             return False
 
     def is_muted(self, control: str = DEFAULT_CONTROL) -> bool:
-        """Devuelve True si el canal está muteado."""
+        """
+        Determina si el canal de audio especificado está muteado.
+
+        Args:
+            control (str): Nombre del control de audio a verificar, por defecto es el control predeterminado.
+
+        Returns:
+            bool: True si el canal está muteado, False en caso contrario.
+
+        Raises:
+            Exception: Si ocurre un error al intentar obtener el estado del volumen.
+        """
         try:
             out = subprocess.check_output(
                 ["amixer", "sget", control],
@@ -82,7 +133,19 @@ class AudioService:
         return False
 
     def set_mute(self, muted: bool, control: str = DEFAULT_CONTROL) -> bool:
-        """Mutea o desmutea el canal. Devuelve True si éxito."""
+        """
+        Establece el estado de silencio del canal de audio.
+
+        Args:
+            muted (bool): Indica si el canal debe ser muteado o no.
+            control (str): Control del canal de audio (por defecto DEFAULT_CONTROL).
+
+        Returns:
+            bool: True si la operación es exitosa, False en caso de error.
+
+        Raises:
+            Exception: Si ocurre un error durante la ejecución de la operación.
+        """
         state = "mute" if muted else "unmute"
         try:
             subprocess.run(
@@ -95,13 +158,35 @@ class AudioService:
             return False
 
     def toggle_mute(self, control: str = DEFAULT_CONTROL) -> bool:
-        """Invierte el estado mute. Devuelve el nuevo estado (True=muteado)."""
+        """
+        Invierte el estado de mute del control de audio especificado.
+
+        Args:
+            control (str): Control de audio a modificar, por defecto es DEFAULT_CONTROL.
+
+        Returns:
+            bool: El nuevo estado de mute, True si está muteado, False en caso contrario.
+
+        Raises:
+            None
+        """
         muted = self.is_muted(control)
         self.set_mute(not muted, control)
         return not muted
 
     def play_test(self, wav_path: str | None = None) -> None:
-        """Lanza aplay en background. Si wav_path es None usa Front_Center.wav."""
+        """
+        Reproduce un archivo de audio de prueba en segundo plano.
+
+        Args:
+            wav_path (str | None): Ruta del archivo de audio, si es None se utiliza el archivo Front_Center.wav por defecto.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Si ocurre un error durante la reproducción del archivo de audio.
+        """
         path = wav_path or "/usr/share/sounds/alsa/Front_Center.wav"
         try:
             subprocess.Popen(
@@ -113,7 +198,18 @@ class AudioService:
             logger.warning("[AudioService] play_test error: %s", e)
 
     def get_controls(self) -> list[str]:
-        """Devuelve lista de controles amixer disponibles."""
+        """
+        Recupera una lista de controles amixer disponibles.
+
+        Args:
+            No aplica, método sin parámetros.
+
+        Returns:
+            Una lista de strings con los controles disponibles.
+
+        Raises:
+            Excepción general en caso de error, retornando un control predeterminado.
+        """
         try:
             out = subprocess.check_output(
                 ["amixer", "scontrols"],

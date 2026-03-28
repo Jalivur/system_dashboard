@@ -15,7 +15,18 @@ _HISTORY_LINES = 50   # entradas de `last`
 
 
 def _run(cmd: list) -> str:
-    """Ejecuta un comando y devuelve stdout o string vacío si falla."""
+    """
+    Ejecuta un comando y devuelve la salida estándar o una cadena vacía si falla.
+
+    Args:
+        cmd (list): Lista de comando y argumentos a ejecutar.
+
+    Returns:
+        str: Salida estándar del comando ejecutado.
+
+    Raises:
+        Exception: Si ocurre un error durante la ejecución del comando.
+    """
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=10
@@ -28,9 +39,16 @@ def _run(cmd: list) -> str:
 
 def _parse_who(raw: str) -> list:
     """
-    Parsea la salida de `who` y devuelve lista de dicts.
-    Formato típico:
-        jalivur  pts/0        2026-03-04 10:22 (192.168.1.10)
+    Parsea la salida de `who` y devuelve una lista de diccionarios con información de sesión.
+
+    Args:
+        raw (str): Salida de `who` a parsear.
+
+    Returns:
+        list: Lista de diccionarios con claves "user", "tty", "date", "time" e "ip".
+
+    Raises:
+        Ninguna excepción específica.
     """
     sessions = []
     for line in raw.splitlines():
@@ -60,10 +78,16 @@ def _parse_who(raw: str) -> list:
 
 def _parse_last(raw: str) -> list:
     """
-    Parsea la salida de `last -n 50` y devuelve lista de dicts.
-    Formato típico:
-        jalivur  pts/0   192.168.1.10  Tue Mar  4 10:22   still logged in
-        jalivur  pts/1   192.168.1.10  Mon Mar  3 21:10 - 21:45  (00:35)
+    Parsea la salida de `last -n 50` y devuelve una lista de diccionarios con información de sesión.
+
+    Args:
+        raw (str): La salida de `last -n 50` como cadena de texto.
+
+    Returns:
+        list: Lista de diccionarios con claves "user", "tty", "ip" y "time_info".
+
+    Raises:
+        Ninguna excepción es lanzada explícitamente.
     """
     entries = []
     for line in raw.splitlines():
@@ -90,27 +114,31 @@ def _parse_last(raw: str) -> list:
 
 class SSHMonitor:
     """
-    Servicio profesional de monitoreo de sesiones SSH activas e historial.
+    Servicio de monitoreo de sesiones SSH activas e historial.
+
+    Args: Ninguno
+
+    Returns: Ninguno
+
+    Raises: Ninguno
 
     Características:
-    * Polling cada 30s de `who` (sesiones actuales) y `last -n 50` (historial reciente).
-    * Parsing robusto de formatos variable con extracción de user/tty/IP/tiempos.
-    * Thread daemon con lock para acceso concurrente seguro (thread-safe).
-    * Métodos start/stop/is_running para ciclo de vida.
-    * Getters optimizados: bloqueante y no-bloqueante (get_stats).
-    * Logging apropiado para debug/error.
-
-    Datos retornados:
-    - sessions: list[dict{"user", "tty", "date", "time", "ip"}]
-    - history: list[dict{"user", "tty", "ip", "time_info"}]
+    * Inicializa flags de estado, evento de parada, bloqueo de threading y estructuras de datos vacías.
+    * No inicia el monitoreo automáticamente, requiere llamada explícita a start().
     """
 
     def __init__(self):
         """
         Inicializa el monitor SSH.
 
-        Configura flags de estado, event stop, lock threading y estructuras de datos vacías.
-        No inicia polling automáticamente — llamar start().
+        Configura flags de estado, evento de parada, bloqueo de threading y estructuras de datos vacías.
+        No inicia el monitoreo automáticamente, requiere llamada explícita a start().
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         self._running  = False
         self._stop_evt = threading.Event()
@@ -125,10 +153,20 @@ class SSHMonitor:
 
     def start(self):
         """
-        Inicia el servicio de monitoreo en background (thread daemon).
+        Inicia el servicio de monitoreo en segundo plano.
 
-        Primera poll inmediata, luego cada _POLL_INTERVAL segs.
-        Idempotente: si ya corriendo, no hace nada.
+        Args: 
+            Ninguno
+
+        Returns: 
+            Ninguno
+
+        Raises: 
+            Ninguno
+
+        Nota: Si el servicio ya está ejecutándose, este método no tiene efecto.
+        El servicio se ejecuta en un hilo daemon y realiza una primera verificación inmediata,
+        posteriormente ejecuta verificaciones cada intervalo configurado.
         """
         if self._running:
             return
@@ -142,10 +180,13 @@ class SSHMonitor:
 
     def stop(self):
         """
-        Detiene el servicio limpiamente.
+        Detiene el servicio de monitoreo SSH de manera limpia.
 
-        Setea evento stop, join thread (timeout 6s), limpia datos internos.
-        Logging de detención.
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
         """
         self._running = False
         self._stop_evt.set()
@@ -158,17 +199,34 @@ class SSHMonitor:
         logger.info("[SSHMonitor] Servicio detenido")
         
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Verifica si el servicio de monitoreo SSH está en ejecución.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si el servicio está corriendo, False en caso contrario.
+
+        Raises:
+            None
+        """
         return self._running
 
     # ── Loop interno ──────────────────────────────────────────────────────────
 
     def _loop(self):
         """
-        Bucle principal del thread de monitoreo (privado).
+        Ejecuta el bucle principal del thread de monitoreo.
 
-        Poll inicial inmediato + wait(POLL_INTERVAL) entre iteraciones.
-        Sale al detectar _stop_evt.
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         self._poll()   # primera lectura inmediata
         while not self._stop_evt.wait(_POLL_INTERVAL):
@@ -176,11 +234,13 @@ class SSHMonitor:
 
     def _poll(self):
         """
-        Realiza un ciclo de polling completo (privado).
+        Realiza un ciclo de polling completo para obtener información de sesiones activas y historial.
 
-        Ejecuta who/last, parsea, actualiza datos protegidos por lock.
-        Timestamp de última actualización.
-        Manejo de excepciones con log error.
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Exception - Si ocurre un error durante la ejecución, se registra en el log de errores.
         """
         try:
             who_raw  = _run(["who"])
@@ -206,40 +266,68 @@ class SSHMonitor:
 
     def get_sessions(self) -> list:
         """
-        Retorna lista de sesiones SSH activas actuales (copia).
+        Retorna una lista de sesiones SSH activas actuales.
+
+        Args:
+            Ninguno
 
         Returns:
-            list[dict]: [{"user": str, "tty": str, "date": str, "time": str, "ip": str}, ...]
+            list[dict]: Lista de diccionarios con información de sesiones SSH, 
+                         cada diccionario contiene: "user", "tty", "date", "time", "ip".
+
+        Raises:
+            Ninguno
         """
         with self._lock:
             return list(self._sessions)
 
     def get_history(self) -> list:
         """
-        Retorna historial reciente de logins (últimas 50 entradas, copia).
+        Retorna el historial reciente de logins.
+
+        Args:
+            Ninguno
 
         Returns:
-            list[dict]: [{"user": str, "tty": str, "ip": str, "time_info": str}, ...]
+            list[dict]: Lista de diccionarios con información de los últimos logins. 
+                         Cada diccionario contiene: "user" (str), "tty" (str), "ip" (str) y "time_info" (str).
+
+        Raises:
+            Ninguno
         """
         with self._lock:
             return list(self._history)
 
     def get_last_update(self) -> str:
         """
-        Retorna timestamp de última actualización (HH:MM:SS, copia).
+        Retorna el timestamp de la última actualización en formato HH:MM:SS.
+
+        Args:
+            Ninguno
 
         Returns:
-            str: Formato "%H:%M:%S" o vacío si no actualizado.
+            str: Fecha y hora de última actualización en formato "%H:%M:%S" o cadena vacía si no se ha actualizado.
+
+        Raises:
+            Ninguno
         """
         with self._lock:
             return self._last_update
 
     def get_stats(self) -> dict:
         """
-        Lectura no bloqueante de snapshot completo — si lock ocupado devuelve datos vacíos.
+        Obtiene un snapshot completo de las estadísticas actuales del monitor SSH.
+
+        Args:
+            Ninguno
 
         Returns:
-            dict: {"sessions": list, "history": list, "last_update": str}
+            dict: Un diccionario con las estadísticas, incluyendo "sessions", "history" y "last_update".
+
+        Raises:
+            Ninguno
+
+        Notas: Si el bloqueo interno está ocupado, devuelve un diccionario vacío.
         """
         acquired = self._lock.acquire(blocking=False)
         if not acquired:

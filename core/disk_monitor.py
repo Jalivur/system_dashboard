@@ -14,11 +14,28 @@ logger = get_logger(__name__)
 
 
 class DiskMonitor:
-    """Monitor de disco con historial"""
+    """
+    Inicializa el monitor de disco con historial y configuraciones de caché y actualización.
+
+    Args: 
+        None
+
+    Returns: 
+        None
+
+    Raises: 
+        None
+    """
 
     def __init__(self):
         """
-        Inicializa monitor disco, histories deque(HISTORY), cache thread-safe, deltas IO.
+        Inicializa el monitor de disco con historiales y caché.
+
+        Args: None
+
+        Returns: None
+
+        Raises: None
         """
         self._system_utils = SystemUtils()
 
@@ -46,7 +63,16 @@ class DiskMonitor:
 
     def start(self):
         """
-        Inicia thread daemon polling cada _interval_s.
+        Inicia el monitoreo del disco en segundo plano.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if self._running:
             return
@@ -61,7 +87,16 @@ class DiskMonitor:
 
     def stop(self):
         """
-        Detiene polling, limpia cache, join thread (timeout 5s).
+        Detiene el monitoreo del disco y libera recursos asociados.
+
+        Args: 
+            None
+
+        Returns: 
+            None
+
+        Raises: 
+            None
         """
         self._running = False
         self._stop_evt.set()
@@ -78,12 +113,32 @@ class DiskMonitor:
 
         
     def is_running(self) -> bool:
-        """Verifica si el servicio está corriendo."""
+        """
+        Indica si el servicio de monitoreo de disco está en ejecución.
+
+        Args:
+            None
+
+        Returns:
+            bool: True si el servicio está corriendo, False de lo contrario.
+
+        Raises:
+            None
+        """
         return self._running
 
     def _poll_loop(self) -> None:
         """
-        Bucle daemon principal: _do_poll() cada self._interval_s segs.
+        Ejecuta el bucle principal de monitoreo de disco de forma continua.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._do_poll()
         while self._running:
@@ -95,7 +150,16 @@ class DiskMonitor:
 
     def _do_poll(self):
         """
-        Sondeo disk_usage% / delta IO MB/s / nvme_temp, update cache/history.
+        Realiza un sondeo del uso del disco y actualiza la caché e historial.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            Exception: si ocurre un error durante el sondeo o actualización.
         """
         try:
             disk_usage = psutil.disk_usage('/').percent
@@ -126,8 +190,16 @@ class DiskMonitor:
 
     def get_current_stats(self) -> Dict:
         """
-        Retorna stats cache actuales disk_usage%/read/write MB/s/nvme_temp.
-        Thread-safe, 0s si stopped.
+        Retorna las estadísticas actuales del disco, incluyendo uso del disco, temperatura NVMe y velocidad de lectura/escritura.
+
+        Args:
+            None
+
+        Returns:
+            Dict: Un diccionario con las estadísticas actuales del disco.
+
+        Raises:
+            None
         """
         if not self._running:
             return {
@@ -144,10 +216,17 @@ class DiskMonitor:
 
     def update_history(self, stats: Dict) -> None:
         """
-        Actualiza historiales con estadísticas actuales.
+        Actualiza los historiales de estadísticas del disco con los datos proporcionados.
 
         Args:
-            stats: Diccionario con estadísticas
+            stats (Dict): Diccionario que contiene las estadísticas actuales del disco, 
+                          incluyendo 'disk_usage', 'disk_read_mb', 'disk_write_mb' y 'nvme_temp'.
+
+        Returns:
+            None
+
+        Raises:
+            KeyError: Si el diccionario stats no contiene alguna clave esperada.
         """
         self._usage_hist.append(stats['disk_usage'])
         self._read_hist.append(stats['disk_read_mb'])
@@ -156,10 +235,16 @@ class DiskMonitor:
 
     def get_history(self) -> Dict:
         """
-        Obtiene todos los historiales.
+        Obtiene todos los historiales de uso y rendimiento del disco.
+
+        Args:
+            No requiere parámetros.
 
         Returns:
-            Diccionario con historiales
+            Diccionario con historiales de uso de disco, lecturas, escrituras y temperatura de NVMe.
+
+        Raises:
+            No lanza excepciones.
         """
         return {
             'disk_usage': list(self._usage_hist),
@@ -170,19 +255,16 @@ class DiskMonitor:
 
     def get_nvme_smart(self) -> dict:
         """
-        Devuelve métricas SMART extendidas del NVMe via smartctl.
+        Recupera las métricas SMART extendidas del dispositivo NVMe mediante smartctl.
 
-        Requiere en sudoers:
-            usuario ALL=(ALL) NOPASSWD: /usr/bin/smartctl
+        Args:
+            Ninguno.
 
-        Campos devueltos:
-            power_on_hours    — horas de uso total
-            power_cycles      — veces encendido
-            unsafe_shutdowns  — apagados sin guardar
-            data_written_tb   — TB escritos en vida
-            data_read_tb      — TB leídos en vida
-            percentage_used   — % de vida útil consumida (0=nuevo, 100=al límite)
-            available         — False si smartctl falla o no hay NVMe
+        Returns:
+            Un diccionario con las métricas SMART extendidas del NVMe.
+
+        Raises:
+            No se lanzan excepciones explícitas, pero puede fallar si no hay dispositivo NVMe disponible o si smartctl no está instalado.
         """
         if not self._running:
             return {'available': False}
@@ -236,15 +318,18 @@ class DiskMonitor:
     @staticmethod
     def level_color(value: float, warn: float, crit: float) -> str:
         """
-        Determina color según nivel.
+        Determina el color según el nivel de un valor en relación con umbrales de advertencia y crítico.
 
         Args:
-            value: Valor actual
-            warn:  Umbral de advertencia
-            crit:  Umbral crítico
+            value (float): Valor actual
+            warn (float): Umbral de advertencia
+            crit (float): Umbral crítico
 
         Returns:
-            Color en formato hex
+            str: Color en formato hex
+
+        Raises:
+            None
         """
         if value >= crit:
             return COLORS['danger']

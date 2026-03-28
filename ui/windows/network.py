@@ -16,14 +16,33 @@ _GRAPH_H = 110
 
 
 class NetworkWindow(ctk.CTkToplevel):
-    """Ventana de monitoreo de red"""
+    """
+    Ventana emergente para monitorear el estado de la red.
+
+    Args:
+        parent: Widget padre que crea esta ventana.
+        network_monitor: Instancia del monitor de red para obtener estadísticas.
+
+    Raises:
+        Ninguna excepción específica.
+
+    Returns:
+        Ningún valor de retorno.
+    """
 
     def __init__(self, parent, network_monitor):
-        """Inicializa la ventana de monitoreo de red.
+        """
+        Inicializa la ventana de monitoreo de red.
 
         Args:
             parent: Widget padre (CTkToplevel).
             network_monitor: Instancia del monitor de red para obtener estadísticas.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         super().__init__(parent)
         self._network_monitor = network_monitor
@@ -46,15 +65,17 @@ class NetworkWindow(ctk.CTkToplevel):
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _create_ui(self):
-        """Crea la estructura principal de la interfaz de usuario de la ventana de red.
+        """
+        Crea la estructura principal de la interfaz de usuario de la ventana de red.
 
-        Esta método configura:
-         - Frame principal con colores del tema.
-         - Header con título 'MONITOR DE RED', botón cerrar y label de status.
-         - Contenedor scrollable con canvas y scrollbar vertical estilizado.
-         - Frame interno vinculado para contenido dinámico.
+        Args:
+            Ninguno
 
-        Llama a _build_content para poblar celdas.
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
         """
         main = ctk.CTkFrame(self, fg_color=COLORS['bg_medium'])
         main.pack(fill="both", expand=True, padx=5, pady=5)
@@ -86,7 +107,18 @@ class NetworkWindow(ctk.CTkToplevel):
         self._build_content(self._inner)
 
     def _build_content(self, inner):
-        """Construye el contenido scrollable (se puede reconstruir al reanudar)."""
+        """
+        Construye el contenido scrollable de la ventana de red.
+
+        Args:
+            inner: El contenedor interno donde se construirá el contenido.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         grid = ctk.CTkFrame(inner, fg_color=COLORS['bg_medium'])
         grid.pack(fill="x")
         grid.grid_columnconfigure(0, weight=1)
@@ -100,13 +132,21 @@ class NetworkWindow(ctk.CTkToplevel):
     # ── Celdas ───────────────────────────────────────────────────────────────
 
     def _create_traffic_cell(self, parent, row, col, title, key):
-        """Crea una celda de tráfico de red (descarga/subida) con gráfica.
+        """
+        Crea una celda de tráfico de red con gráfica para mostrar datos de descarga o subida.
 
         Args:
-            parent: Frame contenedor.
-            row, col: Posición en grid.
+            parent: Frame contenedor de la celda.
+            row: Número de fila en el grid.
+            col: Número de columna en el grid.
             title: Título de la celda.
-            key: Identificador ('download' o 'upload').
+            key: Identificador de la celda ('download' o 'upload').
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
@@ -127,7 +167,20 @@ class NetworkWindow(ctk.CTkToplevel):
         self._graphs[key] = graph
 
     def _create_interfaces_cell(self, parent, row, col):
-        """Crea la celda que muestra interfaces de red activas e IPs."""
+        """
+        Crea la celda que muestra interfaces de red activas e IPs.
+
+        Args:
+            parent: El padre de la celda.
+            row (int): La fila de la celda.
+            col (int): La columna de la celda.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
@@ -140,7 +193,20 @@ class NetworkWindow(ctk.CTkToplevel):
         self._update_interfaces()
 
     def _create_speedtest_cell(self, parent, row, col):
-        """Crea la celda para ejecutar y mostrar resultados de speedtest."""
+        """
+        Crea la celda para ejecutar y mostrar resultados de speedtest.
+
+        Args:
+            parent: El padre de la celda.
+            row: La fila donde se ubicará la celda.
+            col: La columna donde se ubicará la celda.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         cell = ctk.CTkFrame(parent, fg_color=COLORS['bg_dark'], corner_radius=8)
         cell.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
@@ -162,7 +228,18 @@ class NetworkWindow(ctk.CTkToplevel):
     # ── Interfaces ───────────────────────────────────────────────────────────
 
     def _update_interfaces(self):
-        """Actualiza la lista de interfaces de red con sus direcciones IP."""
+        """
+        Actualiza la lista de interfaces de red con sus direcciones IP.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         for w in self._interfaces_container.winfo_children():
             w.destroy()
 
@@ -193,7 +270,18 @@ class NetworkWindow(ctk.CTkToplevel):
     # ── Speedtest ─────────────────────────────────────────────────────────────
 
     def _run_speedtest(self):
-        """Inicia la ejecución de un test de velocidad de red."""
+        """
+        Inicia la ejecución de un test de velocidad de red.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         result = self._network_monitor.get_speedtest_result()
         if result['status'] == 'running':
             return
@@ -203,7 +291,18 @@ class NetworkWindow(ctk.CTkToplevel):
         self._speedtest_result.configure(text="Ejecutando...", text_color=COLORS['warning'])
 
     def _update_speedtest(self):
-        """Actualiza la visualización del resultado del speedtest según su estado."""
+        """
+        Actualiza la visualización del resultado del speedtest según su estado.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         result = self._network_monitor.get_speedtest_result()
         status = result['status']
         if status == 'idle':
@@ -229,7 +328,18 @@ class NetworkWindow(ctk.CTkToplevel):
     # ── Update loop ───────────────────────────────────────────────────────────
 
     def _update(self):
-        """Actualiza la interfaz de usuario periódicamente con datos del monitor de red."""
+        """
+        Actualiza la interfaz de usuario de la ventana de red con datos del monitor de red.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Ninguno
+        """
         if not self.winfo_exists():
             return
 

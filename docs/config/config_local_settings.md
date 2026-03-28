@@ -2,8 +2,16 @@
 
 > **Ruta**: `config/local_settings.py`
 
+> **Cobertura de documentación**: N/A (0/0)
+
 Overrides locales — generado automáticamente.
 No editar manualmente: usa la ventana de configuración del dashboard.
+
+---
+
+## Dependencias internas
+
+- `config.settings`
 
 ## Imports
 

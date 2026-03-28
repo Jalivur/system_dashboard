@@ -2,6 +2,8 @@
 
 > **Ruta**: `ui/main_badges.py`
 
+> **Cobertura de documentación**: 🟢 100% (7/7)
+
 Gestor de badges del menu principal.
 
 Los badges son indicadores visuales circulares superpuestos sobre los botones
@@ -14,6 +16,22 @@ Uso en MainWindow:
     self._badge_mgr.update("updates", value=3)
     self._badge_mgr.update_temp("temp_fan", temp=72, color="#ff4444")
 
+---
+
+## Tabla de contenidos
+
+**Clase [`BadgeManager`](#clase-badgemanager)**
+  - [`create()`](#createself-btn-key-str-offset_index-int-0-none)
+  - [`update()`](#updateself-key-str-value-int-color-str-none-none)
+  - [`update_temp()`](#update_tempself-key-str-temp-int-color-str-none)
+  - [`hide()`](#hideself-key-str-none)
+
+---
+
+## Dependencias internas
+
+- `config.settings`
+
 ## Imports
 
 ```python
@@ -23,11 +41,13 @@ from config.settings import COLORS, FONT_FAMILY, Icons
 
 ## Clase `BadgeManager`
 
-Crea y actualiza los badges de notificacion sobre los botones del menu.
+Administrador de badges de notificación para botones del menú.
 
-Cada badge es un Canvas circular flotante (place) anclado a la esquina
-superior derecha del boton padre. Multiples badges en un mismo boton se
-desplazan horizontalmente via offset_index.
+Args:
+    menu_btns (dict): Diccionario de botones del menú {etiqueta → CTkButton}.
+
+Nota: Utiliza este diccionario para obtener el widget padre y recrear los badges 
+      después de un cambio de pestaña.
 
 ### Atributos privados
 
@@ -39,57 +59,80 @@ desplazan horizontalmente via offset_index.
 
 #### `create(self, btn, key: str, offset_index: int = 0) -> None`
 
-Crea un badge sobre btn y lo registra bajo key.
-Si ya existia un badge con esa key lo sobreescribe.
+Crea un badge sobre un botón y lo registra bajo una clave específica.
 
 Args:
-    btn:          CTkButton padre
-    key:          clave interna (ej. "updates", "temp_fan")
-    offset_index: desplazamiento horizontal (0 = mas a la derecha)
+    btn: CTkButton padre sobre el que se creará el badge.
+    key (str): Clave interna para registrar el badge (ej. "updates", "temp_fan").
+    offset_index (int): Desplazamiento horizontal del badge (0 = más a la derecha). Por defecto es 0.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `update(self, key: str, value: int, color: str = None) -> None`
 
-Muestra u oculta el badge segun value.
+Actualiza la visualización de un badge según su valor.
 
 Args:
-    key:   clave del badge
-    value: si > 0 muestra el badge; si == 0 lo oculta
-    color: color de fondo opcional; si None usa danger o warning segun key
+    key (str): Clave del badge a actualizar.
+    value (int): Valor del badge; mayor que 0 lo muestra, igual a 0 lo oculta.
+    color (str, opcional): Color de fondo del badge; si no se proporciona, se usa danger o warning según la clave.
+
+Returns:
+    None
+
+Raises:
+    Ninguna excepción específica.
 
 #### `update_temp(self, key: str, temp: int, color: str) -> None`
 
-Muestra el badge con valor de temperatura.
+Actualiza el valor de temperatura de un badge existente.
 
 Args:
-    key:   clave del badge
-    temp:  valor entero de temperatura
-    color: color de fondo
+    key (str): Clave del badge a actualizar.
+    temp (int): Nuevo valor de temperatura.
+    color (str): Color de fondo del badge.
+
+Returns:
+    None
+
+Raises:
+    None
 
 #### `hide(self, key: str) -> None`
 
-Oculta el badge sin cambiar su valor.
+Oculta el badge asociado a la clave dada sin modificar su valor.
 
 Args:
-    key: Clave del badge a ocultar
+    key (str): Clave del badge a ocultar.
+
+Returns:
+    None
+
+Raises:
+    None
 
 <details>
 <summary>Métodos privados</summary>
 
 #### `__init__(self, menu_btns: dict)`
 
+Inicializa el administrador de insignias con una referencia a los botones del menú.
+
 Args:
-    menu_btns: referencia al dict {label → CTkButton} de MainWindow.
-               Se usa para recuperar el widget padre al recrear badges
-               tras un cambio de pestana.
+    menu_btns (dict): Diccionario de botones del menú donde cada clave es una etiqueta y cada valor es un CTkButton.
 
 #### `__contains__(self, key: str) -> bool`
 
-Verifica si existe badge con la clave dada.
+Determina si existe un badge con la clave dada.
 
 Args:
-    key: Clave a verificar
+    key (str): Clave a verificar
 
 Returns:
-    True si existe el badge
+    bool: True si existe el badge, False en caso contrario
 
 </details>

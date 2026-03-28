@@ -92,14 +92,26 @@ _DEFAULT_CONFIG = {
 
 
 class ServiceRegistry:
-    """Registro centralizado de servicios del dashboard."""
+    """
+    Registro centralizado de servicios del dashboard.
+
+    Args:
+        config_path: Ruta opcional al archivo services.json
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
 
     def __init__(self, config_path: str = None):
         """
         Inicializa el registro de servicios.
-        
+
         Args:
-            config_path: Ruta opcional al archivo services.json
+            config_path (str): Ruta opcional al archivo de configuración services.json.
+
         """
         self._config_path = os.path.abspath(config_path or _CONFIG_PATH)
         self._config = {
@@ -112,7 +124,15 @@ class ServiceRegistry:
     # ── Configuración ─────────────────────────────────────────────────────────
 
     def _load_config(self):
-        """Carga services.json. Si no existe lo crea con valores por defecto."""
+        """
+        Carga la configuración desde services.json y la inicializa con valores por defecto si no existe.
+
+        Args: Ninguno
+
+        Returns: Ninguno
+
+        Raises: Ninguno
+        """
         if os.path.exists(self._config_path):
             try:
                 with open(self._config_path, "r") as f:
@@ -128,9 +148,21 @@ class ServiceRegistry:
             logger.info("[ServiceRegistry] services.json creado en %s", self._config_path)
 
     def save_config(self):
-        """Persiste la configuración actual (_config) al JSON.
-        No lee el estado live de los servicios — guarda lo que se haya
-        establecido explícitamente via set_service_enabled()."""
+        """
+        Persiste la configuración actual al archivo JSON.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Si ocurre un error al guardar la configuración.
+
+        Nota: No lee el estado live de los servicios, guarda lo que se haya establecido 
+              explícitamente.
+        """
         try:
             os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
             with open(self._config_path, "w") as f:
@@ -140,18 +172,53 @@ class ServiceRegistry:
             logger.error("[ServiceRegistry] Error guardando config: %s", e)
 
     def set_service_enabled(self, key: str, enabled: bool) -> None:
-        """Marca un servicio como habilitado/deshabilitado en la config y persiste."""
+        """
+        Establece si un servicio está habilitado o deshabilitado en la configuración.
+
+        Args:
+            key (str): La clave del servicio a actualizar.
+            enabled (bool): El nuevo estado de habilitación del servicio.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._config["services"][key] = enabled
         self.save_config()
 
     # ── Registro y acceso ─────────────────────────────────────────────────────
 
     def register(self, key: str, instance) -> None:
-        """Registra un servicio. Solo lo almacena, no lo para ni arranca."""
+        """
+        Registra un servicio en el registro de servicios.
+
+        Args:
+            key (str): La clave única para identificar el servicio.
+            instance: La instancia del servicio a registrar.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._services[key] = instance
 
     def apply_config(self) -> None:
-        """Para todos los servicios configurados como False en services.json."""
+        """
+        Aplica la configuración de servicios, deteniendo aquellos que estén configurados como deshabilitados en services.json.
+
+        Args:
+            Ninguno
+
+        Returns:
+            Ninguno
+
+        Raises:
+            Exception: Si ocurre un error al detener un servicio.
+        """
         for key, svc in self._services.items():
             enabled = self._config["services"].get(key, True)
             if not enabled:
@@ -162,19 +229,56 @@ class ServiceRegistry:
                     logger.error("[ServiceRegistry] Error parando %s: %s", key, e)
 
     def get(self, key: str):
-        """Devuelve la instancia de un servicio por clave."""
+        """
+        Recuperar la instancia de un servicio registrada por su clave.
+
+        Args:
+            key (str): Clave del servicio a recuperar.
+
+        Returns:
+            La instancia del servicio asociada a la clave, o None si no existe.
+        """
         return self._services.get(key)
 
     def get_all(self) -> dict:
-        """Devuelve todos los servicios registrados."""
+        """
+        Devuelve un diccionario con todos los servicios registrados.
+
+        Args:
+            Ninguno
+
+        Returns:
+            dict: Un diccionario con todos los servicios registrados.
+
+        Raises:
+            Ninguno
+        """
         return dict(self._services)
 
     # ── Consultas de configuración ────────────────────────────────────────────
 
     def service_enabled(self, key: str) -> bool:
-        """True si el servicio está configurado para arrancar."""
+        """
+        Determina si un servicio específico está configurado para arrancar.
+
+        Args:
+            key (str): Clave del servicio a verificar.
+
+        Returns:
+            bool: True si el servicio está configurado para arrancar, False en caso contrario.
+
+        """
         return self._config["services"].get(key, True)
 
     def ui_enabled(self, key: str) -> bool:
-        """True si el botón de UI está habilitado en la configuración."""
+        """
+        Determina si un elemento de la interfaz de usuario está habilitado según la configuración.
+
+        Args:
+            key (str): La clave de configuración para verificar.
+
+        Returns:
+            bool: True si el elemento de la interfaz de usuario está habilitado, False en caso contrario.
+
+        """
         return self._config["ui"].get(key, True)
