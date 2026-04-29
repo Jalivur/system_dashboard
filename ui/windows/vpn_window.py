@@ -31,7 +31,7 @@ _SCRIPTS = {
         "connect":    str(SCRIPTS_DIR / "conectar_wireguard.sh"),
         "disconnect": str(SCRIPTS_DIR / "desconectar_wireguard.sh"),
         "label":      "WireGuard",
-        "iface":      "pi5aeq",
+        "iface":      "wg0",
     },
 }
 

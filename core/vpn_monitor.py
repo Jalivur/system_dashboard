@@ -1,7 +1,7 @@
 """
 Monitor de estado de VPN dual (OpenVPN + WireGuard).
 
-Monitoriza simultáneamente las interfaces tun0 (OpenVPN) y pi5aeq (WireGuard).
+Monitoriza simultáneamente las interfaces tun0 (OpenVPN) y wg0 (WireGuard).
 Sin dependencias nuevas — usa subprocess con comandos estándar.
 """
 import subprocess
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 # ── Interfaces monitorizadas ──────────────────────────────────────────────────
 VPN_INTERFACES = {
     "openvpn":   "tun0",
-    "wireguard": "pi5aeq",
+    "wireguard": "wg0",
 }
 
 # Intervalo de sondeo (segundos)
@@ -26,7 +26,7 @@ class VpnMonitor:
     """
     Servicio background que monitoriza el estado de ambas VPNs simultáneamente.
 
-    Expone estado independiente para OpenVPN (tun0) y WireGuard (pi5aeq).
+    Expone estado independiente para OpenVPN (tun0) y WireGuard (wg0).
     Sigue el patrón daemon estándar del proyecto.
     """
 
